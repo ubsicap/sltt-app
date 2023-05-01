@@ -1,0 +1,29 @@
+{
+  "name": "sltt_video_compressor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "bin": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "pkg-mac": "pkg . --targets node12-macos-x64 --out-path ./install_mac",
+    "deploy-mac-prd": "aws s3 cp install_mac/compress s3://sltt-hosting-prd/mac/compress; aws s3 cp install_mac/sltt_video_compressor s3://sltt-hosting-prd/mac/sltt_video_compressor",
+
+    "build-win": "pkg . --targets node12-win-x64 --out-path ./install_win",
+    "deploy-win-dev": "aws s3 cp install_win/sltt_video_compressor.exe s3://sltt-hosting-dev/win/sltt_video_compressor.exe"
+    },
+  "pkg": {
+    "assets": [
+      "src/extraResources/macos/**/*"
+    ]
+  },
+  "dependencies": {
+    "check-disk-space": "^2.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "formidable": "^1.2.2"
+  },
+  "devDependencies": {
+    "pkg": "^4.4.9"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "title": "SLTT Video Compresser",
+  "background-color": "#DCDCDC",
+  "contents": [
+    { "x": 50, "y": 500, "type": "position", "path": ".background" },
+    { "x": 395, "y": 190, "type": "link", "path": "/Applications" },
+    { "x": 135, "y": 190, "type": "file", "path": "sltt_video_compressor" }
+  ]
+}

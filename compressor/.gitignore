@@ -1,0 +1,5 @@
+/node_modules
+/build
+**/*.exe
+**/*.dmg
+install_mac/sltt_video_compressor

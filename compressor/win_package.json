@@ -1,0 +1,22 @@
+{
+  "name": "sltt_video_compressor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "bin": "index.js",
+  "license": "MIT",
+  "pkg": {
+    "assets": [
+      "src/extraResources/win32/**/*"
+    ]
+  },
+  "dependencies": {
+    "check-disk-space": "^2.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "fluent-ffmpeg": "^2.1.2",
+    "formidable": "^1.2.2"
+  },
+  "devDependencies": {
+    "pkg": "^4.4.9"
+  }
+}
