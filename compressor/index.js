@@ -216,9 +216,11 @@ async function initialize() {
     try {
         let { resourcesPath, videosPath } = _config
         let mkdir = util.promisify(fs.mkdir)
-        let rmdir = util.promisify(fs.rmdir)
+        let rmdir = util.promisify(fs.rm)
         await mkdir(resourcesPath, { recursive: true })
-        await rmdir(videosPath, { recursive: true })   // Remove any old videos
+        if (fs.existsSync(videosPath)) {
+            await rmdir(videosPath, { recursive: true })   // Remove any old videos
+        }
         await mkdir(videosPath, { recursive: true })
         console.log('Directory created successfully.')
         await copyResources()
@@ -229,18 +231,22 @@ async function initialize() {
 
 // Copy ffmpeg/ffprobe to TEMP directory on local filesystem
 async function copyResources() {
-    let { oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath } = _config
+    let { oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath, platform } = _config
 
     let shouldCopyResources = await versionFileIsOlderThanServer()
     if (shouldCopyResources) {
         console.log('Copy resources')
 
-        await copyFile(oldFfmpegPath, ffmpegPath)
-        await chMod(ffmpegPath, 0o777)
-
-        await copyFile(oldFfprobePath, ffprobePath)
-        await chMod(ffprobePath, 0o777)
-
+        if (platform === 'linux') {
+            await copyFile('/usr/bin/ffmpeg', ffmpegPath)
+            await copyFile('/usr/bin/ffprobe', ffmpegPath)
+        } else {
+            await copyFile(oldFfmpegPath, ffmpegPath)
+            await chMod(ffmpegPath, 0o777)
+    
+            await copyFile(oldFfprobePath, ffprobePath)
+            await chMod(ffprobePath, 0o777)
+        }
         await createVersionFile()
     }
 }

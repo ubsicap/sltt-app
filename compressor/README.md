@@ -231,3 +231,9 @@ We are using the following versions of ffmpeg/ffprobe:
 
 - Windows: 2021-03-31-git-61ea0e3191
 - macOS: 101778-g84ac35ecb8
+
+For linux (dev builds) 
+[use sudo apt install ffmpeg]
+Then the following will be copied to resources
+- /usr/bin/ffmpeg
+- /usr/bin/ffprobe

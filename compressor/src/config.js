@@ -18,4 +18,4 @@ const ffprobePath = path.join(resourcesPath, `/ffprobe-x64${getFileExtension()}`
 
 const version = '1.0'
 
-module.exports = { resourcesPath, videosPath, oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath, version }
+module.exports = { resourcesPath, videosPath, oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath, version, platform }
