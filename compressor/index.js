@@ -20,8 +20,8 @@ let jsonParser = bodyParser.json({ strict: false })
 app.use(jsonParser)
 
 app.get('/version', (req, res) => {
-    let { version } = _config
-    res.send({ version })
+    let { version, ffmpegPath, ffprobePath } = _config
+    res.send({ version, ffmpegPath, ffprobePath })
 })
 
 // Upload file
