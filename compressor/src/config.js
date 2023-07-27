@@ -9,6 +9,8 @@ let path = require('path')
 
 // To make sure the express service is running:
 // http://localhost:29678/version
+
+// To make sure ffmpeg files got installed as expected:
 // http://localhost:29678/ffmpeg/stats
 
 const tmpDirectory = path.join(os.tmpdir(), '/compression-server')
