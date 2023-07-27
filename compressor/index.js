@@ -24,6 +24,23 @@ app.get('/version', (req, res) => {
     res.send({ version, ffmpegPath, ffprobePath })
 })
 
+app.get('/ffmpeg/stats', async (req, res, next) => {
+    const { ffmpegPath, ffprobePath, oldFfmpegPath, oldFfprobePath } = _config
+    const stat = util.promisify(fs.stat)
+    try {
+        const ffmpegOldStats = await stat(oldFfmpegPath)
+        const ffprobeOldStats = await stat(oldFfprobePath)
+        const ffmpegStats = await stat(ffmpegPath)
+        const ffprobeStats = await stat(ffprobePath)
+        res.send({
+            oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath,
+            ffmpegOldStats, ffprobeOldStats, ffmpegStats, ffprobeStats
+        })
+    } catch (error) {
+        return next(error)
+    }
+})
+
 // Upload file
 app.put('/', (req, res, next) => {
     const KB_PER_GIGABYTE = 1024 * 1024 * 1024

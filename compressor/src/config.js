@@ -12,22 +12,22 @@ const getFileExtension = () => os.platform() === 'win32' ? '.exe' : ''
 
 let platform = os.platform() === 'win32' ? 'win32' : 'macos'
 
-const oldFfmpegPath = path.join(__dirname, `/extraResources/${platform}/ffmpeg-x64${getFileExtension()}`)
-const oldFfprobePath = path.join(__dirname, `/extraResources/${platform}/ffprobe-x64${getFileExtension()}`)
-const ffmpegPath = require('ffmpeg-static').replace(
+// const oldFfmpegPath = path.join(__dirname, `/extraResources/${platform}/ffmpeg-x64${getFileExtension()}`)
+// const oldFfprobePath = path.join(__dirname, `/extraResources/${platform}/ffprobe-x64${getFileExtension()}`)
+const oldFfmpegPath = require('ffmpeg-static').replace(
     'app.asar',
     'app.asar.unpacked'
 );
-const ffprobePath = require('ffprobe-static').path.replace(
+const oldFfprobePath = require('ffprobe-static').path.replace(
     'app.asar',
     'app.asar.unpacked'
 );
 
-console.log(`ffmpegPath: ${ffmpegPath}`)
-console.log(`ffprobePath: ${ffprobePath}`)
+console.log(`oldFfmpegPath: ${oldFfmpegPath}`)
+console.log(`oldFfprobePath: ${oldFfprobePath}`)
 
-// const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
-// const ffprobePath = path.join(resourcesPath, `/ffprobe-x64${getFileExtension()}`)
+const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
+const ffprobePath = path.join(resourcesPath, `/ffprobe-x64${getFileExtension()}`)
 
 const version = '1.0'
 
