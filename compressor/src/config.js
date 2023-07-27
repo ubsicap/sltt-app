@@ -2,6 +2,15 @@
 let os = require('os')
 let path = require('path')
 
+// NOTE: to enable cmd/cli console output from electron main window (in Windows):
+// > set ELECTRON_ENABLE_LOGGING=true
+// > cd C:\Users\{user}\AppData\Local\Programs\sltt-electron
+// > sltt-electron.exe
+
+// To make sure the express service is running:
+// http://localhost:29678/version
+// http://localhost:29678/ffmpeg/stats
+
 const tmpDirectory = path.join(os.tmpdir(), '/compression-server')
 console.log(`Temporary directory: ${tmpDirectory}`)
 
