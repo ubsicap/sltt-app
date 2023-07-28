@@ -14,6 +14,9 @@ asarUnpack:
 afterSign: build/notarize.js
 win:
   executableName: sltt-electron
+  extraResources:
+    - node_modules/ffmpeg-static/ffmpeg.exe
+    - node_modules/ffprobe-static/bin/win32/${arch}/ffprobe.exe
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
