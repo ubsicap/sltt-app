@@ -34,7 +34,10 @@ function createWindow(): void {
   if (is.dev) {
     mainWindow.loadURL('http://localhost:3000/')
   } else {
-    mainWindow.loadURL('https://sltt-bible.net')
+    console.log(__dirname)
+    // mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    // mainWindow.loadURL('https://sltt-bible.net')
   }
 }
 
