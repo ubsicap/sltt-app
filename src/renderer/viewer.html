@@ -1,0 +1,28 @@
+<html>
+    <head>
+        <title>Viewer</title>
+        <style>
+            video {
+                width: 90vw;
+                height: 90vh;
+            }
+        </style>
+    </head>
+    <body>
+        <script>
+            window.onload = () => {
+                let stage = location.origin.includes('-prd') ? 'prd' : 'dev'
+                let search = location.search.slice(1)
+
+                // Facebook like to add additional parameters after our url.
+                // Ignore all but the first parameter in the query string.
+                search = search.split('&')[0]
+
+                let url = 'https://sltt-videos-' + stage + '.s3.amazonaws.com/' + search
+                // url = 'https://sltt-videos-dev.s3.amazonaws.com/TEST10/public/1628885165953.mp4' 
+                document.getElementById('video1').src = url
+            }
+        </script>
+        <video id="video1" controls autoplay muted="true" />
+    </body>
+</html>
