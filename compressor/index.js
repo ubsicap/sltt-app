@@ -265,6 +265,10 @@ async function copyResources() {
             await chMod(ffprobePath, 0o777)
         }
         await createVersionFile()
+    } else {
+        const { resourcesPath } = _config
+        const versionTxtPath = path.join(resourcesPath, '/version.txt')
+        console.log(`No need to copy ffmpeg.exe or ffprobe.exe: version.txt is up to date at ${versionTxtPath}`)
     }
 }
 
