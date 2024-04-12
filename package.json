@@ -34,7 +34,7 @@
       "provider": "github",
       "owner": "ubsicap",
       "repo": "sltt-app",
-      "releaseType": "draft"
+      "releaseType": "release"
     }
   },
   "dependencies": {
