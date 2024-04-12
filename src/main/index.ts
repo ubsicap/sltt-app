@@ -47,6 +47,7 @@ app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.electron')
 
   // Check for updates
+  // see https://www.electron.build/auto-update
   autoUpdater.checkForUpdatesAndNotify()
 
   // Default open or close DevTools by F12 in development
