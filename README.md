@@ -55,19 +55,19 @@ yarn run v1.22.19
 warning package.json: No license field
 $ npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always
 
-> sltt-electron@1.0.6 build
+> sltt-app@1.0.6 build
 > npm run typecheck && electron-vite build
 
 
-> sltt-electron@1.0.6 typecheck
+> sltt-app@1.0.6 typecheck
 > npm run typecheck:node && npm run typecheck:web
 
 
-> sltt-electron@1.0.6 typecheck:node
+> sltt-app@1.0.6 typecheck:node
 > tsc --noEmit -p tsconfig.node.json --composite false
 
 
-> sltt-electron@1.0.6 typecheck:web
+> sltt-app@1.0.6 typecheck:web
 > tsc --noEmit -p tsconfig.web.json --composite false
 
 vite v4.3.3 building for production...
@@ -90,12 +90,12 @@ vite v4.3.3 building for production...
   • writing effective config  file=dist\builder-effective-config.yaml
   • packaging       platform=win32 arch=x64 electron=22.3.7 appOutDir=dist\win-unpacked
   • cannot decode PKCS 12 data using Go pure implementation, openssl will be used  error=pkcs12: unknown digest algorithm: 2.16.840.1.101.3.4.2.1
-  • signing         file=dist\win-unpacked\SLTT app.exe certificateFile={path-to-pfx}
-  • building        target=nsis file=dist\SLTT app Setup 1.0.6.exe archs=x64 oneClick=true perMachine=false
+  • signing         file=dist\win-unpacked\sltt-app.exe certificateFile={path-to-pfx}
+  • building        target=nsis file=dist\sltt-app Setup 1.0.6.exe archs=x64 oneClick=true perMachine=false
   • signing         file=dist\win-unpacked\resources\elevate.exe certificateFile={path-to-pfx}
-  •   Signing NSIS uninstaller  file=dist\__uninstaller-nsis-sltt-electron.exe certificateFile={path-to-pfx}
-  • signing         file=dist\SLTT app Setup 1.0.6.exe certificateFile={path-to-pfx}
-  • building block map  blockMapFile=dist\SLTT app Setup 1.0.6.exe.blockmap
+  •   Signing NSIS uninstaller  file=dist\__uninstaller-nsis-sltt-app.exe certificateFile={path-to-pfx}
+  • signing         file=dist\sltt-app Setup 1.0.6.exe certificateFile={path-to-pfx}
+  • building block map  blockMapFile=dist\sltt-app Setup 1.0.6.exe.blockmap
   • publishing      publisher=Github (owner: ubsicap, project: sltt-app, version: 1.0.6)
   • uploading       file=SLTT-app-Setup-1.0.6.exe.blockmap provider=github
   • uploading       file=SLTT-app-Setup-1.0.6.exe provider=github
