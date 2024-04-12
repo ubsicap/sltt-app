@@ -1,6 +1,6 @@
-# sltt-electron
+# sltt-app
 
-An Electron application with React and TypeScript
+An installable SLTT app (Sign Language Translation Tool) for Windows (todo: macOS)
 
 ## Recommended IDE Setup
 
@@ -24,11 +24,5 @@ $ npm run dev
 
 ```bash
 # For windows
-$ npm run build:win
-
-# For macOS
-$ npm run build:mac
-
-# For Linux
-$ npm run build:linux
+$ npm run build:win:norelease
 ```
