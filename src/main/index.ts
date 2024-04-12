@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 require('../../compressor/index.js')
