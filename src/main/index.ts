@@ -43,8 +43,10 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  // const { build: { appId } } = require('./package.json')
+  // electronApp.setAppUserModelId(appId)
 
   // Check for updates
   // see https://www.electron.build/auto-update
