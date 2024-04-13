@@ -29,16 +29,16 @@ let platform = os.platform() === 'win32' ? 'win32' : 'macos'
 // For now just make paths specific to windows installation
 // TODO make paths work for linux and macos
 
-// const oldFfmpegPath = require('ffmpeg-static').replace(
-//     'app.asar',
-//     'app.asar.unpacked'
-// );
-// const oldFfprobePath = require('ffprobe-static').path.replace(
-//     'app.asar',
-//     'app.asar.unpacked'
-// );
-const oldFfmpegPath = path.join(process.resourcesPath, 'node_modules/ffmpeg-static/ffmpeg.exe')
-const oldFfprobePath = path.join(process.resourcesPath, 'node_modules/ffprobe-static/bin/win32/x64/ffprobe.exe')
+const oldFfmpegPath = require('ffmpeg-static').replace(
+    'app.asar',
+    'app.asar.unpacked'
+);
+const oldFfprobePath = require('ffprobe-static').path.replace(
+    'app.asar',
+    'app.asar.unpacked'
+);
+// const oldFfmpegPath = path.join(process.resourcesPath, 'node_modules/ffmpeg-static/ffmpeg.exe')
+// const oldFfprobePath = path.join(process.resourcesPath, 'node_modules/ffprobe-static/bin/win32/x64/ffprobe.exe')
 
 console.log(`oldFfmpegPath: ${oldFfmpegPath}`)
 console.log(`oldFfprobePath: ${oldFfprobePath}`)
