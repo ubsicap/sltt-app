@@ -66,13 +66,6 @@ app.whenReady().then(() => {
     const urlParts = parse(callbackURL, true)
     const { search } = urlParts
     loadUrlOrFile(win, search ? { search } : undefined)
-    // win.loadFile(join(__dirname, '../client/index.html'), { search: (search || undefined) })
-    // const javascript = `window.location.hash='/#/callback?${search}'`
-    // console.log(`onBeforeRequest: javascript ${javascript}`)
-    // win.webContents.executeJavaScript(`window.location.hash='/#/${search}'`)
-    // await authService.loadTokens(url);
-    // createAppWindow();
-    // return destroyAuthWin();
   })
 
   app.on('activate', function () {
