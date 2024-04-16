@@ -1,12 +1,13 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, LoadFileOptions } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
+import { parse } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
 require('../../compressor/index.js')
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -32,12 +33,8 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
-  if (is.dev) {
-    mainWindow.loadURL('http://localhost:3000/')
-  } else {
-    // mainWindow.loadURL('https://sltt-bible.net')
-    mainWindow.loadFile(join(__dirname, '../client/index.html'))
-  }
+  loadUrlOrFile(mainWindow)
+  return mainWindow
 }
 
 // This method will be called when Electron has finished
@@ -60,7 +57,23 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
+  const win = createWindow()
+  const { session: { webRequest } } = win.webContents
+
+  webRequest.onBeforeRequest({
+    urls: ['http://localhost/callback*']
+  }, async ({ url: callbackURL }) => {
+    const urlParts = parse(callbackURL, true)
+    const { search } = urlParts
+    loadUrlOrFile(win, search ? { search } : undefined)
+    // win.loadFile(join(__dirname, '../client/index.html'), { search: (search || undefined) })
+    // const javascript = `window.location.hash='/#/callback?${search}'`
+    // console.log(`onBeforeRequest: javascript ${javascript}`)
+    // win.webContents.executeJavaScript(`window.location.hash='/#/${search}'`)
+    // await authService.loadTokens(url);
+    // createAppWindow();
+    // return destroyAuthWin();
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
@@ -78,5 +91,15 @@ app.on('window-all-closed', () => {
   }
 })
 
+
+function loadUrlOrFile(mainWindow: BrowserWindow, options: LoadFileOptions | undefined = undefined): void {
+  console.log({ isDev: is.dev, options })
+  if (is.dev) {
+    mainWindow.loadURL(`http://localhost:3000/${options?.search || ''}`)
+  } else {
+    // mainWindow.loadURL('https://sltt-bible.net')
+    mainWindow.loadFile(join(__dirname, '../client/index.html'), options)
+  }
+}
 // In this file you can include the rest of your app"s specific main process
 // code. You can also put them in separate files and require them here.
