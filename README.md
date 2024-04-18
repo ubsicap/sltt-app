@@ -20,16 +20,47 @@ $ npm install
 $ npm run dev
 ```
 
-### Build
+### Setup the certificate for code signing
 
 ```bash
-# For windows
-$ npm run build:win:norelease
+# For windows (ask the "Eric Pyle"<epyle@biblesocieties.org> for the pfx file and password, or if needed, it can be gotten from "Jeff Klassen"<jklassen@biblesocieties.org>)
+$ set CSC_LINK={pfx path https://www.electron.build/code-signing.html}
+$ set CSC_KEY_PASSWORD={pfx password}
+$ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&description=sltt-app}
 ```
 
-### Release
+### Build the SLTT client source pages from the https://github.com/ubsicap/sltt repo
 
-1. Edit `package.json` to bump the semantic version number. For example:
+**NOTE:** https://github.com/ubsicap/sltt is a separate, private repository
+
+1. Clone the `sltt` repository
+```bash
+$ git clone https://github.com/ubsicap/sltt.git sltt
+```
+
+2. Build the `sltt` client source pages
+```bash
+$ cd sltt/client
+$ yarn install
+$ yarn build:sltt-app:client
+```
+
+3. Set the `SLTT_CLIENT_PATH` environment variable to the `sltt/client` directory
+
+```bash
+$ set SLTT_CLIENT_PATH={path to sltt repo sltt/client} # For windows 
+```
+
+4. Copy the build `sltt/client/build` to the `sltt-app` `out/client` directory
+
+```bash
+$ yarn rmdir:build:client # remove the existing build
+$ yarn copy:build:client # uses the `%SLTT_CLIENT_PATH%` environment variable from step 1.3
+```
+
+5. Bump the package.json version number
+
+The package.json version number is used to create the release tag and version number in the file name. For example, if the version number is `1.0.6`, the release tag will be `v1.0.6` and the file name will be `sltt-app Setup 1.0.6.exe`. For example:
 
 ```json
 {
@@ -37,7 +68,7 @@ $ npm run build:win:norelease
 }
 ```
 
-2. Add a commit message that summarizes the release
+6. Add a commit message that summarizes the release
 
 Since the release will associate the release with a commit that's already been pushed to the remote, make to include a commit message that you want to be associated with the release. For example:
 
@@ -45,14 +76,23 @@ Since the release will associate the release with a commit that's already been p
 $ git commit -am "bump(1.0.6) add auto update"
 $ git push
 ```
-3. Run the `build:win:release script` For example:
+
+7. Test the new installer
+
+Before publishing the new installer, test the new installer to make sure it works as expected. For example:
 
 ```bash
 # For windows
-$ set CSC_LINK={pfx path https://www.electron.build/code-signing.html}
-$ set CSC_KEY_PASSWORD={pfx password}
-$ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&description=sltt-app}
-$ yarn build:win:norelease   
+$ npm run build:win:norelease
+```
+
+The installer will be located in the `dist` directory. For example, `dist/sltt-app Setup 1.0.6.exe`.
+
+### Publish release to Github
+
+1. Run the `build:win:release script` For example:
+
+$ yarn build:win:release   
 yarn run v1.22.19
 warning package.json: No license field
 $ npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always
