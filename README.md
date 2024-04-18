@@ -103,19 +103,19 @@ yarn run v1.22.19
 warning package.json: No license field
 $ npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always
 
-> sltt-app@1.0.8 build
+> sltt-app@1.0.6 build
 > npm run typecheck && electron-vite build
 
 
-> sltt-app@1.0.8 typecheck
+> sltt-app@1.0.6 typecheck
 > npm run typecheck:node && npm run typecheck:web
 
 
-> sltt-app@1.0.8 typecheck:node
+> sltt-app@1.0.6 typecheck:node
 > tsc --noEmit -p tsconfig.node.json --composite false
 
 
-> sltt-app@1.0.8 typecheck:web
+> sltt-app@1.0.6 typecheck:web
 > tsc --noEmit -p tsconfig.web.json --composite false
 
 vite v4.3.3 building for production...
@@ -141,15 +141,15 @@ vite v4.3.3 building for production...
   • signing         file=dist\win-unpacked\resources\app.asar.unpacked\node_modules\ffprobe-static\bin\win32\x64\ffprobe.exe certificateFile={%CSC_LINK%}
   • signing         file=dist\win-unpacked\resources\app.asar.unpacked\node_modules\ffprobe-static\bin\win32\ia32\ffprobe.exe certificateFile={%CSC_LINK%}
   • signing         file=dist\win-unpacked\resources\app.asar.unpacked\node_modules\ffmpeg-static\ffmpeg.exe certificateFile={%CSC_LINK%}
-  • building        target=nsis file=dist\sltt-app Setup 1.0.8.exe archs=x64 oneClick=true perMachine=false
+  • building        target=nsis file=dist\sltt-app Setup 1.0.6.exe archs=x64 oneClick=true perMachine=false
   • signing         file=dist\win-unpacked\resources\elevate.exe certificateFile={%CSC_LINK%}
   •   Signing NSIS uninstaller  file=dist\__uninstaller-nsis-sltt-app.exe certificateFile={%CSC_LINK%}
-  • signing         file=dist\sltt-app Setup 1.0.8.exe certificateFile={%CSC_LINK%}
-  • building block map  blockMapFile=dist\sltt-app Setup 1.0.8.exe.blockmap
-  • publishing      publisher=Github (owner: ubsicap, project: sltt-app, version: 1.0.8)
-  • uploading       file=sltt-app-Setup-1.0.8.exe.blockmap provider=github
-  • uploading       file=sltt-app-Setup-1.0.8.exe provider=github
-  • creating GitHub release  reason=release doesn't exist tag=v1.0.8 version=1.0.8
-    [====================] 100% 0.0s | sltt-app-Setup-1.0.8.exe to github
+  • signing         file=dist\sltt-app Setup 1.0.6.exe certificateFile={%CSC_LINK%}
+  • building block map  blockMapFile=dist\sltt-app Setup 1.0.6.exe.blockmap
+  • publishing      publisher=Github (owner: ubsicap, project: sltt-app, version: 1.0.6)
+  • uploading       file=sltt-app-Setup-1.0.6.exe.blockmap provider=github
+  • uploading       file=sltt-app-Setup-1.0.6.exe provider=github
+  • creating GitHub release  reason=release doesn't exist tag=v1.0.6 version=1.0.6
+    [====================] 100% 0.0s | sltt-app-Setup-1.0.6.exe to github
 Done in 55.90s.
 ```
