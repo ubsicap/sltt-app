@@ -22,12 +22,14 @@ $ npm run dev
 
 ### Setup the certificate for code signing
 
+For those authorized to sign the code
 ```bash
 # For windows (ask the "Eric Pyle"<epyle@biblesocieties.org> for the pfx file and password, or if needed, it can be gotten from "Jeff Klassen"<jklassen@biblesocieties.org>)
 $ set CSC_LINK={pfx path https://www.electron.build/code-signing.html}
 $ set CSC_KEY_PASSWORD={pfx password}
-$ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&description=sltt-app}
 ```
+
+If you're not able to sign the code, the steps below should still work, but the installer will not be signed, and so should not be used in a published release.
 
 ### Build the SLTT client source pages from the https://github.com/ubsicap/sltt repo
 
@@ -90,7 +92,11 @@ The installer will be located in the `dist` directory. For example, `dist/sltt-a
 
 ### Publish release to Github
 
-1. Run the `build:win:release script` For example:
+1. Set the personal access token (PAT) for the Github account
+
+$ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&description=sltt-app}
+
+2. Run the `build:win:release script` For example:
 
 $ yarn build:win:release   
 yarn run v1.22.19
