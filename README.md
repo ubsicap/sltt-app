@@ -98,6 +98,7 @@ $ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&de
 
 2. Run the `build:win:release script` For example:
 
+```bash
 $ yarn build:win:release   
 yarn run v1.22.19
 warning package.json: No license field
