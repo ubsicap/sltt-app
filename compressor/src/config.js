@@ -23,29 +23,29 @@ const getFileExtension = () => os.platform() === 'win32' ? '.exe' : ''
 
 let platform = os.platform() === 'win32' ? 'win32' : 'macos'
 
-// const oldFfmpegPath = path.join(__dirname, `/extraResources/${platform}/ffmpeg-x64${getFileExtension()}`)
-// const oldFfprobePath = path.join(__dirname, `/extraResources/${platform}/ffprobe-x64${getFileExtension()}`)
+// const srcFfmpegPath = path.join(__dirname, `/extraResources/${platform}/ffmpeg-x64${getFileExtension()}`)
+// const srcFfprobePath = path.join(__dirname, `/extraResources/${platform}/ffprobe-x64${getFileExtension()}`)
 // NOTE: including ffmpeg-static as a dependency makes for a large install package
 // For now just make paths specific to windows installation
 // TODO make paths work for linux and macos
 
-const oldFfmpegPath = require('ffmpeg-static').replace(
+const srcFfmpegPath = require('ffmpeg-static').replace(
     'app.asar',
     'app.asar.unpacked'
 );
-const oldFfprobePath = require('ffprobe-static').path.replace(
+const srcFfprobePath = require('ffprobe-static').path.replace(
     'app.asar',
     'app.asar.unpacked'
 );
-// const oldFfmpegPath = path.join(process.resourcesPath, 'node_modules/ffmpeg-static/ffmpeg.exe')
-// const oldFfprobePath = path.join(process.resourcesPath, 'node_modules/ffprobe-static/bin/win32/x64/ffprobe.exe')
+// const srcFfmpegPath = path.join(process.resourcesPath, 'node_modules/ffmpeg-static/ffmpeg.exe')
+// const srcFfprobePath = path.join(process.resourcesPath, 'node_modules/ffprobe-static/bin/win32/x64/ffprobe.exe')
 
-console.log(`oldFfmpegPath: ${oldFfmpegPath}`)
-console.log(`oldFfprobePath: ${oldFfprobePath}`)
+console.log(`srcFfmpegPath: ${srcFfmpegPath}`)
+console.log(`srcFfprobePath: ${srcFfprobePath}`)
 
 const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
 const ffprobePath = path.join(resourcesPath, `/ffprobe-x64${getFileExtension()}`)
 
 const version = '1.1'
 
-module.exports = { resourcesPath, videosPath, oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath, version, platform }
+module.exports = { resourcesPath, videosPath, srcFfmpegPath, srcFfprobePath, ffmpegPath, ffprobePath, version, platform }
