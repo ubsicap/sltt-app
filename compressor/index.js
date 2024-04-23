@@ -20,20 +20,20 @@ let jsonParser = bodyParser.json({ strict: false })
 app.use(jsonParser)
 
 app.get('/version', (req, res) => {
-    let { version, ffmpegPath, ffprobePath, oldFfmpegPath, oldFfprobePath } = _config
-    res.send({ version, ffmpegPath, ffprobePath, oldFfmpegPath, oldFfprobePath })
+    let { version, ffmpegPath, ffprobePath, srcFfmpegPath, srcFfprobePath } = _config
+    res.send({ version, ffmpegPath, ffprobePath, srcFfmpegPath, srcFfprobePath })
 })
 
 app.get('/ffmpeg/stats', async (req, res, next) => {
-    const { ffmpegPath, ffprobePath, oldFfmpegPath, oldFfprobePath } = _config
+    const { ffmpegPath, ffprobePath, srcFfmpegPath, srcFfprobePath } = _config
     const stat = util.promisify(fs.stat)
     try {
-        const ffmpegOldStats = await stat(oldFfmpegPath)
-        const ffprobeOldStats = await stat(oldFfprobePath)
+        const ffmpegOldStats = await stat(srcFfmpegPath)
+        const ffprobeOldStats = await stat(srcFfprobePath)
         const ffmpegStats = await stat(ffmpegPath)
         const ffprobeStats = await stat(ffprobePath)
         res.send({
-            oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath,
+            srcFfmpegPath, srcFfprobePath, ffmpegPath, ffprobePath,
             ffmpegOldStats, ffprobeOldStats, ffmpegStats, ffprobeStats
         })
     } catch (error) {
@@ -248,20 +248,22 @@ async function initialize() {
 
 // Copy ffmpeg/ffprobe to TEMP directory on local filesystem
 async function copyResources() {
-    let { oldFfmpegPath, oldFfprobePath, ffmpegPath, ffprobePath, platform } = _config
+    let { srcFfmpegPath, srcFfprobePath, ffmpegPath, ffprobePath, platform } = _config
 
     let shouldCopyResources = await versionFileIsOlderThanServer()
-    if (shouldCopyResources) {
-        console.log('Copy resources')
-
+    const ffmpegExists = fs.existsSync(ffmpegPath)
+    const ffprobeExists = fs.existsSync(ffprobePath)
+    if (shouldCopyResources || !ffmpegExists || !ffprobeExists) {
+        console.log(`Copying ffmpeg resource to ${ffmpegPath}`)
+        console.log(`Copying ffprobe resource to ${ffprobePath}`)
         if (platform === 'linux') {
             await copyFile('/usr/bin/ffmpeg', ffmpegPath)
             await copyFile('/usr/bin/ffprobe', ffmpegPath)
         } else {
-            await copyFile(oldFfmpegPath, ffmpegPath)
+            await copyFile(srcFfmpegPath, ffmpegPath)
             await chMod(ffmpegPath, 0o777)
     
-            await copyFile(oldFfprobePath, ffprobePath)
+            await copyFile(srcFfprobePath, ffprobePath)
             await chMod(ffprobePath, 0o777)
         }
         await createVersionFile()
