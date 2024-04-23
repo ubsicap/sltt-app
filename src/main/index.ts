@@ -5,8 +5,6 @@ import { parse } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-require('../../compressor/index.js')
-
 function createWindow(): BrowserWindow {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -41,7 +39,7 @@ function createWindow(): BrowserWindow {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-
+  ensureOneInstanceOfSlttAppAndCompressor()
   // Set app user model id for windows
   // const { build: { appId } } = require('./package.json')
   // electronApp.setAppUserModelId(appId)
@@ -84,6 +82,26 @@ app.on('window-all-closed', () => {
   }
 })
 
+
+// if someone launches a second version of the app, quit it and focus on the first one
+function ensureOneInstanceOfSlttAppAndCompressor(): void {
+  const gotTheLock = app.requestSingleInstanceLock()
+  if (!gotTheLock) {
+    app.quit()
+  } else {
+    // launch compressor
+    require('../../compressor/index.js')
+    app.on('second-instance', () => {
+      // Someone tried to run a second instance, we should focus our window.
+      const allWindows = BrowserWindow.getAllWindows()
+      if (allWindows.length) {
+        const win = allWindows[0]
+        if (win.isMinimized()) win.restore()
+        win.focus()
+      }
+    })
+  }
+}
 
 function loadUrlOrFile(mainWindow: BrowserWindow, options: LoadFileOptions | undefined = undefined): void {
   console.log({ isDev: is.dev, options })
