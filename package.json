@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "204600.0.17",
+  "version": "204602.0.18",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -19,8 +19,8 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
-    "rmdir:build:client": "rmdir /s /q .\\out\\client",
-    "copy:build:client": "npm run rmdir:build:client || xcopy %SLTT_CLIENT_DIR%\\build .\\out\\client\\ /s /e /y",
+    "rmdir:build:client": "if exist .\\out\\client rmdir /s /q .\\out\\client",
+    "copy:build:client": "npm run rmdir:build:client && xcopy %SLTT_CLIENT_DIR%\\build .\\out\\client\\ /s /e /y",
     "build:win:norelease": "npm run build && electron-builder --win --config --publish never",
     "build:win:release": "npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always",
     "build:mac": "electron-vite build && electron-builder --mac --config",
