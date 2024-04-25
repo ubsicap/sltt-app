@@ -42,7 +42,7 @@ app.whenReady().then(() => {
   ensureOneInstanceOfSlttAppAndCompressor()
   // Set app user model id for windows
   // const { build: { appId } } = require('./package.json')
-  // electronApp.setAppUserModelId(appId)
+  app.setAppUserModelId(app.name)
 
   // Check for updates
   // see https://www.electron.build/auto-update
