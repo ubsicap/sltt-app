@@ -1,6 +1,37 @@
 import { ipcMain, app } from 'electron'
-import { writeFileSync, mkdirSync } from 'fs'
+import { writeFileSync, mkdirSync, readFileSync } from 'fs'
 import { basename, dirname, join } from 'path'
+
+ipcMain.handle('testReadFile', async (_, arg) => {
+    return new Promise(function (resolve, reject) {
+        // do stuff
+        if (arg === 'test') {
+            resolve('test worked!')
+        } else if (Array.isArray(arg)) {
+            const [path, seqNum] = arg
+            const videosFolder = join(app.getPath('userData'), 'fullStorage', 'VideoCache')
+            const relativeVideoPath = dirname(path)
+            const fileName = `${basename(path)}-${seqNum}`
+            const fullFolder = join(videosFolder, relativeVideoPath)
+            const fullPath = join(fullFolder, fileName)
+            try {
+                const buffer = readFileSync(fullPath)
+                resolve(buffer)
+            } catch (error) {
+                if (error.code === 'ENOENT') {
+                    resolve(null)
+                } else {
+                    // Handle other possible errors
+                    console.error('An error occurred:', error.message)
+                    reject(error)
+                }
+            }
+
+        } else {
+            reject('this did NOT work!')
+        }
+    })
+})
 
 ipcMain.handle('testWriteFile', async (_, arg) => {
     return new Promise(function (resolve, reject) {
