@@ -2,6 +2,8 @@ import { ipcMain, app } from 'electron'
 import { writeFileSync, mkdirSync, readFileSync } from 'fs'
 import { basename, dirname, join } from 'path'
 
+const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
+
 ipcMain.handle('testReadFile', async (_, arg) => {
     return new Promise(function (resolve, reject) {
         // do stuff
@@ -9,7 +11,7 @@ ipcMain.handle('testReadFile', async (_, arg) => {
             resolve('test worked!')
         } else if (Array.isArray(arg)) {
             const [path, seqNum] = arg
-            const videosFolder = join(app.getPath('userData'), 'fullStorage', 'VideoCache')
+            const videosFolder = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
             const fullFolder = join(videosFolder, relativeVideoPath)
@@ -37,13 +39,13 @@ ipcMain.handle('testWriteFile', async (_, arg) => {
     return new Promise(function (resolve, reject) {
         // do stuff
         if (arg === 'test') {
-            const videosFolder = join(app.getPath('userData'), 'fullStorage', 'VideoCache')
+            const videosFolder = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
             mkdirSync(videosFolder, { recursive: true })
             writeFileSync(join(videosFolder, 'mytest.txt'), 'test worked!')
             resolve('test worked!')
         } else if (Array.isArray(arg)) {
             const [path, seqNum, arrayBuffer] = arg
-            const videosFolder = join(app.getPath('userData'), 'fullStorage', 'VideoCache')
+            const videosFolder = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
             const fullFolder = join(videosFolder, relativeVideoPath)
