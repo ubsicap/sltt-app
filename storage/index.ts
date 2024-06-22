@@ -1,5 +1,5 @@
 import { ipcMain, app } from 'electron'
-import { writeFileSync, mkdirSync, readFileSync } from 'fs'
+import { writeFileSync, writeFile, mkdirSync, readFileSync, readFile } from 'fs'
 import { basename, dirname, join } from 'path'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
@@ -16,6 +16,19 @@ ipcMain.handle('testReadFile', async (_, arg) => {
             const fileName = `${basename(path)}-${seqNum}`
             const fullFolder = join(videosFolder, relativeVideoPath)
             const fullPath = join(fullFolder, fileName)
+            readFile(fullPath, (error, buffer) => {
+                if (error) {
+                    if (error.code === 'ENOENT') {
+                        resolve(null)
+                    } else {
+                        // Handle other possible errors
+                        console.error('An error occurred:', error.message)
+                        reject(error)
+                    }
+                } else {
+                    resolve(buffer)
+                }
+            })
             try {
                 const buffer = readFileSync(fullPath)
                 resolve(buffer)
@@ -52,8 +65,14 @@ ipcMain.handle('testWriteFile', async (_, arg) => {
             const fullPath = join(fullFolder, fileName)
             mkdirSync(fullFolder, { recursive: true })
             const buffer = Buffer.from(arrayBuffer)
-            writeFileSync(fullPath, buffer)
-            resolve({ path, seqNum, videosFolder, relativeVideoPath, fileName, fullPath, bufferLength: buffer.length })
+            writeFile(fullPath, buffer, (err) => {
+                if (err) {
+                    console.error('An error occurred:', err.message)
+                    reject(err)
+                } else {
+                    resolve({ path, seqNum, videosFolder, relativeVideoPath, fileName, fullPath, bufferLength: buffer.length })
+                }
+            })
         } else {
             reject('this did NOT work!')
         }
