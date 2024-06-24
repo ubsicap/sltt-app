@@ -8,8 +8,8 @@ What particularly has changed?
 * 
 
 Steps for testing
-* 
+1. 
 
 
-ticket: https://github.com/ubsicap/sltt/issues/XXX
+ticket: https://github.com/ubsicap/sltt-app/issues/XXX
 commit-convention: https://www.conventionalcommits.org/en/v1.0.0/

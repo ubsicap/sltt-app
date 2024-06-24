@@ -6,9 +6,8 @@ const _config = require('./config')
 
 const debug = true
 
-let { ffmpegPath, ffprobePath } = _config
+let { ffmpegPath } = _config
 ffmpeg.setFfmpegPath(ffmpegPath)
-ffmpeg.setFfprobePath(ffprobePath)
 
 const bytesToMB = bytes => (bytes / (1024 * 1024)).toFixed(1)
 const { basename } = path
