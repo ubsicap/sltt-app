@@ -139,8 +139,6 @@ vite v4.3.3 building for production...
   • writing effective config  file=dist\builder-effective-config.yaml
   • packaging       platform=win32 arch=x64 electron=22.3.7 appOutDir=dist\win-unpacked
   • cannot decode PKCS 12 data using Go pure implementation, openssl will be used  error=pkcs12: unknown digest algorithm: 2.16.840.1.101.3.4.2.1
-  • signing         file=dist\win-unpacked\resources\app.asar.unpacked\node_modules\ffprobe-static\bin\win32\x64\ffprobe.exe certificateFile={%CSC_LINK%}
-  • signing         file=dist\win-unpacked\resources\app.asar.unpacked\node_modules\ffprobe-static\bin\win32\ia32\ffprobe.exe certificateFile={%CSC_LINK%}
   • signing         file=dist\win-unpacked\resources\app.asar.unpacked\node_modules\ffmpeg-static\ffmpeg.exe certificateFile={%CSC_LINK%}
   • building        target=nsis file=dist\sltt-app Setup 1.0.6.exe archs=x64 oneClick=true perMachine=false
   • signing         file=dist\win-unpacked\resources\elevate.exe certificateFile={%CSC_LINK%}

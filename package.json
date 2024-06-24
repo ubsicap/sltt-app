@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "205100.0.20",
+  "version": "205100.0.21",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -51,9 +51,8 @@
     "cors": "^2.8.5",
     "electron-updater": "^5.3.0",
     "express": "^4.17.1",
-    "fluent-ffmpeg": "^2.1.2",
     "ffmpeg-static": "^5.1.0",
-    "ffprobe-static": "^3.1.0",
+    "fluent-ffmpeg": "^2.1.2",
     "formidable": "^1.2.2"
   },
   "devDependencies": {
