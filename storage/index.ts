@@ -3,18 +3,18 @@ import { writeFileSync, writeFile, mkdirSync, readFileSync, readFile } from 'fs'
 import { basename, dirname, join } from 'path'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
+const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
 
-ipcMain.handle('testReadFile', async (_, arg) => {
+ipcMain.handle('tryRetrieveVideoBlob', async (_, args) => {
     return new Promise(function (resolve, reject) {
         // do stuff
-        if (arg === 'test') {
+        if (args === 'test') {
             resolve('test worked!')
-        } else if (Array.isArray(arg)) {
-            const [path, seqNum] = arg
-            const videosFolder = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
+        } else if (Array.isArray(args)) {
+            const [path, seqNum] = args
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
-            const fullFolder = join(videosFolder, relativeVideoPath)
+            const fullFolder = join(VIDEO_CACHE_PATH, relativeVideoPath)
             const fullPath = join(fullFolder, fileName)
             readFile(fullPath, (error, buffer) => {
                 if (error) {
@@ -48,20 +48,18 @@ ipcMain.handle('testReadFile', async (_, arg) => {
     })
 })
 
-ipcMain.handle('testWriteFile', async (_, arg) => {
+ipcMain.handle('storeVideoBlob', async (_, args) => {
     return new Promise(function (resolve, reject) {
         // do stuff
-        if (arg === 'test') {
-            const videosFolder = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
-            mkdirSync(videosFolder, { recursive: true })
-            writeFileSync(join(videosFolder, 'mytest.txt'), 'test worked!')
+        if (args === 'test') {
+            mkdirSync(VIDEO_CACHE_PATH, { recursive: true })
+            writeFileSync(join(VIDEO_CACHE_PATH, 'mytest.txt'), 'test worked!')
             resolve('test worked!')
-        } else if (Array.isArray(arg)) {
-            const [path, seqNum, arrayBuffer] = arg
-            const videosFolder = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
+        } else if (Array.isArray(args)) {
+            const [path, seqNum, arrayBuffer] = args
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
-            const fullFolder = join(videosFolder, relativeVideoPath)
+            const fullFolder = join(VIDEO_CACHE_PATH, relativeVideoPath)
             const fullPath = join(fullFolder, fileName)
             mkdirSync(fullFolder, { recursive: true })
             const buffer = Buffer.from(arrayBuffer)
@@ -70,7 +68,7 @@ ipcMain.handle('testWriteFile', async (_, arg) => {
                     console.error('An error occurred:', err.message)
                     reject(err)
                 } else {
-                    resolve({ path, seqNum, videosFolder, relativeVideoPath, fileName, fullPath, bufferLength: buffer.length })
+                    resolve({ path, seqNum, videosFolder: VIDEO_CACHE_PATH, relativeVideoPath, fileName, fullPath, bufferLength: buffer.length })
                 }
             })
         } else {
