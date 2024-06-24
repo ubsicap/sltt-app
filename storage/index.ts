@@ -1,16 +1,22 @@
 import { ipcMain, app } from 'electron'
-import { writeFileSync, writeFile, mkdirSync, readFileSync, readFile } from 'fs'
+import { writeFileSync, writeFile, mkdirSync, readFile } from 'fs'
 import { basename, dirname, join } from 'path'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
 const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
 
-ipcMain.handle('tryRetrieveVideoBlob', async (_, args) => {
+const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
+const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
+
+ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
         // do stuff
         if (args === 'test') {
             resolve('test worked!')
-        } else if (Array.isArray(args)) {
+        } else if (Array.isArray(args)
+            && args.length === 2
+            && typeof args[0] === 'string' 
+            && typeof args[1] === 'string') {
             const [path, seqNum] = args
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
@@ -29,33 +35,24 @@ ipcMain.handle('tryRetrieveVideoBlob', async (_, args) => {
                     resolve(buffer)
                 }
             })
-            try {
-                const buffer = readFileSync(fullPath)
-                resolve(buffer)
-            } catch (error) {
-                if (error.code === 'ENOENT') {
-                    resolve(null)
-                } else {
-                    // Handle other possible errors
-                    console.error('An error occurred:', error.message)
-                    reject(error)
-                }
-            }
-
         } else {
-            reject('this did NOT work!')
+            reject(`invalid args for ${VIDEO_CACHE_API_TRY_RETRIEVE_BLOB}. Expected: [path: string, seqNum: string] Got: ${JSON.stringify(args)}`)
         }
     })
 })
 
-ipcMain.handle('storeVideoBlob', async (_, args) => {
+ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
         // do stuff
         if (args === 'test') {
             mkdirSync(VIDEO_CACHE_PATH, { recursive: true })
             writeFileSync(join(VIDEO_CACHE_PATH, 'mytest.txt'), 'test worked!')
             resolve('test worked!')
-        } else if (Array.isArray(args)) {
+        } else if (Array.isArray(args)
+            && args.length === 3
+            && typeof args[0] === 'string' 
+            && typeof args[1] === 'string'
+            && args[2] instanceof ArrayBuffer) {
             const [path, seqNum, arrayBuffer] = args
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
@@ -72,7 +69,7 @@ ipcMain.handle('storeVideoBlob', async (_, args) => {
                 }
             })
         } else {
-            reject('this did NOT work!')
+            reject(`invalid args for ${VIDEO_CACHE_API_STORE_BLOB}. Expected: [path: string, seqNum: string, arrayBuffer: ArrayBuffer] Got: ${JSON.stringify(args)}`)
         }
     })
 })
