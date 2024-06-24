@@ -12,7 +12,7 @@ ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
         // do stuff
         if (args === 'test') {
-            resolve('test worked!')
+            resolve(`${VIDEO_CACHE_API_TRY_RETRIEVE_BLOB} api test worked!`)
         } else if (Array.isArray(args)
             && args.length === 2
             && typeof args[0] === 'string' 
@@ -46,8 +46,9 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
         // do stuff
         if (args === 'test') {
             mkdirSync(VIDEO_CACHE_PATH, { recursive: true })
-            writeFileSync(join(VIDEO_CACHE_PATH, 'mytest.txt'), 'test worked!')
-            resolve('test worked!')
+            const testPath = join(VIDEO_CACHE_PATH, 'mytest.txt')
+            writeFileSync(testPath, new Date(Date.now()).toISOString())
+            resolve(`${VIDEO_CACHE_API_STORE_BLOB} api test worked! Wrote to ${testPath}`)
         } else if (Array.isArray(args)
             && args.length === 3
             && typeof args[0] === 'string' 
