@@ -19,6 +19,9 @@ function createWindow(): BrowserWindow {
     }
   })
 
+  // Maximize the window
+  mainWindow.maximize()
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
