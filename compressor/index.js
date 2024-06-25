@@ -20,21 +20,19 @@ let jsonParser = bodyParser.json({ strict: false })
 app.use(jsonParser)
 
 app.get('/version', (req, res) => {
-    let { version, ffmpegPath, ffprobePath, srcFfmpegPath, srcFfprobePath } = _config
-    res.send({ version, ffmpegPath, ffprobePath, srcFfmpegPath, srcFfprobePath })
+    let { version, ffmpegPath, srcFfmpegPath } = _config
+    res.send({ version, ffmpegPath, srcFfmpegPath })
 })
 
 app.get('/ffmpeg/stats', async (req, res, next) => {
-    const { ffmpegPath, ffprobePath, srcFfmpegPath, srcFfprobePath } = _config
+    const { ffmpegPath, srcFfmpegPath } = _config
     const stat = util.promisify(fs.stat)
     try {
         const ffmpegOldStats = await stat(srcFfmpegPath)
-        const ffprobeOldStats = await stat(srcFfprobePath)
         const ffmpegStats = await stat(ffmpegPath)
-        const ffprobeStats = await stat(ffprobePath)
         res.send({
-            srcFfmpegPath, srcFfprobePath, ffmpegPath, ffprobePath,
-            ffmpegOldStats, ffprobeOldStats, ffmpegStats, ffprobeStats
+            srcFfmpegPath, ffmpegPath,
+            ffmpegOldStats, ffmpegStats
         })
     } catch (error) {
         return next(error)
@@ -246,31 +244,25 @@ async function initialize() {
     }
 }
 
-// Copy ffmpeg/ffprobe to TEMP directory on local filesystem
+// Copy ffmpeg to TEMP directory on local filesystem
 async function copyResources() {
-    let { srcFfmpegPath, srcFfprobePath, ffmpegPath, ffprobePath, platform } = _config
+    let { srcFfmpegPath, ffmpegPath, platform } = _config
 
     let shouldCopyResources = await versionFileIsOlderThanServer()
     const ffmpegExists = fs.existsSync(ffmpegPath)
-    const ffprobeExists = fs.existsSync(ffprobePath)
-    if (shouldCopyResources || !ffmpegExists || !ffprobeExists) {
+    if (shouldCopyResources || !ffmpegExists) {
         console.log(`Copying ffmpeg resource to ${ffmpegPath}`)
-        console.log(`Copying ffprobe resource to ${ffprobePath}`)
         if (platform === 'linux') {
             await copyFile('/usr/bin/ffmpeg', ffmpegPath)
-            await copyFile('/usr/bin/ffprobe', ffmpegPath)
         } else {
             await copyFile(srcFfmpegPath, ffmpegPath)
             await chMod(ffmpegPath, 0o777)
-    
-            await copyFile(srcFfprobePath, ffprobePath)
-            await chMod(ffprobePath, 0o777)
         }
         await createVersionFile()
     } else {
         const { resourcesPath } = _config
         const versionTxtPath = path.join(resourcesPath, '/version.txt')
-        console.log(`No need to copy ffmpeg.exe or ffprobe.exe: version.txt is up to date at ${versionTxtPath}`)
+        console.log(`No need to copy ffmpeg.exe: version.txt is up to date at ${versionTxtPath}`)
     }
 }
 
