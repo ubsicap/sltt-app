@@ -115,5 +115,6 @@ function loadUrlOrFile(mainWindow: BrowserWindow, options: LoadFileOptions | und
     mainWindow.loadFile(join(__dirname, '../client/index.html'), options)
   }
 }
-// In this file you can include the rest of your app"s specific main process
+// In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+require('./storage.js')
