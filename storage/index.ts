@@ -4,9 +4,13 @@ import { basename, dirname, join } from 'path'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
 const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
+const DOCS_PATH = join(PERSISTENT_STORAGE_PATH, 'docs')
+const DOCS_FROM_REMOTE_PATH = join(DOCS_PATH, 'remote')
+const DOCS_FROM_LOCAL_PATH = join(DOCS_PATH, 'local')
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
+const DOCS_API_PUT_DOC = 'putDoc'
 
 ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
@@ -58,8 +62,8 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
             const relativeVideoPath = dirname(path)
             const fileName = `${basename(path)}-${seqNum}`
             const fullFolder = join(VIDEO_CACHE_PATH, relativeVideoPath)
-            const fullPath = join(fullFolder, fileName)
             mkdirSync(fullFolder, { recursive: true })
+            const fullPath = join(fullFolder, fileName)
             const buffer = Buffer.from(arrayBuffer)
             writeFile(fullPath, buffer, (err) => {
                 if (err) {
@@ -71,6 +75,36 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
             })
         } else {
             reject(`invalid args for ${VIDEO_CACHE_API_STORE_BLOB}. Expected: [path: string, seqNum: string, arrayBuffer: ArrayBuffer] Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+
+ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        // do stuff
+        if (args === 'test') {
+            resolve(`${DOCS_API_PUT_DOC} api test worked!`)
+        } else if (Array.isArray(args)
+            && args.length === 2
+            && typeof args[0] === 'object') {
+            const [doc] = args
+            // is remote doc or local?
+            const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
+            // TODO: make path safe as filename
+            const filename = `${modDate}-${_id}-${creator}-${modBy}` // safe for filename?
+            mkdirSync(DOCS_FROM_REMOTE_PATH, { recursive: true })
+            const fullPath = join(DOCS_FROM_REMOTE_PATH, DOCS_FROM_REMOTE_PATH)
+            writeFile(fullPath, doc, (err) => {
+                if (err) {
+                    console.error('An error occurred:', err.message)
+                    reject(err)
+                } else {
+                    resolve({ filename, doc, fullPath, _id, modDate, creator, modBy })
+                }
+            })
+        } else {
+            reject(`invalid args for ${DOCS_API_PUT_DOC}. Expected: [path: string, content: string] Got: ${JSON.stringify(args)}`)
         }
     })
 })
