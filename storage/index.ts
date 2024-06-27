@@ -114,9 +114,10 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
             resolve(`${DOCS_API_PUT_DOC} api test worked!`)
         } else if (Array.isArray(args)
             && args.length === 2
-            && typeof args[0] === 'object') {
-            const [doc] = args
-            // is remote doc or local?
+            && typeof args[0] === 'object'
+            && typeof args[1] === 'string') {
+            const [doc, remoteSeq] = args
+            const fullFromPath = remoteSeq ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
             const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
             // TODO: make path safe as filename
             const filenameSafeModDate = getFilenameSafeDate(modDate)
@@ -124,8 +125,8 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
             const filenameSafeCreator = getFilenameSafeEmail(creator)
             const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
             const filename = `${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}`
-            mkdirSync(DOCS_FROM_REMOTE_PATH, { recursive: true })
-            const fullPath = join(DOCS_FROM_REMOTE_PATH, DOCS_FROM_REMOTE_PATH)
+            mkdirSync(fullFromPath, { recursive: true })
+            const fullPath = join(fullFromPath, filename)
             writeFile(fullPath, doc, (err) => {
                 if (err) {
                     console.error('An error occurred:', err.message)
