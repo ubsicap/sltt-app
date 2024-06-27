@@ -1,6 +1,7 @@
 import { ipcMain, app } from 'electron'
 import { writeFileSync, writeFile, mkdirSync, readFile } from 'fs'
 import { basename, dirname, join } from 'path'
+import { createHash } from 'crypto'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
 const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
@@ -79,6 +80,32 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
     })
 })
 
+const getFilenameSafeDate = (modDate: string): string => {
+    let dateStr = modDate // 2024/06/17 09:49:07.997Z
+    // Replace slashes, spaces, and colons with underscores to make it filename-safe
+    dateStr = dateStr.replace(/\//g, '-') // Replace slashes with hyphens
+    dateStr = dateStr.replace(/ /g, '_') // Replace spaces with underscores
+    dateStr = dateStr.replace(/:/g, '-') // Replace colons with hyphens
+    // Handle milliseconds and 'Z' - replace '.' with '-' and remove 'Z'
+    dateStr = dateStr.replace(/\./g, '-').replace(/Z$/, '')
+    return dateStr // 2024-06-17_09-49-07-997
+}
+
+const getFilenameSafeId = (_id: string): string => {
+    // GIVEN _id in format like plan_240617_094907/stg_240617_094910/tsk_240617_094912
+    // Replace slashes with hyphens
+    return _id.replace(/\//g, '-') // plan_240617_094907-stg_240617_094910-tsk_240617_094912
+}
+
+
+const createMd5Hash = (s: string): string => createHash('md5').update(s).digest('hex').toString()
+const createEmailHash = (email: string): string => createMd5Hash(email).substring(0, 16)
+
+const getFilenameSafeEmail = (email: string): string => {
+    return createEmailHash(email)
+}
+
+
 
 ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
     return new Promise(function (resolve, reject) {
@@ -92,7 +119,11 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
             // is remote doc or local?
             const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
             // TODO: make path safe as filename
-            const filename = `${modDate}-${_id}-${creator}-${modBy}` // safe for filename?
+            const filenameSafeModDate = getFilenameSafeDate(modDate)
+            const filenameSafeId = getFilenameSafeId(_id)
+            const filenameSafeCreator = getFilenameSafeEmail(creator)
+            const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
+            const filename = `${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}`
             mkdirSync(DOCS_FROM_REMOTE_PATH, { recursive: true })
             const fullPath = join(DOCS_FROM_REMOTE_PATH, DOCS_FROM_REMOTE_PATH)
             writeFile(fullPath, doc, (err) => {
