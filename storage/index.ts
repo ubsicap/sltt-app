@@ -119,12 +119,12 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
             const [doc, remoteSeq] = args
             const fullFromPath = remoteSeq ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
             const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
-            // TODO: make path safe as filename
             const filenameSafeModDate = getFilenameSafeDate(modDate)
             const filenameSafeId = getFilenameSafeId(_id)
             const filenameSafeCreator = getFilenameSafeEmail(creator)
             const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
-            const filename = `${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}`
+            const filenameRemoteSeq = remoteSeq ? `${remoteSeq}__` : ''
+            const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}`
             mkdirSync(fullFromPath, { recursive: true })
             const fullPath = join(fullFromPath, filename)
             writeFile(fullPath, doc, (err) => {
