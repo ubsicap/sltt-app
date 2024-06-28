@@ -234,6 +234,7 @@ async function listDocs({ project, isFromRemote }: { project: string, isFromRemo
                 console.log('filenames:', filenames)
                 const result = filenames
                     .filter(filename => filename.endsWith('.sltt-doc'))
+                result.sort() // just in case it's not yet by name
                 console.log('listDocs result:', result)
                 resolve(result)
             }
