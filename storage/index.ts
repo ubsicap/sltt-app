@@ -13,6 +13,7 @@ const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
+const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
 
 ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
@@ -121,12 +122,13 @@ const composeFilename = (modDate: string, _id: string, creator: string, modBy: s
     const filenameSafeId = composeFilenameSafeId(_id)
     const filenameSafeCreator = composeFilenameSafeEmail(creator)
     const filenameSafeModBy = modBy && composeFilenameSafeEmail(modBy) || 'no-mod-by'
-    const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}__` : ''
-    const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
+    const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}` : 'local'
+    const filename = `${filenameRemoteSeq}__${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
     return filename
 }
 
-const decomposeRemoteSeq = (paddedRemoteSeq: string): string => paddedRemoteSeq.replace(/^0+/, '')
+const decomposeRemoteSeq = (paddedRemoteSeq: string): string =>
+    paddedRemoteSeq === 'local' ? '' : paddedRemoteSeq.replace(/^0+/, '')
 
 const createMd5Hash = (s: string): string => createHash('md5').update(s).digest('hex').toString()
 const createEmailHash = (email: string): string => createMd5Hash(email).substring(0, 16) // api uses this
@@ -175,37 +177,59 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
         ) {
             console.log('listDocs args:', args)
             const { isFromRemote } = args
-            const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
-            // detect if path doesn't yet exist
-            if (!existsSync(fullFromPath)) {
-                resolve([])
-            }
-            console.log('listDocs fullFromPath:', fullFromPath)
-            readdir(fullFromPath, (err, filenames) => {
-                if (err) {
-                    console.error('An error occurred:', err.message)
-                    reject(err)
-                } else {
-                    console.log('filenames:', filenames)
-                    const result = filenames
-                        .filter(filename => filename.endsWith('.sltt-doc'))
-                        .map(filename => {
-                            if (isFromRemote) {
-                                const [remoteSeq, modDate] = filename.split('__').slice(0, 2)
-                                const normalizedModDate = decomponseFilenameSafeDate(modDate)
-                                const remoteSeqWithoutPadding = decomposeRemoteSeq(remoteSeq)
-                                return { modDate: normalizedModDate, remoteSeq: remoteSeqWithoutPadding }
-                            }
-                            const modDate = filename.split('__')[0]
-                            const normalizedModDate = decomponseFilenameSafeDate(modDate)
-                            return { modDate: normalizedModDate, remoteSeq: '' }
-                        })
-                    console.log('listDocs result:', result)
-                    resolve(result)
-                }
-            })
+            listDocs({ isFromRemote }).then(resolve).catch(reject)
         } else {
             reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
         }
     })
 })
+
+ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        if (args === 'test') {
+            resolve(`${DOCS_API_RETRIEVE_DOC} api test worked!`)
+        } else if (typeof args === 'object'
+            && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
+            && 'filename' in args && typeof args.filename === 'string'
+        ) {
+            const { isFromRemote, filename } = args
+            const normalizedFilename = basename(filename) // prevent path traversal
+            const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+            const fullPath = join(fullFromPath, normalizedFilename)
+            readFile(fullPath, (error, buffer) => {
+                if (error) {
+                    console.error('An error occurred:', error.message)
+                    reject(error)
+                } else {
+                    const doc = JSON.parse(buffer.toString())
+                    resolve(doc)
+                }
+            })
+        } else {
+            reject(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+async function listDocs({ isFromRemote }: { isFromRemote: boolean }): Promise<unknown> {
+    return new Promise(function (resolve, reject) {
+        const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+        // detect if path doesn't yet exist
+        if (!existsSync(fullFromPath)) {
+            resolve([])
+        }
+        console.log('listDocs fullFromPath:', fullFromPath)
+        readdir(fullFromPath, (err, filenames) => {
+            if (err) {
+                console.error('An error occurred:', err.message)
+                reject(err)
+            } else {
+                console.log('filenames:', filenames)
+                const result = filenames
+                    .filter(filename => filename.endsWith('.sltt-doc'))
+                console.log('listDocs result:', result)
+                resolve(result)
+            }
+        })
+    })
+}
