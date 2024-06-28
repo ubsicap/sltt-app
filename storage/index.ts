@@ -94,9 +94,26 @@ const getFilenameSafeDate = (modDate: string): string => {
 const getFilenameSafeId = (_id: string): string => {
     // GIVEN _id in format like plan_240617_094907/stg_240617_094910/tsk_240617_094912
     // Replace slashes with hyphens
-    return _id.replace(/\//g, '-') // plan_240617_094907-stg_240617_094910-tsk_240617_094912
+    const filenameSafeId1 = _id.replace(/\//g, '-') // plan_240617_094907-stg_240617_094910-tsk_240617_094912
+    const fileNameTrial1 = composeFilename('9999/99/99 99:99:99.999Z', filenameSafeId1, '999@99999.999', '999@99999.999', '999999999')
+    if (fileNameTrial1.length >= 255) {
+        // if filename is too long, shorten each inner date_time to just the time component, but keep first and last parts of _id
+        const abbreviatedId = _id.split('/').map((s, i, array) => (i > 0 && i < array.length - 1) ? s.split('_').slice(-1) : s).join('-')
+        return abbreviatedId // plan_240617_094907-094910-tsk_240617_094912 <-- plan_240617_094907/stg_240617_094910/tsk_240617_094912
+    } else {
+        return filenameSafeId1 // plan_240617_094907-stg_240617_094910-tsk_240617_094912 <-- plan_240617_094907/stg_240617_094910/tsk_240617_094912
+    }
 }
 
+const composeFilename = (modDate: string, _id: string, creator: string, modBy: string, remoteSeq: string): string => {
+    const filenameSafeModDate = getFilenameSafeDate(modDate)
+    const filenameSafeId = getFilenameSafeId(_id)
+    const filenameSafeCreator = getFilenameSafeEmail(creator)
+    const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
+    const filenameRemoteSeq = remoteSeq ? `${remoteSeq}__` : ''
+    const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
+    return filename
+}
 
 const createMd5Hash = (s: string): string => createHash('md5').update(s).digest('hex').toString()
 const createEmailHash = (email: string): string => createMd5Hash(email).substring(0, 16) // api uses this
@@ -117,12 +134,10 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
             const [doc, remoteSeq] = args
             const fullFromPath = remoteSeq ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
             const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
-            const filenameSafeModDate = getFilenameSafeDate(modDate)
-            const filenameSafeId = getFilenameSafeId(_id)
-            const filenameSafeCreator = getFilenameSafeEmail(creator)
-            const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
-            const filenameRemoteSeq = remoteSeq ? `${remoteSeq}__` : ''
-            const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
+            const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
+            if (filename.length > 255) {
+                reject(`attempted filename is too long: ${filename}`)
+            }
             mkdirSync(fullFromPath, { recursive: true })
             const fullPath = join(fullFromPath, filename)
             writeFile(fullPath, JSON.stringify(doc), (err) => {
