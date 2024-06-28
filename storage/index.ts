@@ -1,5 +1,5 @@
 import { ipcMain, app } from 'electron'
-import { writeFileSync, writeFile, mkdirSync, readFile } from 'fs'
+import { writeFileSync, writeFile, mkdirSync, readFile, readdir, existsSync } from 'fs'
 import { basename, dirname, join } from 'path'
 import { createHash } from 'crypto'
 
@@ -12,10 +12,10 @@ const DOCS_FROM_LOCAL_PATH = join(DOCS_PATH, 'local')
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
 const DOCS_API_STORE_DOC = 'storeDoc'
+const DOCS_API_LIST_DOCS = 'listDocs'
 
 ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
-        // do stuff
         if (args === 'test') {
             resolve(`${VIDEO_CACHE_API_TRY_RETRIEVE_BLOB} api test worked!`)
         } else if (Array.isArray(args)
@@ -48,7 +48,6 @@ ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
 
 ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
-        // do stuff
         if (args === 'test') {
             mkdirSync(VIDEO_CACHE_PATH, { recursive: true })
             const testPath = join(VIDEO_CACHE_PATH, 'mytest.txt')
@@ -94,8 +93,10 @@ const getFilenameSafeDate = (modDate: string): string => {
 const getFilenameSafeId = (_id: string): string => {
     // GIVEN _id in format like plan_240617_094907/stg_240617_094910/tsk_240617_094912
     // Replace slashes with hyphens
+    if (!_id) return 'no-id'
     const filenameSafeId1 = _id.replace(/\//g, '-') // plan_240617_094907-stg_240617_094910-tsk_240617_094912
-    const fileNameTrial1 = composeFilename('9999/99/99 99:99:99.999Z', filenameSafeId1, '999@99999.999', '999@99999.999', '999999999')
+    const fileNameExtra = composeFilename('9999/99/99 99:99:99.999Z', '', '999@99999.999', '999@99999.999', '999999999')
+    const fileNameTrial1 = fileNameExtra.replace('no-id', filenameSafeId1)
     if (fileNameTrial1.length >= 255) {
         // if filename is too long, shorten each inner date_time to just the time component, but keep first and last parts of _id
         const abbreviatedId = _id.split('/').map((s, i, array) => (i > 0 && i < array.length - 1) ? s.split('_').slice(-1) : s).join('-')
@@ -124,7 +125,6 @@ const getFilenameSafeEmail = (email: string): string => {
 
 ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     return new Promise(function (resolve, reject) {
-        // do stuff
         if (args === 'test') {
             resolve(`${DOCS_API_STORE_DOC} api test worked!`)
         } else if (Array.isArray(args)
@@ -150,6 +150,45 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
             })
         } else {
             reject(`invalid args for ${DOCS_API_STORE_DOC}. Expected: [doc: string, remoteSeq: string] Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        if (args === 'test') {
+            resolve(`${DOCS_API_LIST_DOCS} api test worked!`)
+        } else if (typeof args === 'boolean') {
+            console.log('listDocs args:', args)
+            const isFromRemote = args
+            const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+            // detect if path doesn't yet exist
+            if (!existsSync(fullFromPath)) {
+                resolve([])
+            }
+            console.log('listDocs fullFromPath:', fullFromPath)
+            readdir(fullFromPath, (err, filenames) => {
+                if (err) {
+                    console.error('An error occurred:', err.message)
+                    reject(err)
+                } else {
+                    console.log('filenames:', filenames)
+                    const result = filenames
+                        .filter(filename => filename.endsWith('.sltt-doc'))
+                        .map(filename => {
+                            if (isFromRemote) {
+                                const [remoteSeq, modDate] = filename.split('__').slice(0, 1)
+                                return { modDate, remoteSeq }
+                            }
+                            const modDate = filename.split('__')[0]
+                            return { modDate, remoteSeq: '' }
+                        })
+                    console.log('listDocs result:', result)
+                    resolve(result)
+                }
+            })
+        } else {
+            reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: 'boolean' Got: ${JSON.stringify(args)}`)
         }
     })
 })
