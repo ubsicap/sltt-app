@@ -111,7 +111,7 @@ const composeFilename = (modDate: string, _id: string, creator: string, modBy: s
     const filenameSafeId = getFilenameSafeId(_id)
     const filenameSafeCreator = getFilenameSafeEmail(creator)
     const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
-    const filenameRemoteSeq = remoteSeq ? `${remoteSeq}__` : ''
+    const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}__` : ''
     const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
     return filename
 }
