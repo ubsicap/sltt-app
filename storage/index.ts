@@ -124,10 +124,10 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
             const filenameSafeCreator = getFilenameSafeEmail(creator)
             const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
             const filenameRemoteSeq = remoteSeq ? `${remoteSeq}__` : ''
-            const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}`
+            const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
             mkdirSync(fullFromPath, { recursive: true })
             const fullPath = join(fullFromPath, filename)
-            writeFile(fullPath, doc, (err) => {
+            writeFile(fullPath, JSON.stringify(doc), (err) => {
                 if (err) {
                     console.error('An error occurred:', err.message)
                     reject(err)
@@ -136,7 +136,7 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
                 }
             })
         } else {
-            reject(`invalid args for ${DOCS_API_PUT_DOC}. Expected: [path: string, content: string] Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${DOCS_API_PUT_DOC}. Expected: [doc: string, remoteSeq: string] Got: ${JSON.stringify(args)}`)
         }
     })
 })
