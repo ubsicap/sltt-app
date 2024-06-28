@@ -99,13 +99,11 @@ const getFilenameSafeId = (_id: string): string => {
 
 
 const createMd5Hash = (s: string): string => createHash('md5').update(s).digest('hex').toString()
-const createEmailHash = (email: string): string => createMd5Hash(email).substring(0, 16)
+const createEmailHash = (email: string): string => createMd5Hash(email).substring(0, 16) // api uses this
 
 const getFilenameSafeEmail = (email: string): string => {
-    return createEmailHash(email)
+    return createEmailHash(email).substring(0, 8) // 8 characters will probably avoid collision within team 
 }
-
-
 
 ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     return new Promise(function (resolve, reject) {
