@@ -177,7 +177,7 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
                         .filter(filename => filename.endsWith('.sltt-doc'))
                         .map(filename => {
                             if (isFromRemote) {
-                                const [remoteSeq, modDate] = filename.split('__').slice(0, 1)
+                                const [remoteSeq, modDate] = filename.split('__').slice(0, 2)
                                 return { modDate, remoteSeq }
                             }
                             const modDate = filename.split('__')[0]
