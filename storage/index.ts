@@ -132,7 +132,7 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
                     console.error('An error occurred:', err.message)
                     reject(err)
                 } else {
-                    resolve({ filename, doc, fullPath, _id, modDate, creator, modBy })
+                    resolve({ remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy })
                 }
             })
         } else {
