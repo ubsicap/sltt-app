@@ -79,7 +79,7 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
     })
 })
 
-const getFilenameSafeDate = (modDate: string): string => {
+const composeFilenameSafeDate = (modDate: string): string => {
     let dateStr = modDate // 2024/06/17 09:49:07.997Z
     // Replace slashes, spaces, and colons with underscores to make it filename-safe
     dateStr = dateStr.replace(/\//g, '-') // Replace slashes with hyphens
@@ -90,7 +90,17 @@ const getFilenameSafeDate = (modDate: string): string => {
     return dateStr // 2024-06-17_09-49-07-997
 }
 
-const getFilenameSafeId = (_id: string): string => {
+const decomponseFilenameSafeDate = (filenameSafeDate: string): string => {
+    let [dateStr, timeStr] = filenameSafeDate.split('_') // 2024-06-17, 09-49-07-997 <-- 2024-06-17_09-49-07-997
+    // Replace hyphens with slashes, spaces, and colons to make it filename-safe
+    dateStr = dateStr.replace(/-/g, '/') // Replace hyphens with slashes
+    timeStr = timeStr.replace(/-/g, ':') // Replace hyphens with colons
+    // Handle milliseconds and 'Z' - replace '-' with '.' and add 'Z'
+    timeStr = timeStr.replace(/-/g, '.').concat('Z')
+    return `${dateStr} ${timeStr}` // 2024/06/17 09:49:07.997Z
+}
+
+const composeFilenameSafeId = (_id: string): string => {
     // GIVEN _id in format like plan_240617_094907/stg_240617_094910/tsk_240617_094912
     // Replace slashes with hyphens
     if (!_id) return 'no-id'
@@ -107,19 +117,21 @@ const getFilenameSafeId = (_id: string): string => {
 }
 
 const composeFilename = (modDate: string, _id: string, creator: string, modBy: string, remoteSeq: string): string => {
-    const filenameSafeModDate = getFilenameSafeDate(modDate)
-    const filenameSafeId = getFilenameSafeId(_id)
-    const filenameSafeCreator = getFilenameSafeEmail(creator)
-    const filenameSafeModBy = modBy && getFilenameSafeEmail(modBy) || 'no-mod-by'
+    const filenameSafeModDate = composeFilenameSafeDate(modDate)
+    const filenameSafeId = composeFilenameSafeId(_id)
+    const filenameSafeCreator = composeFilenameSafeEmail(creator)
+    const filenameSafeModBy = modBy && composeFilenameSafeEmail(modBy) || 'no-mod-by'
     const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}__` : ''
     const filename = `${filenameRemoteSeq}${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
     return filename
 }
 
+const decomposeRemoteSeq = (paddedRemoteSeq: string): string => paddedRemoteSeq.replace(/^0+/, '')
+
 const createMd5Hash = (s: string): string => createHash('md5').update(s).digest('hex').toString()
 const createEmailHash = (email: string): string => createMd5Hash(email).substring(0, 16) // api uses this
 
-const getFilenameSafeEmail = (email: string): string => {
+const composeFilenameSafeEmail = (email: string): string => {
     return createEmailHash(email).substring(0, 8) // 8 characters will probably avoid collision within team 
 }
 
@@ -180,10 +192,13 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
                         .map(filename => {
                             if (isFromRemote) {
                                 const [remoteSeq, modDate] = filename.split('__').slice(0, 2)
-                                return { modDate, remoteSeq }
+                                const normalizedModDate = decomponseFilenameSafeDate(modDate)
+                                const remoteSeqWithoutPadding = decomposeRemoteSeq(remoteSeq)
+                                return { modDate: normalizedModDate, remoteSeq: remoteSeqWithoutPadding }
                             }
                             const modDate = filename.split('__')[0]
-                            return { modDate, remoteSeq: '' }
+                            const normalizedModDate = decomponseFilenameSafeDate(modDate)
+                            return { modDate: normalizedModDate, remoteSeq: '' }
                         })
                     console.log('listDocs result:', result)
                     resolve(result)
