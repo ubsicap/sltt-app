@@ -11,7 +11,7 @@ const DOCS_FROM_LOCAL_PATH = join(DOCS_PATH, 'local')
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
-const DOCS_API_PUT_DOC = 'putDoc'
+const DOCS_API_STORE_DOC = 'storeDoc'
 
 ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     return new Promise(function (resolve, reject) {
@@ -107,11 +107,11 @@ const getFilenameSafeEmail = (email: string): string => {
 
 
 
-ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
+ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     return new Promise(function (resolve, reject) {
         // do stuff
         if (args === 'test') {
-            resolve(`${DOCS_API_PUT_DOC} api test worked!`)
+            resolve(`${DOCS_API_STORE_DOC} api test worked!`)
         } else if (Array.isArray(args)
             && args.length === 2
             && typeof args[0] === 'object'
@@ -136,7 +136,7 @@ ipcMain.handle(DOCS_API_PUT_DOC, async (_, args) => {
                 }
             })
         } else {
-            reject(`invalid args for ${DOCS_API_PUT_DOC}. Expected: [doc: string, remoteSeq: string] Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${DOCS_API_STORE_DOC}. Expected: [doc: string, remoteSeq: string] Got: ${JSON.stringify(args)}`)
         }
     })
 })
