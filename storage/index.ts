@@ -6,8 +6,6 @@ import { createHash } from 'crypto'
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
 const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
 const DOCS_PATH = join(PERSISTENT_STORAGE_PATH, 'docs')
-const DOCS_FROM_REMOTE_PATH = join(DOCS_PATH, 'remote')
-const DOCS_FROM_LOCAL_PATH = join(DOCS_PATH, 'local')
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
@@ -137,16 +135,23 @@ const composeFilenameSafeEmail = (email: string): string => {
     return createEmailHash(email).substring(0, 8) // 8 characters will probably avoid collision within team 
 }
 
+const buildDocFolder = (project: string, isFromRemote: boolean): string => {
+    const DOCS_FROM_REMOTE_PATH = 'remote'
+    const DOCS_FROM_LOCAL_PATH = 'local'
+    const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+    return join(DOCS_PATH, basename(project), fullFromPath)
+}
+
 ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     return new Promise(function (resolve, reject) {
         if (args === 'test') {
             resolve(`${DOCS_API_STORE_DOC} api test worked!`)
-        } else if (Array.isArray(args)
-            && args.length === 2
-            && typeof args[0] === 'object'
-            && typeof args[1] === 'string') {
-            const [doc, remoteSeq] = args
-            const fullFromPath = remoteSeq ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+        } else if (typeof args === 'object'
+            && 'project' in args && typeof args.project === 'string'
+            && 'doc' in args && typeof args.doc === 'object'
+            && 'remoteSeq' in args && typeof args.remoteSeq === 'string') {
+            const { project, doc, remoteSeq } = args
+            const fullFromPath = buildDocFolder(project, !!remoteSeq)
             const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
             const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
             if (filename.length > 255) {
@@ -163,7 +168,7 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
                 }
             })
         } else {
-            reject(`invalid args for ${DOCS_API_STORE_DOC}. Expected: [doc: string, remoteSeq: string] Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
         }
     })
 })
@@ -173,13 +178,14 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
         if (args === 'test') {
             resolve(`${DOCS_API_LIST_DOCS} api test worked!`)
         } else if (typeof args === 'object'
+            && 'project' in args && typeof args.project === 'string'
             && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
         ) {
             console.log('listDocs args:', args)
-            const { isFromRemote } = args
-            listDocs({ isFromRemote }).then(resolve).catch(reject)
+            const { project, isFromRemote } = args
+            listDocs({ project, isFromRemote }).then(resolve).catch(reject)
         } else {
-            reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
         }
     })
 })
@@ -189,12 +195,13 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
         if (args === 'test') {
             resolve(`${DOCS_API_RETRIEVE_DOC} api test worked!`)
         } else if (typeof args === 'object'
+            && 'project' in args && typeof args.project === 'string'
             && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
             && 'filename' in args && typeof args.filename === 'string'
         ) {
-            const { isFromRemote, filename } = args
+            const { project, isFromRemote, filename } = args
             const normalizedFilename = basename(filename) // prevent path traversal
-            const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+            const fullFromPath = buildDocFolder(project, isFromRemote)
             const fullPath = join(fullFromPath, normalizedFilename)
             readFile(fullPath, (error, buffer) => {
                 if (error) {
@@ -206,14 +213,14 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
                 }
             })
         } else {
-            reject(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
         }
     })
 })
 
-async function listDocs({ isFromRemote }: { isFromRemote: boolean }): Promise<unknown> {
+async function listDocs({ project, isFromRemote }: { project: string, isFromRemote: boolean }): Promise<unknown> {
     return new Promise(function (resolve, reject) {
-        const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
+        const fullFromPath = buildDocFolder(project, isFromRemote)
         // detect if path doesn't yet exist
         if (!existsSync(fullFromPath)) {
             resolve([])
