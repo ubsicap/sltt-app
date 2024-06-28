@@ -158,9 +158,11 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
     return new Promise(function (resolve, reject) {
         if (args === 'test') {
             resolve(`${DOCS_API_LIST_DOCS} api test worked!`)
-        } else if (typeof args === 'boolean') {
+        } else if (typeof args === 'object'
+            && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
+        ) {
             console.log('listDocs args:', args)
-            const isFromRemote = args
+            const { isFromRemote } = args
             const fullFromPath = isFromRemote ? DOCS_FROM_REMOTE_PATH : DOCS_FROM_LOCAL_PATH
             // detect if path doesn't yet exist
             if (!existsSync(fullFromPath)) {
@@ -188,7 +190,7 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
                 }
             })
         } else {
-            reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: 'boolean' Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
         }
     })
 })
