@@ -183,7 +183,17 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
         ) {
             console.log('listDocs args:', args)
             const { project, isFromRemote } = args
-            listDocs({ project, isFromRemote }).then(resolve).catch(reject)
+            listDocs({ project, isFromRemote }).then(filenames => {
+               if (!isFromRemote) {
+                  const localFilenames = []
+                  // get remote docs
+                  // for each local doc compose remote filename and see if that file exists
+                  // if so stop local filenames
+                  resolve(localFilenames)
+               } else {
+                  resolve(filenames)
+               }
+            }).catch(reject)
         } else {
             reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
         }
