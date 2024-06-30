@@ -115,12 +115,16 @@ const composeFilenameSafeId = (_id: string): string => {
     }
 }
 
+const LOCAL_DOC_PREFIX = 'local-doc' // 9 characters...same as remote seq
+
 const composeFilename = (modDate: string, _id: string, creator: string, modBy: string, remoteSeq: string): string => {
     const filenameSafeModDate = composeFilenameSafeDate(modDate)
     const filenameSafeId = composeFilenameSafeId(_id)
     const filenameSafeCreator = composeFilenameSafeEmail(creator)
     const filenameSafeModBy = modBy && composeFilenameSafeEmail(modBy) || 'no-mod-by'
-    const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}` : 'local'
+    // make slot for remote and local nine characters so abbreviation logic is applied to both
+    // this can make determining whether local has become remote based on the filename alone) 
+    const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}` : LOCAL_DOC_PREFIX
     const filename = `${filenameRemoteSeq}__${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
     return filename
 }
@@ -183,16 +187,25 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
         ) {
             console.log('listDocs args:', args)
             const { project, isFromRemote } = args
-            listDocs({ project, isFromRemote }).then(filenames => {
-               if (!isFromRemote) {
-                  const localFilenames = []
-                  // get remote docs
-                  // for each local doc compose remote filename and see if that file exists
-                  // if so stop local filenames
-                  resolve(localFilenames)
-               } else {
-                  resolve(filenames)
-               }
+            listDocs({ project, isFromRemote }).then(async (allLocalFilenames) => {
+                if (!isFromRemote) {
+                    const localFilenames: string[] = []
+                    const remoteFilenames = await listDocs({ project, isFromRemote: true })
+                    const strippedRemoteFilenames = new Set(remoteFilenames.map((filename) => filename.slice(9) /* strip 9 char remote seq */))
+                    // reverse the order of local filenames so that the most recent is first
+                    // for each local doc compose remote filename and see if that file exists
+                    // if so stop local filenames
+                    for (const localFilename of allLocalFilenames.reverse()) {
+                        const strippedLocalFilename = localFilename.slice(9) /* strip 9 char local-doc */
+                        if (strippedRemoteFilenames.has(strippedLocalFilename)) {
+                            break
+                        }
+                        localFilenames.push(localFilename)
+                    }
+                    resolve(localFilenames)
+                } else {
+                    resolve(allLocalFilenames)
+                }
             }).catch(reject)
         } else {
             reject(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
@@ -228,7 +241,7 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     })
 })
 
-async function listDocs({ project, isFromRemote }: { project: string, isFromRemote: boolean }): Promise<unknown> {
+async function listDocs({ project, isFromRemote }: { project: string, isFromRemote: boolean }): Promise<string[]> {
     return new Promise(function (resolve, reject) {
         const fullFromPath = buildDocFolder(project, isFromRemote)
         // detect if path doesn't yet exist
