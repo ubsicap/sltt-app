@@ -200,7 +200,7 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
                         if (strippedRemoteFilenames.has(strippedLocalFilename)) {
                             break
                         }
-                        localFilenames.push(localFilename)
+                        localFilenames.unshift(localFilename) // undo reverse order
                     }
                     resolve(localFilenames)
                 } else {
