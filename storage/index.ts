@@ -11,7 +11,7 @@ const DOCS_PATH = join(PERSISTENT_STORAGE_PATH, 'docs')
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
 const VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR = 'storeVideoPendingUploadVideoCacheRecord'
-const VIDEO_CACHE_PENDING_UPLOADS_API_RETRIEVE_PENDING_UPLOAD_VCR = 'retrieveVideoPendingUploadVideoCacheRecord'
+const VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR = 'tryRetrieveVideoPendingUploadVideoCacheRecord'
 const VIDEO_CACHE_PENDING_UPLOADS_API_TRY_REMOVE_PENDING_UPLOAD_VCR = 'tryRemoveVideoPendingUploadVideoCacheRecord'
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
@@ -115,10 +115,10 @@ ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR, async (
     })
 })
 
-ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_RETRIEVE_PENDING_UPLOAD_VCR, async (_, args) => {
+ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR, async (_, args) => {
     return new Promise(function (resolve, reject) {
         if (args === 'test') {
-            resolve(`${VIDEO_CACHE_PENDING_UPLOADS_API_RETRIEVE_PENDING_UPLOAD_VCR} api test worked!`)
+            resolve(`${VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR} api test worked!`)
         } else if (typeof args === 'object'
             && 'videoCacheRecordId' in args && typeof args.videoCacheRecordId === 'string') {
             const { videoCacheRecordId } = args
@@ -126,15 +126,19 @@ ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_RETRIEVE_PENDING_UPLOAD_VCR, asyn
             const fullPath = join(VIDEO_CACHE_PENDING_UPLOADS_PATH, filename)
             readFile(fullPath, (error, buffer) => {
                 if (error) {
-                    console.error('An error occurred:', error.message)
-                    reject(error)
+                    if (error.code === 'ENOENT') {
+                        resolve(null)
+                    } else {
+                        console.error('An error occurred:', error.message)
+                        reject(error)
+                    }
                 } else {
                     const videoCacheRecord = JSON.parse(buffer.toString())
                     resolve(videoCacheRecord)
                 }
             })
         } else {
-            reject(`invalid args for ${VIDEO_CACHE_PENDING_UPLOADS_API_RETRIEVE_PENDING_UPLOAD_VCR}. Expected: { videoCacheRecordId: string } Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR}. Expected: { videoCacheRecordId: string } Got: ${JSON.stringify(args)}`)
         }
     })
 })
