@@ -131,9 +131,10 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_LIST_VCRS, async (_, args) => {
                     }
                 } else {
                     const { project } = args
+                    // empty project means all projects
                     const result = filenames
                         .filter(filename =>
-                            filename.startsWith(`${project}__`) &&
+                            (!project || filename.startsWith(`${project}__`)) &&
                             filename.endsWith('.sltt-vcr')
                         )
                     result.sort() // just in case it's not yet by name
