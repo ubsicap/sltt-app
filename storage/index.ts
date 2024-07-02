@@ -5,10 +5,14 @@ import { createHash } from 'crypto'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
 const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
+const VIDEO_CACHE_RECORDS_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCacheRecords')
 const DOCS_PATH = join(PERSISTENT_STORAGE_PATH, 'docs')
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
+const VIDEO_CACHE_RECORDS_API_STORE_VCR = 'storeVideoCacheRecord'
+const VIDEO_CACHE_RECORDS_API_LIST_VCRS = 'listVideoCacheRecords'
+const VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR = 'retrieveVideoCacheRecord'
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
 const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
@@ -74,6 +78,94 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
             })
         } else {
             reject(`invalid args for ${VIDEO_CACHE_API_STORE_BLOB}. Expected: [path: string, seqNum: string, arrayBuffer: ArrayBuffer] Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+const composeVideoCacheRecordFilename = (_id: string): string => {
+    // BGSL_БЖЕ__230601_064416-230601_065151-240327_114822-2 <-- "BGSL_БЖЕ/230601_064416/230601_065151/240327_114822-2"
+    const [project, ...videoIdParts] = _id.split('/')
+    const videoId = videoIdParts.join('-')
+    const filename = `${project}__${videoId}.sltt-vcr`
+    return filename
+}
+
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_STORE_VCR, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        if (args === 'test') {
+            resolve(`${VIDEO_CACHE_RECORDS_API_STORE_VCR} api test worked!`)
+        } else if (typeof args === 'object'
+            && 'videoCacheRecord' in args && typeof args.videoCacheRecord === 'object') {
+            mkdirSync(VIDEO_CACHE_RECORDS_PATH, { recursive: true })
+            const { videoCacheRecord } = args
+            const { _id } = videoCacheRecord
+            const filename = composeVideoCacheRecordFilename(_id)
+            const fullPath = join(VIDEO_CACHE_RECORDS_PATH, filename)
+            writeFile(fullPath, JSON.stringify(videoCacheRecord), (err) => {
+                if (err) {
+                    console.error('An error occurred:', err.message)
+                    reject(err)
+                } else {
+                    resolve({ videoCacheRecord, fullPath })
+                }
+            })
+        } else {
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_STORE_VCR}. Expected: '{ videoCacheRecord: { _id: string, uploadeds: boolean[] } }' Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_LIST_VCRS, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        if (args === 'test') {
+            resolve(`${VIDEO_CACHE_RECORDS_API_LIST_VCRS} api test worked!`)
+        } else if (typeof args === 'object'
+            && 'project' in args && typeof args.project === 'string') {
+            readdir(VIDEO_CACHE_RECORDS_PATH, (error, filenames) => {
+                if (error) {
+                    if (error.code === 'ENOENT') {
+                        resolve([])
+                    } else {
+                        console.error('An error occurred:', error.message)
+                        reject(error)
+                    }
+                } else {
+                    const { project } = args
+                    // empty project means all projects
+                    const result = filenames
+                        .filter(filename =>
+                            (!project || filename.startsWith(`${project}__`)) &&
+                            filename.endsWith('.sltt-vcr')
+                        )
+                    result.sort() // just in case it's not yet by name
+                    resolve(result)
+                }
+            })
+        } else {
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_LIST_VCRS}. Expected: '{ project: string }' Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        if (args === 'test') {
+            resolve(`${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR} api test worked!`)
+        } else if (typeof args === 'object'
+            && 'filename' in args && typeof args.filename === 'string') {
+            const { filename } = args
+            const fullPath = join(VIDEO_CACHE_RECORDS_PATH, filename)
+            readFile(fullPath, (error, buffer) => {
+                if (error) {
+                    console.error('An error occurred:', error.message)
+                    reject(error)
+                } else {
+                    const videoCacheRecord = JSON.parse(buffer.toString())
+                    resolve(videoCacheRecord)
+                }
+            })
+        } else {
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR}. Expected: { filename: string } Got: ${JSON.stringify(args)}`)
         }
     })
 })
