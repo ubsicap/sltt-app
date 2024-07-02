@@ -12,7 +12,7 @@ const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
 const VIDEO_CACHE_RECORDS_API_STORE_VCR = 'storeVideoCacheRecord'
 const VIDEO_CACHE_RECORDS_API_LIST_VCRS = 'listVideoCacheRecords'
-const VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR = 'tryRetrieveVideoCacheRecord'
+const VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR = 'retrieveVideoCacheRecord'
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
 const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
@@ -146,29 +146,25 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_LIST_VCRS, async (_, args) => {
     })
 })
 
-ipcMain.handle(VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR, async (_, args) => {
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR, async (_, args) => {
     return new Promise(function (resolve, reject) {
         if (args === 'test') {
-            resolve(`${VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR} api test worked!`)
+            resolve(`${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR} api test worked!`)
         } else if (typeof args === 'object'
-            && 'filename' in args && typeof args.videoCacheRecordId === 'string') {
+            && 'filename' in args && typeof args.filename === 'string') {
             const { filename } = args
             const fullPath = join(VIDEO_CACHE_RECORDS_PATH, filename)
             readFile(fullPath, (error, buffer) => {
                 if (error) {
-                    if (error.code === 'ENOENT') {
-                        resolve(null)
-                    } else {
-                        console.error('An error occurred:', error.message)
-                        reject(error)
-                    }
+                    console.error('An error occurred:', error.message)
+                    reject(error)
                 } else {
                     const videoCacheRecord = JSON.parse(buffer.toString())
                     resolve(videoCacheRecord)
                 }
             })
         } else {
-            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR}. Expected: { videoCacheRecordId: string } Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR}. Expected: { filename: string } Got: ${JSON.stringify(args)}`)
         }
     })
 })
