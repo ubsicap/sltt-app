@@ -1,18 +1,18 @@
 import { ipcMain, app } from 'electron'
-import { writeFileSync, writeFile, mkdirSync, readFile, readdir, existsSync, unlink } from 'fs'
+import { writeFileSync, writeFile, mkdirSync, readFile, readdir, existsSync } from 'fs'
 import { basename, dirname, join } from 'path'
 import { createHash } from 'crypto'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
 const VIDEO_CACHE_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCache')
-const VIDEO_CACHE_PENDING_UPLOADS_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCachePendingUploads')
+const VIDEO_CACHE_RECORDS_PATH = join(PERSISTENT_STORAGE_PATH, 'VideoCacheRecords')
 const DOCS_PATH = join(PERSISTENT_STORAGE_PATH, 'docs')
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
-const VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR = 'storeVideoPendingUploadVideoCacheRecord'
-const VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR = 'tryRetrieveVideoPendingUploadVideoCacheRecord'
-const VIDEO_CACHE_PENDING_UPLOADS_API_TRY_REMOVE_PENDING_UPLOAD_VCR = 'tryRemoveVideoPendingUploadVideoCacheRecord'
+const VIDEO_CACHE_RECORDS_API_STORE_VCR = 'storeVideoCacheRecord'
+const VIDEO_CACHE_RECORDS_API_LIST_VCRS = 'listVideoCacheRecords'
+const VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR = 'tryRetrieveVideoCacheRecord'
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
 const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
@@ -90,17 +90,17 @@ const composeVideoCacheRecordFilename = (_id: string): string => {
     return filename
 }
 
-ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR, async (_, args) => {
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_STORE_VCR, async (_, args) => {
     return new Promise(function (resolve, reject) {
         if (args === 'test') {
-            resolve(`${VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR} api test worked!`)
+            resolve(`${VIDEO_CACHE_RECORDS_API_STORE_VCR} api test worked!`)
         } else if (typeof args === 'object'
             && 'videoCacheRecord' in args && typeof args.videoCacheRecord === 'object') {
-            mkdirSync(VIDEO_CACHE_PENDING_UPLOADS_PATH, { recursive: true })
+            mkdirSync(VIDEO_CACHE_RECORDS_PATH, { recursive: true })
             const { videoCacheRecord } = args
             const { _id } = videoCacheRecord
             const filename = composeVideoCacheRecordFilename(_id)
-            const fullPath = join(VIDEO_CACHE_PENDING_UPLOADS_PATH, filename)
+            const fullPath = join(VIDEO_CACHE_RECORDS_PATH, filename)
             writeFile(fullPath, JSON.stringify(videoCacheRecord), (err) => {
                 if (err) {
                     console.error('An error occurred:', err.message)
@@ -110,20 +110,50 @@ ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR, async (
                 }
             })
         } else {
-            reject(`invalid args for ${VIDEO_CACHE_PENDING_UPLOADS_API_STORE_PENDING_UPLOAD_VCR}. Expected: '{ videoCacheRecord: { _id: string, uploadeds: boolean[] } }' Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_STORE_VCR}. Expected: '{ videoCacheRecord: { _id: string, uploadeds: boolean[] } }' Got: ${JSON.stringify(args)}`)
         }
     })
 })
 
-ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR, async (_, args) => {
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_LIST_VCRS, async (_, args) => {
     return new Promise(function (resolve, reject) {
         if (args === 'test') {
-            resolve(`${VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR} api test worked!`)
+            resolve(`${VIDEO_CACHE_RECORDS_API_LIST_VCRS} api test worked!`)
         } else if (typeof args === 'object'
-            && 'videoCacheRecordId' in args && typeof args.videoCacheRecordId === 'string') {
-            const { videoCacheRecordId } = args
-            const filename = composeVideoCacheRecordFilename(videoCacheRecordId)
-            const fullPath = join(VIDEO_CACHE_PENDING_UPLOADS_PATH, filename)
+            && 'project' in args && typeof args.project === 'string') {
+            readdir(VIDEO_CACHE_RECORDS_PATH, (error, filenames) => {
+                if (error) {
+                    if (error.code === 'ENOENT') {
+                        resolve([])
+                    } else {
+                        console.error('An error occurred:', error.message)
+                        reject(error)
+                    }
+                } else {
+                    const { project } = args
+                    const result = filenames
+                        .filter(filename =>
+                            filename.startsWith(`${project}__`) &&
+                            filename.endsWith('.sltt-vcr')
+                        )
+                    result.sort() // just in case it's not yet by name
+                    resolve(result)
+                }
+            })
+        } else {
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_LIST_VCRS}. Expected: '{ project: string }' Got: ${JSON.stringify(args)}`)
+        }
+    })
+})
+
+ipcMain.handle(VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR, async (_, args) => {
+    return new Promise(function (resolve, reject) {
+        if (args === 'test') {
+            resolve(`${VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR} api test worked!`)
+        } else if (typeof args === 'object'
+            && 'filename' in args && typeof args.videoCacheRecordId === 'string') {
+            const { filename } = args
+            const fullPath = join(VIDEO_CACHE_RECORDS_PATH, filename)
             readFile(fullPath, (error, buffer) => {
                 if (error) {
                     if (error.code === 'ENOENT') {
@@ -138,34 +168,7 @@ ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR, 
                 }
             })
         } else {
-            reject(`invalid args for ${VIDEO_CACHE_PENDING_UPLOADS_API_TRY_RETRIEVE_PENDING_UPLOAD_VCR}. Expected: { videoCacheRecordId: string } Got: ${JSON.stringify(args)}`)
-        }
-    })
-})
-
-ipcMain.handle(VIDEO_CACHE_PENDING_UPLOADS_API_TRY_REMOVE_PENDING_UPLOAD_VCR, async (_, args) => {
-    return new Promise(function (resolve, reject) {
-        if (args === 'test') {
-            resolve(`${VIDEO_CACHE_PENDING_UPLOADS_API_TRY_REMOVE_PENDING_UPLOAD_VCR} api test worked!`)
-        } else if (typeof args === 'object'
-            && 'videoCacheRecordId' in args && typeof args.videoCacheRecordId === 'string') {
-            const { videoCacheRecordId } = args
-            const filename = composeVideoCacheRecordFilename(videoCacheRecordId)
-            const fullPath = join(VIDEO_CACHE_PENDING_UPLOADS_PATH, filename)
-            unlink(fullPath, (error) => {
-                if (error) {
-                    if (error.code === 'ENOENT') {
-                        resolve(null)
-                    } else {
-                        console.error('An error occurred:', error.message)
-                        reject(error)
-                    }
-                } else {
-                    resolve(videoCacheRecordId)
-                }
-            })
-        } else {
-            reject(`invalid args for ${VIDEO_CACHE_PENDING_UPLOADS_API_TRY_REMOVE_PENDING_UPLOAD_VCR}. Expected: { videoCacheRecordId: string } Got: ${JSON.stringify(args)}`)
+            reject(`invalid args for ${VIDEO_CACHE_RECORDS_API_TRY_RETRIEVE_VCR}. Expected: { videoCacheRecordId: string } Got: ${JSON.stringify(args)}`)
         }
     })
 })
