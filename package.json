@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "205304.0.25",
+  "version": "205304.0.26",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -36,6 +36,10 @@
     "productName": "sltt-app",
     "directories": {
       "output": "dist"
+    },
+    "nsis": {
+      "oneClick": true,
+      "deleteAppDataOnUninstall": true
     },
     "publish": {
       "provider": "github",
