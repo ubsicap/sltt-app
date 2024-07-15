@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "205304.0.26",
+  "version": "205304.0.27",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -27,6 +27,7 @@
     "copy:build:client": "npm run find:version:source && npm run find:auth0_client_id:source && npm run rmdir:build:client && xcopy %SLTT_CLIENT_DIR%\\build .\\out\\client\\ /s /e /y",
     "build:win:norelease": "npm run build && electron-builder --win --config --publish never",
     "build:win:prerelease": "npm run build && electron-builder --win --config --publish onTagOrDraft --prerelease",
+    "build:win:draft": "npm run build && electron-builder --win --config --publish onTagOrDraft",
     "build:win:release": "npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always",
     "build:mac": "electron-vite build && electron-builder --mac --config",
     "build:linux": "electron-vite build && electron-builder --linux --config"
@@ -45,7 +46,7 @@
       "provider": "github",
       "owner": "ubsicap",
       "repo": "sltt-app",
-      "releaseType": "release"
+      "releaseType": "draft"
     }
   },
   "dependencies": {
