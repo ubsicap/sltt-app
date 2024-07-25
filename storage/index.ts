@@ -250,15 +250,34 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
                 reject(`attempted filename is too long: ${filename}`)
             }
             mkdirSync(fullFromPath, { recursive: true })
-            const fullPath = join(fullFromPath, filename)
-            writeFile(fullPath, JSON.stringify(doc), (err) => {
-                if (err) {
-                    console.error('An error occurred:', err.message)
-                    reject(err)
-                } else {
-                    resolve({ remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy })
-                }
-            })
+            let finalFilename = filename
+            if (!remoteSeq) {
+                // see if _id has already been stored locally with a later modDate
+                // if so, add `-lost` to the filename
+                // TODO: cache listDocs and maintain it in memory
+                listDocs({
+                    project, isFromRemote: false,
+                    fnFilter: (storedFilename) => storedFilename.split('__')[2] === filename.split('__')[2] }
+                ).then((localFilenames) => {
+                    if (filename in localFilenames) {
+                        // filename already exists locally, so don't overwrite it
+                        resolve({ filename, exists: true })
+                        return
+                    }
+                    // sort localFilenames and get modDate from last one
+                    const mostRecentLocalFilename = [...localFilenames, filename].sort().pop()
+                    if (mostRecentLocalFilename !== filename) {
+                        const lostFilename = `${filename}-lost`
+                        finalFilename = lostFilename
+                    }
+                    const fullPath = join(fullFromPath, finalFilename)
+                    writeDoc(fullPath, doc, reject, resolve, remoteSeq, filename, _id, modDate, creator, modBy)
+                    return
+                })
+
+            }
+            const fullPath = join(fullFromPath, finalFilename)
+            writeDoc(fullPath, doc, reject, resolve, remoteSeq, filename, _id, modDate, creator, modBy)
         } else {
             reject(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
         }
@@ -287,6 +306,10 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
                         const strippedLocalFilename = localFilename.slice(9) /* strip 9 char local-doc */
                         if (strippedRemoteFilenames.has(strippedLocalFilename)) {
                             break
+                        }
+                        if (localFilename.endsWith('-lost')) {
+                            // if local doc is lost, don't show it
+                            continue
                         }
                         localFilenames.unshift(localFilename) // undo reverse order
                     }
@@ -329,7 +352,18 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     })
 })
 
-async function listDocs({ project, isFromRemote }: { project: string, isFromRemote: boolean }): Promise<string[]> {
+function writeDoc(fullPath: string, doc: any, reject: (reason?: any) => void, resolve: (value: unknown) => void, remoteSeq: any, filename: string, _id: string, modDate: string, creator: string, modBy: string) {
+    writeFile(fullPath, JSON.stringify(doc), (err) => {
+        if (err) {
+            console.error('An error occurred:', err.message)
+            reject(err)
+        } else {
+            resolve({ remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy })
+        }
+    })
+}
+
+async function listDocs({ project, isFromRemote, fnFilter }: { project: string, isFromRemote: boolean, fnFilter?: (string) => boolean }): Promise<string[]> {
     return new Promise(function (resolve, reject) {
         const fullFromPath = buildDocFolder(project, isFromRemote)
         // detect if path doesn't yet exist
@@ -344,7 +378,7 @@ async function listDocs({ project, isFromRemote }: { project: string, isFromRemo
             } else {
                 console.log('filenames:', filenames)
                 const result = filenames
-                    .filter(filename => filename.endsWith('.sltt-doc'))
+                    .filter(filename => filename.endsWith('.sltt-doc') && (!fnFilter || fnFilter(filename)))
                 result.sort() // just in case it's not yet by name
                 console.log('listDocs result:', result)
                 resolve(result)
