@@ -352,7 +352,7 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     })
 })
 
-function writeDoc(fullPath: string, doc: any, reject: (reason?: any) => void, resolve: (value: unknown) => void, remoteSeq: any, filename: string, _id: string, modDate: string, creator: string, modBy: string) {
+function writeDoc(fullPath: string, doc: unknown, reject: (reason?: unknown) => void, resolve: (value: unknown) => void, remoteSeq: string, filename: string, _id: string, modDate: string, creator: string, modBy: string): void {
     writeFile(fullPath, JSON.stringify(doc), (err) => {
         if (err) {
             console.error('An error occurred:', err.message)
