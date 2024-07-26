@@ -229,6 +229,13 @@ const buildDocFolder = (project: string, isFromRemote: boolean): string => {
     return join(DOCS_PATH, basename(project), fullFromPath)
 }
 
+const parseFilename = (filename: string): { normalizedFilename: string, remoteSeq: string, filenameModDate: string, filenameId: string, filenameCreator: string, filenameModBy: string } => {
+    const normalizedFilename = basename(filename) // prevent path traversal
+    const filenameWithoutExt = parse(normalizedFilename).name
+    const [remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy] = filenameWithoutExt.split('__')
+    return { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
+}
+
 export const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: string):
     Promise<{ filename, exists: true } | { remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> => {
     const fullFromPath = buildDocFolder(project, !!remoteSeq)
@@ -259,13 +266,13 @@ export const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: s
                 finalFilename = lostFilename
             }
             const fullPath = join(fullFromPath, finalFilename)
-            return await writeDoc(fullPath, doc, remoteSeq, filename, _id, modDate, creator, modBy)
+            return await writeDoc(fullPath, doc)
         } catch (error) {
             console.error('An error occurred:', error.message)
         }
     }
     const fullPath = join(fullFromPath, finalFilename)
-    return await writeDoc(fullPath, doc, remoteSeq, filename, _id, modDate, creator, modBy)
+    return await writeDoc(fullPath, doc)
 }
 
 ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
@@ -330,14 +337,12 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
 
 export const handleRetrieveDoc = async (project: string, isFromRemote: boolean, filename: string):
     Promise<{ remoteSeq: string | 'local-doc', filename: string, doc: unknown, fullPath: string, filenameId: string, filenameModDate: string, filenameCreator: string, filenameModBy: string } | null> => {
-    const normalizedFilename = basename(filename) // prevent path traversal
+    const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(project, isFromRemote)
     const fullPath = join(fullFromPath, normalizedFilename)
     try {
         const buffer = await readFile(fullPath)
         const doc = JSON.parse(buffer.toString())
-        const filenameWithoutExt = parse(normalizedFilename).name
-        const [remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy] = filenameWithoutExt.split('__')
         return { remoteSeq, filename, doc, fullPath, filenameId, filenameModDate, filenameCreator, filenameModBy }
     } catch (error) {
         if (error.code === 'ENOENT') {
@@ -364,11 +369,14 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     }
 })
 
-async function writeDoc(fullPath: string, doc: unknown, remoteSeq: string, filename: string, _id: string, modDate: string, creator: string, modBy: string):
-    Promise<{ remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> {
+
+type WriteDocResponse = ReturnType<typeof parseFilename>
+
+async function writeDoc(fullPath: string, doc: unknown):
+    Promise<WriteDocResponse> {
     try {
         await writeFile(fullPath, JSON.stringify(doc))
-        return { remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy }
+        return parseFilename(fullPath)
     } catch (error) {
         console.error('An error occurred:', error.message)
         throw error
