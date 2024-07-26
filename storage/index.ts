@@ -1,7 +1,7 @@
 import { ipcMain, app } from 'electron'
 import { writeFileSync, mkdirSync, existsSync } from 'fs'
 import { writeFile,readFile, readdir } from 'fs/promises'
-import { basename, dirname, join } from 'path'
+import { basename, dirname, join, parse } from 'path'
 import { createHash } from 'crypto'
 
 const PERSISTENT_STORAGE_PATH = join(app.getPath('userData'), 'persistentStorage')
@@ -336,7 +336,8 @@ export const handleRetrieveDoc = async (project: string, isFromRemote: boolean, 
     try {
         const buffer = await readFile(fullPath)
         const doc = JSON.parse(buffer.toString())
-        const [remoteSeq, modDate, _id, creator, modBy] = normalizedFilename.split('__')
+        const filenameWithoutExt = parse(normalizedFilename).name
+        const [remoteSeq, modDate, _id, creator, modBy] = filenameWithoutExt.split('__')
         return { remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy }
     } catch (error) {
         if (error.code === 'ENOENT') {
