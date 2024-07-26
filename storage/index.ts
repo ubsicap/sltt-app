@@ -329,7 +329,7 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
 })
 
 export const handleRetrieveDoc = async (project: string, isFromRemote: boolean, filename: string):
-    Promise<{ remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string } | null> => {
+    Promise<{ remoteSeq: string | 'local-doc', filename: string, doc: unknown, fullPath: string, filenameId: string, filenameModDate: string, filenameCreator: string, filenameModBy: string } | null> => {
     const normalizedFilename = basename(filename) // prevent path traversal
     const fullFromPath = buildDocFolder(project, isFromRemote)
     const fullPath = join(fullFromPath, normalizedFilename)
@@ -337,8 +337,8 @@ export const handleRetrieveDoc = async (project: string, isFromRemote: boolean, 
         const buffer = await readFile(fullPath)
         const doc = JSON.parse(buffer.toString())
         const filenameWithoutExt = parse(normalizedFilename).name
-        const [remoteSeq, modDate, _id, creator, modBy] = filenameWithoutExt.split('__')
-        return { remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy }
+        const [remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy] = filenameWithoutExt.split('__')
+        return { remoteSeq, filename, doc, fullPath, filenameId, filenameModDate, filenameCreator, filenameModBy }
     } catch (error) {
         if (error.code === 'ENOENT') {
             return null
