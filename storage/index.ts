@@ -229,6 +229,45 @@ const buildDocFolder = (project: string, isFromRemote: boolean): string => {
     return join(DOCS_PATH, basename(project), fullFromPath)
 }
 
+const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: string):
+    Promise<{ filename, exists: true } | { remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> => {
+    const fullFromPath = buildDocFolder(project, !!remoteSeq)
+    const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
+    const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
+    if (filename.length > 255) {
+        throw Error(`attempted filename is too long: ${filename}`)
+    }
+    mkdirSync(fullFromPath, { recursive: true })
+    let finalFilename = filename
+    if (!remoteSeq) {
+        // see if _id has already been stored locally with a later modDate
+        // if so, add `-lost` to the filename
+        // TODO: cache listDocs and maintain it in memory
+        try {
+            const localFilenames = await listDocs({
+                project, isFromRemote: false,
+                fnFilter: (storedFilename) => storedFilename.split('__')[2] === filename.split('__')[2]
+            })
+            if (filename in localFilenames) {
+                // filename already exists locally, so don't overwrite it
+                return { filename, exists: true }
+            }
+            // sort localFilenames and get modDate from last one
+            const mostRecentLocalFilename = [...localFilenames, filename].sort().pop()
+            if (mostRecentLocalFilename !== filename) {
+                const lostFilename = `${filename}-lost`
+                finalFilename = lostFilename
+            }
+            const fullPath = join(fullFromPath, finalFilename)
+            return await writeDoc(fullPath, doc, remoteSeq, filename, _id, modDate, creator, modBy)
+        } catch (error) {
+            console.error('An error occurred:', error.message)
+        }
+    }
+    const fullPath = join(fullFromPath, finalFilename)
+    return await writeDoc(fullPath, doc, remoteSeq, filename, _id, modDate, creator, modBy)
+}
+
 ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     if (args === 'test') {
         return `${DOCS_API_STORE_DOC} api test worked!`
@@ -237,45 +276,42 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
         && 'doc' in args && typeof args.doc === 'object'
         && 'remoteSeq' in args && typeof args.remoteSeq === 'string') {
         const { project, doc, remoteSeq } = args
-        const fullFromPath = buildDocFolder(project, !!remoteSeq)
-        const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
-        const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
-        if (filename.length > 255) {
-            throw Error(`attempted filename is too long: ${filename}`)
-        }
-        mkdirSync(fullFromPath, { recursive: true })
-        let finalFilename = filename
-        if (!remoteSeq) {
-            // see if _id has already been stored locally with a later modDate
-            // if so, add `-lost` to the filename
-            // TODO: cache listDocs and maintain it in memory
-            try {
-                const localFilenames = await listDocs({
-                    project, isFromRemote: false,
-                    fnFilter: (storedFilename) => storedFilename.split('__')[2] === filename.split('__')[2]
-                })
-                if (filename in localFilenames) {
-                    // filename already exists locally, so don't overwrite it
-                    return { filename, exists: true }
-                }
-                // sort localFilenames and get modDate from last one
-                const mostRecentLocalFilename = [...localFilenames, filename].sort().pop()
-                if (mostRecentLocalFilename !== filename) {
-                    const lostFilename = `${filename}-lost`
-                    finalFilename = lostFilename
-                }
-                const fullPath = join(fullFromPath, finalFilename)
-                await writeDoc(fullPath, doc, remoteSeq, filename, _id, modDate, creator, modBy)
-            } catch (error) {
-                console.error('An error occurred:', error.message)
-            }
-        }
-        const fullPath = join(fullFromPath, finalFilename)
-        return await writeDoc(fullPath, doc, remoteSeq, filename, _id, modDate, creator, modBy)
+        return await handleStoreDoc(project, doc, remoteSeq)
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
     }
 })
+
+const handleListDocs = async (project: string, isFromRemote: boolean): Promise<string[]> => {
+    try {
+        const filenames = await listDocs({ project, isFromRemote })
+        if (!isFromRemote) {
+            const localFilenames: string[] = []
+            const remoteFilenames = await listDocs({ project, isFromRemote: true })
+            const strippedRemoteFilenames = new Set(remoteFilenames.map((filename) => filename.slice(9) /* strip 9 char remote seq */))
+            // reverse the order of local filenames so that the most recent is first
+            // for each local doc compose remote filename and see if that file exists
+            // if so stop local filenames
+            for (const localFilename of filenames.reverse()) {
+                const strippedLocalFilename = localFilename.slice(9) /* strip 9 char local-doc */
+                if (strippedRemoteFilenames.has(strippedLocalFilename)) {
+                    break
+                }
+                if (localFilename.endsWith('-lost')) {
+                    // if local doc is lost, don't show it
+                    continue
+                }
+                localFilenames.unshift(localFilename) // undo reverse order
+            }
+            return localFilenames
+        } else {
+            return filenames
+        }
+    } catch (error) {
+        console.error('An error occurred:', error.message)
+        throw error
+    }
+}
 
 ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
     if (args === 'test') {
@@ -286,38 +322,31 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
     ) {
         console.log('listDocs args:', args)
         const { project, isFromRemote } = args
-        try {
-            const filenames = await listDocs({ project, isFromRemote })
-            if (!isFromRemote) {
-                const localFilenames: string[] = []
-                const remoteFilenames = await listDocs({ project, isFromRemote: true })
-                const strippedRemoteFilenames = new Set(remoteFilenames.map((filename) => filename.slice(9) /* strip 9 char remote seq */))
-                // reverse the order of local filenames so that the most recent is first
-                // for each local doc compose remote filename and see if that file exists
-                // if so stop local filenames
-                for (const localFilename of filenames.reverse()) {
-                    const strippedLocalFilename = localFilename.slice(9) /* strip 9 char local-doc */
-                    if (strippedRemoteFilenames.has(strippedLocalFilename)) {
-                        break
-                    }
-                    if (localFilename.endsWith('-lost')) {
-                        // if local doc is lost, don't show it
-                        continue
-                    }
-                    localFilenames.unshift(localFilename) // undo reverse order
-                }
-                return localFilenames
-            } else {
-                return filenames
-            }
-        } catch (error) {
-            console.error('An error occurred:', error.message)
-            throw error
-        }
+        return await handleListDocs(project, isFromRemote)
     } else {
         throw Error(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
     }
 })
+
+const handleRetrieveDoc = async (project: string, isFromRemote: boolean, filename: string):
+    Promise<{ remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string } | null> => {
+    const normalizedFilename = basename(filename) // prevent path traversal
+    const fullFromPath = buildDocFolder(project, isFromRemote)
+    const fullPath = join(fullFromPath, normalizedFilename)
+    try {
+        const buffer = await readFile(fullPath)
+        const doc = JSON.parse(buffer.toString())
+        const [remoteSeq, modDate, _id, creator, modBy] = normalizedFilename.split('__')
+        return { remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy }
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return null
+        } else {
+            console.error('An error occurred:', error.message)
+            throw error
+        }
+    }
+}
 
 ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     if (args === 'test') {
@@ -328,27 +357,14 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
         && 'filename' in args && typeof args.filename === 'string'
     ) {
         const { project, isFromRemote, filename } = args
-        const normalizedFilename = basename(filename) // prevent path traversal
-        const fullFromPath = buildDocFolder(project, isFromRemote)
-        const fullPath = join(fullFromPath, normalizedFilename)
-        try {
-            const buffer = await readFile(fullPath)
-            const doc = JSON.parse(buffer.toString())
-            return doc
-        } catch (error) {
-            if (error.code === 'ENOENT') {
-                return null
-            } else {
-                console.error('An error occurred:', error.message)
-                throw error
-            }
-        }
+        return await handleRetrieveDoc(project, isFromRemote, filename)
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 
-async function writeDoc(fullPath: string, doc: unknown, remoteSeq: string, filename: string, _id: string, modDate: string, creator: string, modBy: string): Promise<{ remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> {
+async function writeDoc(fullPath: string, doc: unknown, remoteSeq: string, filename: string, _id: string, modDate: string, creator: string, modBy: string):
+    Promise<{ remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> {
     try {
         await writeFile(fullPath, JSON.stringify(doc))
         return { remoteSeq, filename, doc, fullPath, _id, modDate, creator, modBy }
