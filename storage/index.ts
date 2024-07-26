@@ -229,7 +229,7 @@ const buildDocFolder = (project: string, isFromRemote: boolean): string => {
     return join(DOCS_PATH, basename(project), fullFromPath)
 }
 
-const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: string):
+export const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: string):
     Promise<{ filename, exists: true } | { remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> => {
     const fullFromPath = buildDocFolder(project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
@@ -282,7 +282,7 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     }
 })
 
-const handleListDocs = async (project: string, isFromRemote: boolean): Promise<string[]> => {
+export const handleListDocs = async (project: string, isFromRemote: boolean): Promise<string[]> => {
     try {
         const filenames = await listDocs({ project, isFromRemote })
         if (!isFromRemote) {
@@ -328,7 +328,7 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
     }
 })
 
-const handleRetrieveDoc = async (project: string, isFromRemote: boolean, filename: string):
+export const handleRetrieveDoc = async (project: string, isFromRemote: boolean, filename: string):
     Promise<{ remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string } | null> => {
     const normalizedFilename = basename(filename) // prevent path traversal
     const fullFromPath = buildDocFolder(project, isFromRemote)
