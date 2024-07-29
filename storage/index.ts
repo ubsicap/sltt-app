@@ -237,7 +237,7 @@ const parseFilename = (filename: string): { normalizedFilename: string, remoteSe
 }
 
 export const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: string):
-    Promise<{ filename, exists: true } | { remoteSeq: string, filename: string, doc: unknown, fullPath: string, _id: string, modDate: string, creator: string, modBy: string }> => {
+    Promise<WriteDocResponse> => {
     const fullFromPath = buildDocFolder(project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
     const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
@@ -257,7 +257,7 @@ export const handleStoreDoc = async (project: string, doc: unknown, remoteSeq: s
             })
             if (filename in localFilenames) {
                 // filename already exists locally, so don't overwrite it
-                return { filename, exists: true }
+                return { ...parseFilename(filename), freshlyWritten: false }
             }
             // sort localFilenames and get modDate from last one
             const mostRecentLocalFilename = [...localFilenames, filename].sort().pop()
@@ -370,13 +370,13 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
 })
 
 
-type WriteDocResponse = ReturnType<typeof parseFilename>
+type WriteDocResponse = ReturnType<typeof parseFilename> & { freshlyWritten: boolean }
 
 async function writeDoc(fullPath: string, doc: unknown):
     Promise<WriteDocResponse> {
     try {
         await writeFile(fullPath, JSON.stringify(doc))
-        return parseFilename(fullPath)
+        return { ...parseFilename(fullPath), freshlyWritten: true }
     } catch (error) {
         console.error('An error occurred:', error.message)
         throw error
