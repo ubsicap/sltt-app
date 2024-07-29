@@ -26,24 +26,25 @@ it('should create a temp folder path', () => {
   expect(existsSync(tempDir)).toBe(true);
 })
 
-// 1) Test the handleListDocs function
-test('list docs', async () => {
-  const project = 'testProject'
-  const isFromRemote = false
-  const testDataPath = resolve(__dirname, './test-data/listTests/empty')
-  const docs = await handleListDocs(testDataPath, project, isFromRemote)
-  expect(docs).toEqual([])
+describe('handleListDocs', () => {
+  it('should list documents correctly', async () => {
+    const project = 'testProject'
+    const isFromRemote = false
+    const testDataPath = resolve(__dirname, './test-data/listTests/empty')
+    const docs = await handleListDocs(testDataPath, project, isFromRemote)
+    expect(docs).toEqual([])
+  })
 })
 
-// 2) Test the handleRetrieveDoc function
-test('retrieve doc', async () => {
-  const project = 'testProject'
-  const filename = 'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc'
-  const isFromRemote = false
-  const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-  console.log('testDataPath:', testDataPath)
-  const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, filename)
-  expect(response).toMatchSnapshot()
+describe('handleRetrieveDoc', () => {
+  it('should retrieve documents correctly', async () => {
+    const project = 'testProject'
+    const filename = 'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc'
+    const isFromRemote = false
+    const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
+    const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, filename)
+    expect(response).toMatchSnapshot()
+  })
 })
 
 describe('handleStoreDoc', () => {
@@ -83,4 +84,3 @@ describe('handleStoreDoc', () => {
     })
   })
 })
-

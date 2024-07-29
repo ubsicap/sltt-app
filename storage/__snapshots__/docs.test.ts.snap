@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`retrieve doc 1`] = `
+exports[`handleRetrieveDoc > should retrieve documents correctly 1`] = `
 {
   "doc": {
     "_id": "210629_180535/240725_145023",
