@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`retrieve doc 1`] = `
+{
+  "doc": {
+    "_id": "210629_180535/240725_145023",
+    "assignee": "",
+    "contentType": "Translation",
+    "creationDate": "2024/07/25 14:50:23.046Z",
+    "creator": "epyle@biblesocieties.org",
+    "difficulty": 1,
+    "modBy": "epyle@biblesocieties.org",
+    "modDate": "2024/07/25 14:50:23.046Z",
+    "name": "test offline passage",
+    "rank": "00000001000.0000",
+    "references": "[]",
+  },
+  "filename": "local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc",
+  "filenameCreator": "c62114c2",
+  "filenameId": "210629_180535-240725_145023",
+  "filenameModBy": "c62114c2",
+  "filenameModDate": "2024-07-25_14-50-23-046",
+  "fullPath": "C:\\Users\\ericd\\repos\\ubsicap\\sltt-electron\\storage\\test-data\\listTests\\local-and-remote\\testProject\\local\\local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc",
+  "remoteSeq": "local-doc",
+}
+`;

@@ -1,70 +1,49 @@
-import { vi, describe, it, expect, test } from 'vitest'
-import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './index.ts'
+import { describe, it, expect, test, beforeAll, afterAll } from 'vitest'
+import { mkdtempSync, rmdirSync, existsSync } from 'fs'
+import { join, resolve } from 'path'
+import { tmpdir } from 'os'
+import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './docs'
 
 // Basic test to ensure Jest is working
 test('basic test', () => {
   expect(1 + 1).toBe(2)
 })
 
-// Mock the necessary modules
-vi.mock('electron', () => ({
-  ipcMain: {
-    handle: vi.fn(),
-  },
-  app: {
-    getPath: vi.fn().mockReturnValue('mocked/path')
-  }
-}))
+let tempDir: string;
 
-vi.mock('fs', () => ({
-  writeFileSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  existsSync: vi.fn()
-}))
+beforeAll(() => {
+  // Create a unique temporary directory
+  tempDir = mkdtempSync(join(tmpdir(), 'vitest-'))
+})
 
-vi.mock('fs/promises', () => ({
-  writeFile: vi.fn(),
-  readFile: vi.fn().mockResolvedValue(Buffer.from(JSON.stringify({ key: 'value' }))),
-  readdir: vi.fn()
-}))
+afterAll(() => {
+  // Clean up the temporary directory
+  rmdirSync(tempDir, { recursive: true })
+})
+
+it('should create a temp folder path', () => {
+  // Use the tempDir in your tests
+  expect(existsSync(tempDir)).toBe(true);
+})
 
 // 1) Test the handleListDocs function
 test('list docs', async () => {
   const project = 'testProject'
   const isFromRemote = false
-  const docs = await handleListDocs(project, isFromRemote)
+  const testDataPath = resolve(__dirname, './test-data/listTests/empty')
+  const docs = await handleListDocs(testDataPath, project, isFromRemote)
   expect(docs).toEqual([])
 })
 
 // 2) Test the handleRetrieveDoc function
 test('retrieve doc', async () => {
   const project = 'testProject'
-  const filename = 'testDoc'
+  const filename = 'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc'
   const isFromRemote = false
-  const response = await handleRetrieveDoc(project, isFromRemote, filename)
-  expect(response).toEqual({
-    doc: { key: 'value' },
-    filename: 'testDoc',
-    filenameCreator: undefined,
-    filenameId: undefined,
-    filenameModBy: undefined,
-    filenameModDate: undefined,
-    fullPath: 'mocked\\path\\persistentStorage\\docs\\testProject\\local\\testDoc',
-    remoteSeq: 'testDoc',
-  })
-})
-
-// 3) Test the handleStoreDoc function
-// Mock the crypto module at the top of the file
-vi.mock('crypto', () => {
-  return {
-    createHash: vi.fn().mockImplementation(() => {
-      return {
-        update: vi.fn().mockReturnThis(),
-        digest: vi.fn().mockReturnValue('b95a492b2e47ec30')
-      }
-    })
-  }
+  const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
+  console.log('testDataPath:', testDataPath)
+  const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, filename)
+  expect(response).toMatchSnapshot()
 })
 
 describe('handleStoreDoc', () => {
@@ -73,16 +52,16 @@ describe('handleStoreDoc', () => {
     const doc = {
       modDate: '2023-10-01T12:34:56Z',
       _id: 'some-id',
-      creator: 'b95a492b',
+      creator: 'bob@example.com',
       modBy: ''  // or could leave this out
     };
 
     const remoteSeq = 'local-doc';
-    const response = await handleStoreDoc(project, doc, remoteSeq);
+    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
 
     // Correct the date formatting
-    const modDateFormatted = doc.modDate.replace(/:/g, '-').replace('Z', '').replace('T', 'T');
-    const expectedFilename = `local-doc__${modDateFormatted}__${doc._id}__b95a492b__no-mod-by.sltt-doc`;
+    const modDateFormatted = doc.modDate.replace(/:/g, '-').replace('Z', '').replace('T', 'T')
+    const expectedFilename = `local-doc__${modDateFormatted}__${doc._id}__4b9bb806__no-mod-by.sltt-doc`
 
     console.log('Expected Filename:', expectedFilename); // Debugging line
 
@@ -90,7 +69,7 @@ describe('handleStoreDoc', () => {
     const parts = expectedFilename.split('__');
     console.log('Filename Parts:', parts); // Debugging line
 
-    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator] = parts;
+    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator] = parts
     const expectedFilenameModBy = 'no-mod-by'  
 
     expect(response).toEqual({
@@ -101,7 +80,7 @@ describe('handleStoreDoc', () => {
       filenameCreator: expectedFilenameCreator,
       filenameModBy: expectedFilenameModBy,
       freshlyWritten: true
-    });
-  });
-});
+    })
+  })
+})
 
