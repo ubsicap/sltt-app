@@ -128,19 +128,16 @@ export const handleListDocs = async (docsFolder: string, project: string, isFrom
             const localFilenames: string[] = []
             const remoteFilenames = await listDocs(docsFolder, { project, isFromRemote: true })
             const strippedRemoteFilenames = new Set(remoteFilenames.map((filename) => filename.slice(9) /* strip 9 char remote seq */))
-            // reverse the order of local filenames so that the most recent is first
-            // for each local doc compose remote filename and see if that file exists
-            // if so stop local filenames
-            for (const localFilename of filenames.reverse()) {
-                const strippedLocalFilename = localFilename.slice(9) /* strip 9 char local-doc */
-                if (strippedRemoteFilenames.has(strippedLocalFilename)) {
-                    break
-                }
-                if (localFilename.endsWith('-lost')) {
-                    // if local doc is lost, don't show it
+            // TODO: allow for mixed modDates
+            // use set subtraction remote filenames from local filenames
+            for (const filename of filenames) {
+                if (filename.endsWith('-lost')) {
                     continue
                 }
-                localFilenames.unshift(localFilename) // undo reverse order
+                const strippedFilename = filename.slice(9) /* strip 9 char local-doc */
+                if (!strippedRemoteFilenames.has(strippedFilename)) {
+                    localFilenames.push(filename)
+                }
             }
             return localFilenames
         } else {

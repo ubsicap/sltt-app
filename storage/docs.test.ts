@@ -27,12 +27,22 @@ it('should create a temp folder path', () => {
 })
 
 describe('handleListDocs', () => {
-  it('should list documents correctly', async () => {
+  it('should list empty docs in empty folder', async () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/empty')
     const docs = await handleListDocs(testDataPath, project, isFromRemote)
     expect(docs).toEqual([])
+  })
+  it('should strip remote docs, but list earlier local docs', async () => {
+    const project = 'testProject'
+    const isFromRemote = false
+    const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
+    const docs = await handleListDocs(testDataPath, project, isFromRemote)
+    expect(docs).toEqual([
+      'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc',
+      'local-doc__2024-07-26_02-58-31-902__210629_180535-240726_025831__c62114c2__c62114c2.sltt-doc',
+    ])
   })
 })
 
@@ -48,6 +58,7 @@ describe('handleRetrieveDoc', () => {
 })
 
 describe('handleStoreDoc', () => {
+  // TODO: store same doc twice
   it.each([
     {
       testCase: 'local doc with no-mod-by',
