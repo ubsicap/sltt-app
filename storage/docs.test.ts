@@ -51,24 +51,19 @@ describe('handleStoreDoc', () => {
   it('should handle document storage correctly', async () => {
     const project = 'testProject';
     const doc = {
-      modDate: '2023-10-01T12:34:56Z',
-      _id: 'some-id',
+      modDate: '2023/10/01 12:34:23.046Z',
+      _id: '210202_183235/240607_145904',
       creator: 'bob@example.com',
-      modBy: ''  // or could leave this out
     };
 
     const remoteSeq = 'local-doc';
     const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
 
     // Correct the date formatting
-    const modDateFormatted = doc.modDate.replace(/:/g, '-').replace('Z', '').replace('T', 'T')
-    const expectedFilename = `local-doc__${modDateFormatted}__${doc._id}__4b9bb806__no-mod-by.sltt-doc`
-
-    console.log('Expected Filename:', expectedFilename); // Debugging line
+    const expectedFilename = `local-doc__2023-10-01_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc`
 
     // Split the filename correctly
     const parts = expectedFilename.split('__');
-    console.log('Filename Parts:', parts); // Debugging line
 
     const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator] = parts
     const expectedFilenameModBy = 'no-mod-by'  
