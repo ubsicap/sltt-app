@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { basename, join, parse } from 'path'
+import { basename, join, parse, sep } from 'path'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { existsSync, mkdirSync } from 'fs'
 
@@ -74,11 +74,12 @@ const buildDocFolder = (docsFolder: string, project: string, isFromRemote: boole
     return join(docsFolder, basename(project), fullFromPath)
 }
 
-const parseFilename = (filename: string): { normalizedFilename: string, remoteSeq: string, filenameModDate: string, filenameId: string, filenameCreator: string, filenameModBy: string } => {
+const parseFilename = (filename: string): { projectPath: string, normalizedFilename: string, remoteSeq: string, filenameModDate: string, filenameId: string, filenameCreator: string, filenameModBy: string } => {
+    const projectPath = filename.split(sep).slice(-3, -1).join('/')  // {project}/{local|remote}
     const normalizedFilename = basename(filename) // prevent path traversal
     const filenameWithoutExt = parse(normalizedFilename).name
     const [remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy] = filenameWithoutExt.split('__')
-    return { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
+    return { projectPath, normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
 }
 
 export const handleStoreDoc = async (docsFolder: string, project: string, doc: unknown, remoteSeq: string):
