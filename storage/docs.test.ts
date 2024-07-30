@@ -13,7 +13,7 @@ let tempDir: string
 
 beforeAll(() => {
   // Create a unique temporary directory
-  tempDir = mkdtempSync(join(tmpdir(), 'vitest-'))
+  tempDir = mkdtempSync(join(tmpdir(), 'sltt-app-vitest-'))
 })
 
 afterAll(() => {
