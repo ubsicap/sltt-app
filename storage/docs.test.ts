@@ -62,7 +62,14 @@ describe('handleRetrieveDoc', () => {
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
     const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, filename)
-    expect(response).toMatchSnapshot()
+    expect(response).toBeTruthy()
+    const { fullPath } = response!
+    const relativePath = fullPath.split('storage').pop() || ''
+    const storagePath = join('storage', relativePath)
+    expect({
+      ...response,
+      fullPath: storagePath
+    }).toMatchSnapshot()
   })
 })
 
