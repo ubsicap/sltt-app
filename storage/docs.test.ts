@@ -78,18 +78,18 @@ describe('handleStoreDoc', () => {
   // TODO: store same doc twice
   it.each([
     {
-      testCase: 'local doc with no-mod-by',
+      testCase: 'remote doc with no-mod-by',
       project: 'testProject1',
       doc: {
         modDate: '2023/10/01 12:34:23.046Z',
         _id: '210202_183235/240607_145904',
         creator: 'bob@example.com',
       },
-      remoteSeq: '',
-      expectedFilename: 'local-doc__2023-10-01_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc'
+      remoteSeq: '000000001',
+      expectedFilename: '000000001__2023-10-01_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc'
     },
     {
-      testCase: 'local doc with modBy',
+      testCase: 'remote doc with modBy',
       project: 'testProject1',
       doc: {
         modDate: '2023/10/01 12:34:23.046Z',
@@ -97,11 +97,11 @@ describe('handleStoreDoc', () => {
         creator: 'alice@example.com',
         modBy: 'bob@example.com',
       },
-      remoteSeq: '',
-      expectedFilename: 'local-doc__2023-10-01_12-34-23-046__210202_183235-240607_145904__c160f8cc__4b9bb806.sltt-doc'
+      remoteSeq: '000000001',
+      expectedFilename: '000000001__2023-10-01_12-34-23-046__210202_183235-240607_145904__c160f8cc__4b9bb806.sltt-doc'
     },
     {
-      testCase: 'remote doc',
+      testCase: 'local doc',
       project: 'testProject2',
       doc: {
         modDate: '2023/11/01 13:34:23.046Z',
@@ -109,8 +109,8 @@ describe('handleStoreDoc', () => {
         creator: 'alice@example.com',
         modBy: 'bob@example.com',
       },
-      remoteSeq: '000000001',
-      expectedFilename: '000000001__2023-11-01_13-34-23-046__310202_183235-340607_145904__c160f8cc__4b9bb806.sltt-doc'
+      remoteSeq: '',
+      expectedFilename: 'local-doc__2023-11-01_13-34-23-046__310202_183235-340607_145904__c160f8cc__4b9bb806.sltt-doc'
     }
   ])('should handle document storage correctly for $testCase', async ({ project, doc, remoteSeq, expectedFilename }) => {
     try {
