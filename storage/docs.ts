@@ -131,7 +131,7 @@ export const handleListDocs = async (docsFolder: string, project: string, isFrom
             // TODO: allow for mixed modDates
             // use set subtraction remote filenames from local filenames
             for (const filename of filenames) {
-                if (filename.endsWith('-lost')) {
+                if (filename.endsWith('-lost.sltt-doc')) {
                     continue
                 }
                 const strippedFilename = filename.slice(9) /* strip 9 char local-doc */
