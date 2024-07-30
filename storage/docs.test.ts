@@ -75,7 +75,7 @@ describe('handleRetrieveDoc', () => {
 })
 
 describe('handleStoreDoc', () => {
-  // Loading 3 separate docs and verifying they were saved
+  // Store 3 separate remote and local docs and verify they were saved
   it.each([
     {
       testCase: 'store remote doc with no-mod-by',
@@ -130,6 +130,7 @@ describe('handleStoreDoc', () => {
       freshlyWritten: true
     })
   })
+
   it('should not store the same doc twice', async () => {
     const project = 'testProject1'
     const doc = {
