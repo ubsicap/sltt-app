@@ -75,65 +75,10 @@ describe('handleRetrieveDoc', () => {
 })
 
 describe('handleStoreDoc', () => {
-  // Make sure the same doc is not stored twice
-  it('should store a doc', async () => {
-    const project = 'testProject1'
-    const doc = {
-      modDate: '2024/07/30 12:34:23.046Z',
-      _id: '210202_183235/240607_145904',
-      creator: 'ellis@example.com',
-    }
-    const remoteSeq = ''
-    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
-
-    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
-
-    const parts = expectedFilename.split('.')[0].split('__')
-    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
-    const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
-
-    expect(response).toEqual({
-      projectPath,
-      normalizedFilename: expectedFilename,
-      remoteSeq: expectedRemoteSeq,
-      filenameModDate: expectedFilenameModDate,
-      filenameId: expectedFilenameId,
-      filenameCreator: expectedFilenameCreator,
-      filenameModBy: expectedFilenameModBy,
-      freshlyWritten: true
-    })
-  })
-  // Assure you cannot store the same test doc twice
-  it('should not store the same doc', async () => {
-    const project = 'testProject1'
-    const doc = {
-      modDate: '2024/07/30 12:34:23.046Z',
-      _id: '210202_183235/240607_145904',
-      creator: 'ellis@example.com',
-    }
-    const remoteSeq = ''
-    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
-
-    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
-
-    const parts = expectedFilename.split('.')[0].split('__')
-    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
-    const projectPath = ``
-    expect(response).toEqual({
-      projectPath,
-      normalizedFilename: expectedFilename,
-      remoteSeq: expectedRemoteSeq,
-      filenameModDate: expectedFilenameModDate,
-      filenameId: expectedFilenameId,
-      filenameCreator: expectedFilenameCreator,
-      filenameModBy: expectedFilenameModBy,
-      freshlyWritten: false
-    })
-  })
   // Loading 3 separate docs and verifying they were saved
   it.each([
     {
-      testCase: 'remote doc with no-mod-by',
+      testCase: 'store remote doc with no-mod-by',
       project: 'testProject1',
       doc: {
         modDate: '2023/10/01 12:34:23.046Z',
@@ -144,7 +89,7 @@ describe('handleStoreDoc', () => {
       expectedFilename: '000000001__2023-10-01_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc'
     },
     {
-      testCase: 'remote doc with modBy',
+      testCase: 'store remote doc with modBy',
       project: 'testProject1',
       doc: {
         modDate: '2023/10/01 12:34:23.046Z',
@@ -156,7 +101,7 @@ describe('handleStoreDoc', () => {
       expectedFilename: '000000001__2023-10-01_12-34-23-046__210202_183235-240607_145904__c160f8cc__4b9bb806.sltt-doc'
     },
     {
-      testCase: 'local doc',
+      testCase: 'store local doc',
       project: 'testProject2',
       doc: {
         modDate: '2023/11/01 13:34:23.046Z',
@@ -184,5 +129,22 @@ describe('handleStoreDoc', () => {
       filenameModBy: expectedFilenameModBy,
       freshlyWritten: true
     })
+  })
+  it('should not store the same doc twice', async () => {
+    const project = 'testProject1'
+    const doc = {
+      modDate: '2024/07/30 12:34:23.046Z',
+      _id: '210202_183235/240607_145904',
+      creator: 'ellis@example.com',
+    }
+    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
+
+    const firstStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
+    expect(firstStoreResponse.freshlyWritten).toBe(true)
+    expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename)
+
+    const secondStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
+    expect(secondStoreResponse.freshlyWritten).toBe(false)
+    expect(secondStoreResponse.normalizedFilename).toBe(expectedFilename)
   })
 })
