@@ -66,9 +66,10 @@ describe('handleRetrieveDoc', () => {
     const { fullPath } = response!
     const relativePath = fullPath.split('storage').pop() || ''
     const storagePath = join('storage', relativePath)
+    const normalizedStoragePath = storagePath.replace(/\\/g, '/')
     expect({
       ...response,
-      fullPath: storagePath
+      fullPath: normalizedStoragePath
     }).toMatchSnapshot()
   })
 })
