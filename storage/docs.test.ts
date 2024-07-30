@@ -77,21 +77,21 @@ describe('handleRetrieveDoc', () => {
 describe('handleStoreDoc', () => {
   // Make sure the same doc is not stored twice
   it('should store a doc', async () => {
-    const project = 'testProject1';
+    const project = 'testProject1'
     const doc = {
       modDate: '2024/07/30 12:34:23.046Z',
       _id: '210202_183235/240607_145904',
       creator: 'ellis@example.com',
-    };
-    const remoteSeq = '';
-    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc';
-  
-    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq);
+    }
+    const remoteSeq = ''
+    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
+
+    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
 
     const parts = expectedFilename.split('.')[0].split('__')
     const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
     const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
-    
+
     expect(response).toEqual({
       projectPath,
       normalizedFilename: expectedFilename,
@@ -105,16 +105,16 @@ describe('handleStoreDoc', () => {
   })
   // Assure you cannot store the same test doc twice
   it('should not store the same doc', async () => {
-    const project = 'testProject1';
+    const project = 'testProject1'
     const doc = {
-        modDate: '2024/07/30 12:34:23.046Z',
-        _id: '210202_183235/240607_145904',
-        creator: 'ellis@example.com',
-    };
-    const remoteSeq = '';
-    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc';
-    
-    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq);
+      modDate: '2024/07/30 12:34:23.046Z',
+      _id: '210202_183235/240607_145904',
+      creator: 'ellis@example.com',
+    }
+    const remoteSeq = ''
+    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
+
+    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
 
     const parts = expectedFilename.split('.')[0].split('__')
     const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
@@ -129,7 +129,7 @@ describe('handleStoreDoc', () => {
       filenameModBy: expectedFilenameModBy,
       freshlyWritten: false
     })
-  }) 
+  })
   // Loading 3 separate docs and verifying they were saved
   it.each([
     {
