@@ -44,6 +44,15 @@ describe('handleListDocs', () => {
       'local-doc__2024-07-26_02-58-31-902__210629_180535-240726_025831__c62114c2__c62114c2.sltt-doc',
     ])
   })
+  it('should list all remote docs', async () => {
+    const project = 'testProject'
+    const isFromRemote = true
+    const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
+    const docs = await handleListDocs(testDataPath, project, isFromRemote)
+    expect(docs).toEqual([
+      '000000001__2024-07-25_16-26-36-672__210202_183235-240607_145904-240618_160543-240725_162634__e85c7697__e85c7697.sltt-doc',
+    ])
+  })
 })
 
 describe('handleRetrieveDoc', () => {
