@@ -75,7 +75,61 @@ describe('handleRetrieveDoc', () => {
 })
 
 describe('handleStoreDoc', () => {
-  // TODO: store same doc twice
+  // Make sure the same doc is not stored twice
+  it('should store a doc', async () => {
+    const project = 'testProject1';
+    const doc = {
+      modDate: '2024/07/30 12:34:23.046Z',
+      _id: '210202_183235/240607_145904',
+      creator: 'ellis@example.com',
+    };
+    const remoteSeq = '000000002';
+    const expectedFilename = '000000002__2024-07-30_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc';
+  
+    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq);
+
+    const parts = expectedFilename.split('.')[0].split('__')
+    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
+    const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
+    expect(response).toEqual({
+      projectPath,
+      normalizedFilename: expectedFilename,
+      remoteSeq: expectedRemoteSeq,
+      filenameModDate: expectedFilenameModDate,
+      filenameId: expectedFilenameId,
+      filenameCreator: expectedFilenameCreator,
+      filenameModBy: expectedFilenameModBy,
+      freshlyWritten: true
+    })
+  })
+  // Assure you cannot store the same test doc twice
+  it('should not store the same doc', async () => {
+    const project = 'testProject1';
+    const doc = {
+        modDate: '2024/07/30 12:34:23.046Z',
+        _id: '210202_183235/240607_145904',
+        creator: 'ellis@example.com',
+    };
+    const remoteSeq = '000000002';
+    const expectedFilename = '000000002__2024-07-30_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc';
+    
+    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq);
+
+    const parts = expectedFilename.split('.')[0].split('__')
+    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
+    const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
+    expect(response).toEqual({
+      projectPath,
+      normalizedFilename: expectedFilename,
+      remoteSeq: expectedRemoteSeq,
+      filenameModDate: expectedFilenameModDate,
+      filenameId: expectedFilenameId,
+      filenameCreator: expectedFilenameCreator,
+      filenameModBy: expectedFilenameModBy,
+      freshlyWritten: true
+    })
+  }) 
+  // Loading 3 separate docs and verifiying they were saved
   it.each([
     {
       testCase: 'remote doc with no-mod-by',
