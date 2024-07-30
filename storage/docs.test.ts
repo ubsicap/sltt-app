@@ -83,14 +83,15 @@ describe('handleStoreDoc', () => {
       _id: '210202_183235/240607_145904',
       creator: 'ellis@example.com',
     };
-    const remoteSeq = '000000002';
-    const expectedFilename = '000000002__2024-07-30_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc';
+    const remoteSeq = '';
+    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc';
   
     const response = await handleStoreDoc(tempDir, project, doc, remoteSeq);
 
     const parts = expectedFilename.split('.')[0].split('__')
     const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
     const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
+    
     expect(response).toEqual({
       projectPath,
       normalizedFilename: expectedFilename,
@@ -110,14 +111,14 @@ describe('handleStoreDoc', () => {
         _id: '210202_183235/240607_145904',
         creator: 'ellis@example.com',
     };
-    const remoteSeq = '000000002';
-    const expectedFilename = '000000002__2024-07-30_12-34-23-046__210202_183235-240607_145904__4b9bb806__no-mod-by.sltt-doc';
+    const remoteSeq = '';
+    const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc';
     
     const response = await handleStoreDoc(tempDir, project, doc, remoteSeq);
 
     const parts = expectedFilename.split('.')[0].split('__')
     const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
-    const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
+    const projectPath = ``
     expect(response).toEqual({
       projectPath,
       normalizedFilename: expectedFilename,
@@ -126,10 +127,10 @@ describe('handleStoreDoc', () => {
       filenameId: expectedFilenameId,
       filenameCreator: expectedFilenameCreator,
       filenameModBy: expectedFilenameModBy,
-      freshlyWritten: true
+      freshlyWritten: false
     })
   }) 
-  // Loading 3 separate docs and verifiying they were saved
+  // Loading 3 separate docs and verifying they were saved
   it.each([
     {
       testCase: 'remote doc with no-mod-by',

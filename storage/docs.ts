@@ -101,7 +101,7 @@ export const handleStoreDoc = async (docsFolder: string, project: string, doc: u
                 project, isFromRemote: false,
                 fnFilter: (storedFilename) => storedFilename.split('__')[2] === filename.split('__')[2]
             })
-            if (filename in localFilenames) {
+            if (localFilenames.includes(filename)) {
                 // filename already exists locally, so don't overwrite it
                 return { ...parseFilename(filename), freshlyWritten: false }
             }
