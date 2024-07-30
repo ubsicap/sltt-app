@@ -113,31 +113,21 @@ describe('handleStoreDoc', () => {
       expectedFilename: 'local-doc__2023-11-01_13-34-23-046__310202_183235-340607_145904__c160f8cc__4b9bb806.sltt-doc'
     }
   ])('should handle document storage correctly for $testCase', async ({ project, doc, remoteSeq, expectedFilename }) => {
-    try {
-      const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
+    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
 
-      // Split the filename correctly
-      const parts = expectedFilename.split('.')[0].split('__')
-      const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
-      const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
-      expect(response).toEqual({
-        projectPath,
-        normalizedFilename: expectedFilename,
-        remoteSeq: expectedRemoteSeq,
-        filenameModDate: expectedFilenameModDate,
-        filenameId: expectedFilenameId,
-        filenameCreator: expectedFilenameCreator,
-        filenameModBy: expectedFilenameModBy,
-        freshlyWritten: true
-      })
-    } catch (error) {
-      console.error('Test failed with the following error:')
-      console.error(`Project: ${project}`)
-      console.error(`Document: ${doc}`)
-      console.error(`Remote Sequence: ${remoteSeq}`)
-      console.error(`Expected Filename: ${expectedFilename}`)
-      console.error('Error details:', error)
-      throw error // Re-throw the error to ensure the test still fails
-    }
+    // Split the filename correctly
+    const parts = expectedFilename.split('.')[0].split('__')
+    const [expectedRemoteSeq, expectedFilenameModDate, expectedFilenameId, expectedFilenameCreator, expectedFilenameModBy] = parts
+    const projectPath = `${project}/${!remoteSeq ? 'local' : 'remote'}`
+    expect(response).toEqual({
+      projectPath,
+      normalizedFilename: expectedFilename,
+      remoteSeq: expectedRemoteSeq,
+      filenameModDate: expectedFilenameModDate,
+      filenameId: expectedFilenameId,
+      filenameCreator: expectedFilenameCreator,
+      filenameModBy: expectedFilenameModBy,
+      freshlyWritten: true
+    })
   })
 })
