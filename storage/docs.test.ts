@@ -1,4 +1,4 @@
-import { describe, it, expect, test, beforeAll, afterAll, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, test, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
@@ -72,6 +72,38 @@ describe('handleRetrieveDoc', () => {
       fullPath: normalizedStoragePath
     }).toMatchSnapshot()
   })
+
+  it.each([
+    {
+      testCase: 'store remote doc with mod-by',
+      project: 'testProject1',
+      doc: {     
+        modDate: '2024/06/21 06:05:21.444Z',
+        _id: '210202_183235/240607_145904',
+        creator: 'wendy@example.com',
+        modBy: 'bob@example.com',
+      },
+      remoteSeq: '000000001',
+      expectedFilename: '000000001__2024-06-21_06-05-21-444__210202_183235-240607_145904__3de71188__4b9bb806.sltt-doc'
+    },
+    {
+      testCase: 'store local doc',
+      project: 'testProject1',
+      doc: {
+        modDate: '2023/06/21 06:15:21.444Z',
+        _id: '310202_183235/340607_145904',
+        creator: 'wendy@example.com',
+        modBy: 'bob@example.com',
+      },
+      remoteSeq: '',
+      expectedFilename: 'local-doc__2023-06-21_06-15-21-444__310202_183235-340607_145904__3de71188__4b9bb806.sltt-doc'
+    }
+  ])('should return null for $testCase because files are not found', async ({ project, doc, remoteSeq, expectedFilename }) => {
+    const isFromRemote = !remoteSeq
+    const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
+    const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, expectedFilename)
+    expect(response).toBe(null)
+  })
 })
 
 describe('handleStoreDoc', () => {
@@ -136,10 +168,10 @@ describe('handleStoreDoc', () => {
     const doc = {
       modDate: '2024/06/29 11:35:22.044Z',
       _id: '210202_183235/240607_145904',
-      creator: 'ellis@example.com',
+      creator: 'wendy@example.com',
     }
-    const expectedFilename1 = 'local-doc__2024-06-29_11-35-22-044__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
-    const expectedFilename2 = '000000001__2024-06-29_11-35-22-044__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
+    const expectedFilename1 = 'local-doc__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
+    const expectedFilename2 = '000000001__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
     const firstStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
     const { projectPath, normalizedFilename } = firstStoreResponse
     const localPath = join(tempDir, projectPath, normalizedFilename)
