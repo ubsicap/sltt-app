@@ -1,4 +1,4 @@
-import { describe, it, expect, test, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, test, beforeAll, afterAll, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
@@ -11,12 +11,12 @@ test('basic test', () => {
 
 let tempDir: string
 
-beforeAll(() => {
+beforeEach(() => {
   // Create a unique temporary directory
   tempDir = mkdtempSync(join(tmpdir(), 'sltt-app-vitest-'))
 })
 
-afterAll(() => {
+afterEach(() => {
   // Clean up the temporary directory
   rmdirSync(tempDir, { recursive: true })
 })
@@ -129,6 +129,34 @@ describe('handleStoreDoc', () => {
       filenameModBy: expectedFilenameModBy,
       freshlyWritten: true
     })
+  })
+
+  it('should delete local doc after its remote is stored', async () => {
+    const project = 'testProject1'
+    const doc = {
+      modDate: '2024/06/29 11:35:22.044Z',
+      _id: '210202_183235/240607_145904',
+      creator: 'ellis@example.com',
+    }
+    const expectedFilename1 = 'local-doc__2024-06-29_11-35-22-044__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
+    const expectedFilename2 = '000000001__2024-06-29_11-35-22-044__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
+    const firstStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
+    const { projectPath, normalizedFilename } = firstStoreResponse
+    const localPath = join(tempDir, projectPath, normalizedFilename)
+    const localFileExists = existsSync(localPath)
+    expect(localFileExists).toBe(true)
+    expect(firstStoreResponse.freshlyWritten).toBe(true)
+    expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename1)
+
+    const secondStoreResponse = await handleStoreDoc(tempDir, project, doc, '000000001')
+    const { projectPath: projectPath2, normalizedFilename: normalizedFilename2 } = secondStoreResponse
+    const remotePath = join(tempDir, projectPath2, normalizedFilename2)
+    const remoteFileExists = existsSync(remotePath)
+    expect(remoteFileExists).toBe(true)
+    expect(secondStoreResponse.freshlyWritten).toBe(true)
+    expect(secondStoreResponse.normalizedFilename).toBe(expectedFilename2)
+    const localFileExists2 = existsSync(localPath)
+    expect(localFileExists2).toBe(false)
   })
 
   it('should not store the same doc twice', async () => {

@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
-import { readdir, readFile, writeFile } from 'fs/promises'
-import { existsSync, mkdirSync } from 'fs'
+import { mkdirSync, existsSync, unlink, promises as fs } from 'fs'
+const { readFile, writeFile, readdir } = fs
 
 const composeFilenameSafeDate = (modDate: string): string => {
     let dateStr = modDate // 2024/06/17 09:49:07.997Z
@@ -118,7 +118,27 @@ export const handleStoreDoc = async (docsFolder: string, project: string, doc: u
         }
     }
     const fullPath = join(fullFromPath, finalFilename)
-    return await writeDoc(fullPath, doc)
+    const response = writeDoc(fullPath, doc)
+    if (remoteSeq) {  //Is from remote is true
+        // see if a corresponding local-doc file exists
+        const localFolder = buildDocFolder(docsFolder, project, false)
+        const localFilename = composeFilename(modDate, _id, creator, modBy, LOCAL_DOC_PREFIX)
+        const localPath = join(localFolder, localFilename)
+        try {
+            // Check if the file exists in the local folder
+            // await fs.access(localPath)
+            // When the file exists, delete it
+            await fs.unlink(localPath)
+            console.log(`Successfully deleted local file: ${localPath}`)
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                console.log(`Local file does not exist: ${localPath}`)
+            } else {
+                console.error(`Failed to delete local file: ${localPath}`, error)
+            }
+        }
+    }
+    return response
 }
 
 export const handleListDocs = async (docsFolder: string, project: string, isFromRemote: boolean): Promise<string[]> => {
