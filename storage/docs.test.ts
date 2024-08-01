@@ -101,8 +101,21 @@ describe('handleRetrieveDoc', () => {
   ])('should return null for $testCase because files are not found', async ({ project, doc, remoteSeq, expectedFilename }) => {
     const isFromRemote = !remoteSeq
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, expectedFilename)
-    expect(response).toBe(null)
+    try {
+      const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, expectedFilename)
+      if (isFromRemote) {
+          // This block should not be reached if the file is not found
+          throw new Error('Expected an ENOENT error, but got a response')
+      } else {
+          expect(response).toBe(null)
+      }
+    } catch (error) {
+      if (isFromRemote) {
+          expect(error.code).toBe('ENOENT')
+      } else {
+          throw error // Re-throw unexpected errors
+      }
+    }
   })
 })
 

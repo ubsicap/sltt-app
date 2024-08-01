@@ -180,8 +180,14 @@ export const handleRetrieveDoc = async (docsFolder: string, project: string, isF
         return { remoteSeq, filename, doc, fullPath, filenameId, filenameModDate, filenameCreator, filenameModBy }
     } catch (error) {
         if (error.code === 'ENOENT') {
-            return null
-        } else {
+            if (isFromRemote) {
+                console.log(`Remote file does not exist: ${filename}`)
+                throw error
+            } else {
+                console.log(`Local file does not exist: ${filename}`)
+                return null
+            }
+        }  else {
             console.error('An error occurred:', error.message)
             throw error
         }
