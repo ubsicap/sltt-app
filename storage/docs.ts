@@ -30,7 +30,7 @@ const composeFilenameSafeId = (_id: string): string => {
     // Replace slashes with hyphens
     if (!_id) return 'no-id'
     const filenameSafeId1 = _id.replace(/\//g, '-') // plan_240617_094907-stg_240617_094910-tsk_240617_094912
-    const fileNameExtra = composeFilename('9999/99/99 99:99:99.999Z', '', '999@99999.999', '999@99999.999', '999999999')
+    const fileNameExtra = composeFilename('9999/99/99 99:99:99.999Z', '', '999@99999.999', '999@99999.999', 999999999)
     const fileNameTrial1 = fileNameExtra.replace('no-id', filenameSafeId1)
     if (fileNameTrial1.length >= 255) {
         // if filename is too long, shorten each inner date_time to just the time component, but keep first and last parts of _id
@@ -43,14 +43,14 @@ const composeFilenameSafeId = (_id: string): string => {
 
 const LOCAL_DOC_PREFIX = 'local-doc' // 9 characters...same as remote seq
 
-const composeFilename = (modDate: string, _id: string, creator: string, modBy: string, remoteSeq: string): string => {
+const composeFilename = (modDate: string, _id: string, creator: string, modBy: string, remoteSeq: number): string => {
     const filenameSafeModDate = composeFilenameSafeDate(modDate)
     const filenameSafeId = composeFilenameSafeId(_id)
     const filenameSafeCreator = composeFilenameSafeEmail(creator)
     const filenameSafeModBy = modBy && composeFilenameSafeEmail(modBy) || 'no-mod-by'
     // make slot for remote and local nine characters so abbreviation logic is applied to both
     // this can make determining whether local has become remote based on the filename alone) 
-    const filenameRemoteSeq = remoteSeq ? `${remoteSeq.padStart(9, '0')}` : LOCAL_DOC_PREFIX
+    const filenameRemoteSeq = Number.isInteger(remoteSeq) ? `${`${remoteSeq}`.padStart(9, '0')}` : LOCAL_DOC_PREFIX
     const filename = `${filenameRemoteSeq}__${filenameSafeModDate}__${filenameSafeId}__${filenameSafeCreator}__${filenameSafeModBy}.sltt-doc`
     return filename
 }
@@ -83,7 +83,9 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
     return { projectPath, normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
 }
 
-export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteSeq }: StoreDocArgs):
+type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string }
+
+export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
     Promise<StoreDocResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
@@ -123,7 +125,7 @@ export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteS
     if (remoteSeq) {  //Is from remote is true
         // see if a corresponding local-doc file exists
         const localFolder = buildDocFolder(docsFolder, project, false)
-        const localFilename = composeFilename(modDate, _id, creator, modBy, LOCAL_DOC_PREFIX)
+        const localFilename = composeFilename(modDate, _id, creator, modBy, Number.NaN)
         const localPath = join(localFolder, localFilename)
         try {
             // Check if the file exists in the local folder
@@ -171,7 +173,7 @@ export const handleListDocs = async (docsFolder: string, { project, isFromRemote
 }
 
 export const handleRetrieveDoc = async (docsFolder: string, {project, isFromRemote, filename }: RetrieveDocArgs):
-    Promise<RetrieveDocResponse | null> => {
+    Promise<RetrieveDocResponse<IDBObject> | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
     const fullPath = join(fullFromPath, normalizedFilename)

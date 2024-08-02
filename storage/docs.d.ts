@@ -1,4 +1,4 @@
-export type StoreDocArgs = { project: string, doc: unknown, remoteSeq: string }
+export type StoreDocArgs<TDoc> = { project: string, doc: TDoc, remoteSeq: number }
 
 export type StoreDoc = (
     args: StoreDocArgs
@@ -12,7 +12,7 @@ export type RetrieveDoc = (
     args: RetrieveDocArgs
 ) => Promise<RetrieveDocResponse | null>
 
-export type RetrieveDocResponse = BasicDocResponse & { doc: unknown, fullPath: string }
+export type RetrieveDocResponse<TDoc> = BasicDocResponse & { doc: TDoc, fullPath: string }
 
 export type ListDocsArgs = { project: string, isFromRemote: boolean }
 

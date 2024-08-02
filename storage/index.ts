@@ -168,7 +168,7 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     } else if (typeof args === 'object'
         && 'project' in args && typeof args.project === 'string'
         && 'doc' in args && typeof args.doc === 'object'
-        && 'remoteSeq' in args && typeof args.remoteSeq === 'string') {
+        && 'remoteSeq' in args && typeof args.remoteSeq === 'number') {
         const { project, doc, remoteSeq } = args
         return await handleStoreDoc(DOCS_PATH, { project, doc, remoteSeq })
     } else {
