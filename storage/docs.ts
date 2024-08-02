@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
-import { mkdirSync, existsSync, unlink, promises as fs } from 'fs'
+import { mkdirSync, existsSync, promises as fs } from 'fs'
+import { RetrieveDocResponse, WriteDocResponse } from 'storage/docs'
 const { readFile, writeFile, readdir } = fs
 
 const composeFilenameSafeDate = (modDate: string): string => {
@@ -170,14 +171,15 @@ export const handleListDocs = async (docsFolder: string, project: string, isFrom
 }
 
 export const handleRetrieveDoc = async (docsFolder: string, project: string, isFromRemote: boolean, filename: string):
-    Promise<{ remoteSeq: string | 'local-doc', filename: string, doc: unknown, fullPath: string, filenameId: string, filenameModDate: string, filenameCreator: string, filenameModBy: string } | null> => {
+    Promise<RetrieveDocResponse | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
     const fullPath = join(fullFromPath, normalizedFilename)
+    const { projectPath } = parseFilename(fullPath)
     try {
         const buffer = await readFile(fullPath)
         const doc = JSON.parse(buffer.toString())
-        return { remoteSeq, filename, doc, fullPath, filenameId, filenameModDate, filenameCreator, filenameModBy }
+        return { projectPath, remoteSeq, normalizedFilename, doc, fullPath, filenameId, filenameModDate, filenameCreator, filenameModBy }
     } catch (error) {
         if (error.code === 'ENOENT') {
             return null
@@ -187,8 +189,6 @@ export const handleRetrieveDoc = async (docsFolder: string, project: string, isF
         }
     }
 }
-
-type WriteDocResponse = ReturnType<typeof parseFilename> & { freshlyWritten: boolean }
 
 async function writeDoc(fullPath: string, doc: unknown):
     Promise<WriteDocResponse> {

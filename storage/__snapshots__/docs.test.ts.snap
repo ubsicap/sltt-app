@@ -15,12 +15,13 @@ exports[`handleRetrieveDoc > should retrieve documents correctly 1`] = `
     "rank": "00000001000.0000",
     "references": "[]",
   },
-  "filename": "local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc",
   "filenameCreator": "c62114c2",
   "filenameId": "210629_180535-240725_145023",
   "filenameModBy": "c62114c2",
   "filenameModDate": "2024-07-25_14-50-23-046",
   "fullPath": "storage/test-data/listTests/local-and-remote/testProject/local/local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc",
+  "normalizedFilename": "local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc",
+  "projectPath": "testProject/local",
   "remoteSeq": "local-doc",
 }
 `;
