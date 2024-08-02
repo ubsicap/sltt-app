@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { mkdirSync, existsSync, promises as fs } from 'fs'
-import { RetrieveDocResponse, WriteDocResponse } from 'storage/docs'
+import { RetrieveDocResponse, StoreDocResponse } from 'storage/docs'
 const { readFile, writeFile, readdir } = fs
 
 const composeFilenameSafeDate = (modDate: string): string => {
@@ -84,7 +84,7 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
 }
 
 export const handleStoreDoc = async (docsFolder: string, project: string, doc: unknown, remoteSeq: string):
-    Promise<WriteDocResponse> => {
+    Promise<StoreDocResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
     const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
@@ -191,7 +191,7 @@ export const handleRetrieveDoc = async (docsFolder: string, project: string, isF
 }
 
 async function writeDoc(fullPath: string, doc: unknown):
-    Promise<WriteDocResponse> {
+    Promise<StoreDocResponse> {
     try {
         await writeFile(fullPath, JSON.stringify(doc))
         return { ...parseFilename(fullPath), freshlyWritten: true }

@@ -11,10 +11,10 @@ declare module 'storage/docs' {
         filenameModBy: string
     }
 
-    export type WriteDocResponse = BasicDocResponse & { freshlyWritten: boolean }
+    export type StoreDocResponse = BasicDocResponse & { freshlyWritten: boolean }
     export const handleStoreDoc: (
         docsFolder: string, project: string, doc: unknown, remoteSeq: string
-    ) => Promise<WriteDocResponse>
+    ) => Promise<StoreDocResponse>
     export type RetrieveDocResponse = BasicDocResponse & { doc: unknown, fullPath: string }
     export const handleRetrieveDoc: (
         docsFolder: string, project: string, isFromRemote: boolean, filename: string
