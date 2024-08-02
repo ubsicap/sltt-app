@@ -170,7 +170,7 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
         && 'doc' in args && typeof args.doc === 'object'
         && 'remoteSeq' in args && typeof args.remoteSeq === 'string') {
         const { project, doc, remoteSeq } = args
-        return await handleStoreDoc(DOCS_PATH, project, doc, remoteSeq)
+        return await handleStoreDoc(DOCS_PATH, { project, doc, remoteSeq })
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
     }
@@ -185,7 +185,7 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
     ) {
         console.log('listDocs args:', args)
         const { project, isFromRemote } = args
-        return await handleListDocs(DOCS_PATH, project, isFromRemote)
+        return await handleListDocs(DOCS_PATH, { project, isFromRemote })
     } else {
         throw Error(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
     }
@@ -200,7 +200,7 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
         && 'filename' in args && typeof args.filename === 'string'
     ) {
         const { project, isFromRemote, filename } = args
-        return await handleRetrieveDoc(DOCS_PATH, project, isFromRemote, filename)
+        return await handleRetrieveDoc(DOCS_PATH, { project, isFromRemote, filename })
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
     }

@@ -26,14 +26,14 @@ describe('handleListDocs', () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/empty')
-    const docs = await handleListDocs(testDataPath, project, isFromRemote)
+    const docs = await handleListDocs(testDataPath, { project, isFromRemote })
     expect(docs).toEqual([])
   })
   it('should strip remote docs, but list earlier local docs', async () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const docs = await handleListDocs(testDataPath, project, isFromRemote)
+    const docs = await handleListDocs(testDataPath, { project, isFromRemote })
     expect(docs).toEqual([
       'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc',
       'local-doc__2024-07-26_02-58-31-902__210629_180535-240726_025831__c62114c2__c62114c2.sltt-doc',
@@ -43,7 +43,7 @@ describe('handleListDocs', () => {
     const project = 'testProject'
     const isFromRemote = true
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const docs = await handleListDocs(testDataPath, project, isFromRemote)
+    const docs = await handleListDocs(testDataPath, { project, isFromRemote })
     expect(docs).toEqual([
       '000000001__2024-07-25_16-26-36-672__210202_183235-240607_145904-240618_160543-240725_162634__e85c7697__e85c7697.sltt-doc',
     ])
@@ -56,7 +56,7 @@ describe('handleRetrieveDoc', () => {
     const filename = 'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, filename)
+    const response = await handleRetrieveDoc(testDataPath, { project, isFromRemote, filename })
     expect(response).toBeTruthy()
     const { fullPath } = response!
     const relativePath = fullPath.split('storage').pop() || ''
@@ -96,7 +96,7 @@ describe('handleRetrieveDoc', () => {
   ])('should return null for $testCase because files are not found', async ({ project, doc, remoteSeq, expectedFilename }) => {
     const isFromRemote = !remoteSeq
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDoc(testDataPath, project, isFromRemote, expectedFilename)
+    const response = await handleRetrieveDoc(testDataPath, { project, isFromRemote, filename: expectedFilename })
     expect(response).toBe(null)
   })
 })
@@ -140,7 +140,7 @@ describe('handleStoreDoc', () => {
       expectedFilename: 'local-doc__2023-11-01_13-34-23-046__310202_183235-340607_145904__c160f8cc__4b9bb806.sltt-doc'
     }
   ])('should handle document storage correctly for $testCase', async ({ project, doc, remoteSeq, expectedFilename }) => {
-    const response = await handleStoreDoc(tempDir, project, doc, remoteSeq)
+    const response = await handleStoreDoc(tempDir, { project, doc, remoteSeq })
 
     // Split the filename correctly
     const parts = expectedFilename.split('.')[0].split('__')
@@ -167,7 +167,7 @@ describe('handleStoreDoc', () => {
     }
     const expectedFilename1 = 'local-doc__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
     const expectedFilename2 = '000000001__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
-    const firstStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
+    const firstStoreResponse = await handleStoreDoc(tempDir, { project, doc, remoteSeq: '' })
     const { projectPath, normalizedFilename } = firstStoreResponse
     const localPath = join(tempDir, projectPath, normalizedFilename)
     const localFileExists = existsSync(localPath)
@@ -175,7 +175,7 @@ describe('handleStoreDoc', () => {
     expect(firstStoreResponse.freshlyWritten).toBe(true)
     expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename1)
 
-    const secondStoreResponse = await handleStoreDoc(tempDir, project, doc, '000000001')
+    const secondStoreResponse = await handleStoreDoc(tempDir, { project, doc, remoteSeq: '000000001' })
     const { projectPath: projectPath2, normalizedFilename: normalizedFilename2 } = secondStoreResponse
     const remotePath = join(tempDir, projectPath2, normalizedFilename2)
     const remoteFileExists = existsSync(remotePath)
@@ -195,11 +195,11 @@ describe('handleStoreDoc', () => {
     }
     const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
 
-    const firstStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
+    const firstStoreResponse = await handleStoreDoc(tempDir, { project, doc, remoteSeq: '' })
     expect(firstStoreResponse.freshlyWritten).toBe(true)
     expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename)
 
-    const secondStoreResponse = await handleStoreDoc(tempDir, project, doc, '')
+    const secondStoreResponse = await handleStoreDoc(tempDir, { project, doc, remoteSeq: '' })
     expect(secondStoreResponse.freshlyWritten).toBe(false)
     expect(secondStoreResponse.normalizedFilename).toBe(expectedFilename)
   })

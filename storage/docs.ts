@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { mkdirSync, existsSync, promises as fs } from 'fs'
-import { RetrieveDocResponse, StoreDocResponse } from 'storage/docs'
+import { ListDocsArgs, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
 const { readFile, writeFile, readdir } = fs
 
 const composeFilenameSafeDate = (modDate: string): string => {
@@ -83,7 +83,7 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
     return { projectPath, normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
 }
 
-export const handleStoreDoc = async (docsFolder: string, project: string, doc: unknown, remoteSeq: string):
+export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteSeq }: StoreDocArgs):
     Promise<StoreDocResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
@@ -142,7 +142,7 @@ export const handleStoreDoc = async (docsFolder: string, project: string, doc: u
     return response
 }
 
-export const handleListDocs = async (docsFolder: string, project: string, isFromRemote: boolean): Promise<string[]> => {
+export const handleListDocs = async (docsFolder: string, { project, isFromRemote }: ListDocsArgs): Promise<string[]> => {
     try {
         const filenames = await listDocs(docsFolder, { project, isFromRemote })
         if (!isFromRemote) {
@@ -170,7 +170,7 @@ export const handleListDocs = async (docsFolder: string, project: string, isFrom
     }
 }
 
-export const handleRetrieveDoc = async (docsFolder: string, project: string, isFromRemote: boolean, filename: string):
+export const handleRetrieveDoc = async (docsFolder: string, {project, isFromRemote, filename }: RetrieveDocArgs):
     Promise<RetrieveDocResponse | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
