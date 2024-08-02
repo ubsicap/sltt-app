@@ -1,13 +1,8 @@
-import { describe, it, expect, test, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
 import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './docs'
-
-// Basic test to ensure Jest is working
-test('basic test', () => {
-  expect(1 + 1).toBe(2)
-})
 
 let tempDir: string
 
