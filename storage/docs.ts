@@ -87,6 +87,9 @@ type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string
 
 export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
     Promise<StoreDocResponse> => {
+    if (remoteSeq > 999999999) {
+        throw Error(`remoteSeq is too large: ${remoteSeq}`)
+    }
     const fullFromPath = buildDocFolder(docsFolder, project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
     const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
