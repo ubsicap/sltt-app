@@ -92,6 +92,12 @@ export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteS
     }
     const fullFromPath = buildDocFolder(docsFolder, project, !!remoteSeq)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
+    if (!_id || !modDate) {
+        throw Error(`_id and modDate properties are required in doc: ${JSON.stringify(doc)}`)
+    }
+    if (!remoteSeq && !modBy) {
+        throw Error(`modBy property is required in local doc: ${JSON.stringify(doc)}`)
+    }
     const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
     if (filename.length > 255) {
         throw Error(`attempted filename is too long: ${filename}`)
