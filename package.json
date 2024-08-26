@@ -39,13 +39,8 @@
     "appId": "net.sltt-bible.app",
     "productName": "sltt-app",
     "forceCodeSigning": true,
-    "afterSign": "scripts/afterSign.js",
+    "afterSign": "build/notarize.js",
     "mac": {
-      "category": "public.app-category.business",
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
       "target": [
         {
           "target": "dmg",
