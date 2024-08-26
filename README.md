@@ -152,3 +152,7 @@ vite v4.3.3 building for production...
     [====================] 100% 0.0s | sltt-app-Setup-1.0.6.exe to github
 Done in 55.90s.
 ```
+
+# Building Releases for Mac
+
+Discussion of process [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)
