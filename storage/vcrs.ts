@@ -1,6 +1,6 @@
 import { ensureDir, readJson, writeJson } from 'fs-extra'
 import { readdir } from 'fs/promises'
-import { join, resolve } from 'path'
+import { basename, join, resolve } from 'path'
 import Bottleneck from 'bottleneck'
 
 const composeVideoCacheRecordFilename = (_id: string): {
@@ -81,4 +81,40 @@ async function getFiles(dir): Promise<string[]> {
         return dirent.isDirectory() ? getFiles(res) : res
     }))
     return Array.prototype.concat(...files)
+}
+
+export async function listVcrs(videoCacheRecordsPath: string, clientId: string, project: string): Promise<string[]> {
+    try {
+        // empty project means all projects
+        const fullClientPath = join(videoCacheRecordsPath, clientId, project)
+        const filenames = await getFiles(fullClientPath)
+        // get base filenames
+        const result = filenames.filter(filename => filename.endsWith('.sltt-vcrs')).map(filename => basename(filename))
+        result.sort() // just in case it's not yet by name
+        return result
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return []
+        } else {
+            console.error('An error occurred:', error.message)
+            throw error
+        }
+    }
+}
+
+export async function retrieveVcrs(videoCacheRecordsPath: string, clientId: string, filename: string): Promise<{ [videoId: string]: { _id: string, uploadeds: boolean[] } }> {
+    const [project] = filename.split('__')
+    const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
+    try {
+        const buffer = await readJson(fullPath)
+        const videoCacheRecord = JSON.parse(buffer.toString())
+        return videoCacheRecord
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            return null
+        } else {
+            console.error('An error occurred:', error.message)
+            throw error
+        }
+    }
 }
