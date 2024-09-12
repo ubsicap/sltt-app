@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
-import { mkdirSync, existsSync, promises as fs } from 'fs'
+import { existsSync, promises as fs } from 'fs'
+import { ensureDir } from 'fs-extra'
 import { ListDocsArgs, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
 const { readFile, writeFile, readdir } = fs
 
@@ -102,7 +103,7 @@ export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteS
     if (filename.length > 255) {
         throw Error(`attempted filename is too long: ${filename}`)
     }
-    mkdirSync(fullFromPath, { recursive: true })
+    await ensureDir(fullFromPath)
     let finalFilename = filename
     if (!remoteSeq) {
         // see if _id has already been stored locally with a later modDate
