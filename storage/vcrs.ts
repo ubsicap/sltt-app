@@ -1,6 +1,7 @@
-import { ensureDir, readJson, writeJson } from "fs-extra"
-import { readdir } from "fs/promises"
-import { join, resolve } from "path"
+import { ensureDir, readJson, writeJson } from 'fs-extra'
+import { readdir } from 'fs/promises'
+import { join, resolve } from 'path'
+import Bottleneck from 'bottleneck'
 
 const composeVideoCacheRecordFilename = (_id: string): {
     project: string,
@@ -8,43 +9,68 @@ const composeVideoCacheRecordFilename = (_id: string): {
     videoId: string,
     filename: string
 } => {
-    // BGSL_БЖЕ__230601_064416-230601_065151-240327_114822-2 <-- "BGSL_БЖЕ/230601_064416/230601_065151/240327_114822-2"
+    // BGSL_БЖЕ__230601_064416-230601_065151-240327_114822-2 <-- 'BGSL_БЖЕ/230601_064416/230601_065151/240327_114822-2'
     const [project, portion, ...videoIdParts] = _id.split('/')
     const videoId = videoIdParts.join('/')
     const filename = `${project}__${portion}.sltt-vcrs`
     return { project, portion, filename, videoId }
 }
 
-export async function storeVcr(videoCachRecordsPath: string, clientId: string, videoCacheRecord: { _id: string, uploadeds: boolean[] }): Promise<{ fullPath: string }> {
+// Map to store batchers for each fullPath
+const pathBatchers = new Map<string, Bottleneck.Batcher>()
+
+export async function storeVcr(videoCachRecordsPath: string, clientId: string, videoCacheRecord: { _id: string, uploadeds: boolean[] }): Promise<{ fullPath: string } | null> {
     const { _id } = videoCacheRecord
     const { filename, project, videoId } = composeVideoCacheRecordFilename(_id)
     const fullClientPath = join(videoCachRecordsPath, clientId, project)
     await ensureDir(fullClientPath)
     const fullPath = join(videoCachRecordsPath, filename)
-    // first read json file, then update, then write back
-    let vcrsUpdated = { 
-        [videoId]: videoCacheRecord
+
+    // Get or create a batcher for the specific fullPath
+    if (!pathBatchers.has(fullPath)) {
+        const batcher = new Bottleneck.Batcher({
+            maxTime: 1000, // Maximum time to wait before processing a batch
+            maxSize: 10    // Maximum number of items in a batch
+        })
+
+        // Handle batches for this fullPath
+        batcher.on('batch', async (batch) => {
+            const vcrsUpdated = {}
+
+            // Collect updates for this fullPath
+            for (const { videoId, videoCacheRecord } of batch) {
+                vcrsUpdated[videoId] = videoCacheRecord
+            }
+
+            // Process the updates for this fullPath
+            try {
+                let vcrs = {}
+                try {
+                    vcrs = await readJson(fullPath)
+                } catch (error) {
+                    // if the file was not found then it's ok, we'll create it below
+                    // otherwise, rethrow the error
+                    if (error.code !== 'ENOENT') {
+                        throw error
+                    }
+                }
+                vcrs = { ...vcrs, ...vcrsUpdated }
+                await writeJson(fullPath, vcrs)
+            } catch (error) {
+                console.error('An error occurred:', error.message)
+                throw error
+            }
+        })
+
+        pathBatchers.set(fullPath, batcher)
     }
-    try {
-        const vcrs = await readJson(fullPath)
-        vcrsUpdated = { ...vcrs, ...vcrsUpdated }
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            // file doesn't exist, create it below
-        }
-    }
-    try {
-        await writeJson(fullPath, vcrsUpdated)
-        return { fullPath }
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return null
-        } else {
-            // Handle other possible errors
-            console.error('An error occurred:', error.message)
-            throw error
-        }  
-    }
+
+    const batcher = pathBatchers.get(fullPath)
+
+    // Add the update to the batcher
+    batcher.add({ fullPath, videoId, videoCacheRecord })
+
+    return { fullPath }
 }
 
 // from https://stackoverflow.com/a/45130990/24056785
