@@ -73,7 +73,8 @@
     "express": "^4.17.1",
     "ffmpeg-static": "^5.1.0",
     "fluent-ffmpeg": "^2.1.2",
-    "formidable": "^1.2.2"
+    "formidable": "^1.2.2",
+    "fs-extra": "^11.2.0"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
