@@ -19,18 +19,18 @@ const composeVideoCacheRecordFilename = (_id: string): {
 // Map to store batchers for each fullPath
 const pathBatchers = new Map<string, Bottleneck.Batcher>()
 
-export async function storeVcr(videoCachRecordsPath: string, clientId: string, videoCacheRecord: { _id: string, uploadeds: boolean[] }): Promise<{ fullPath: string } | null> {
+export async function storeVcr(videoCacheRecordsPath: string, clientId: string, videoCacheRecord: { _id: string, uploadeds: boolean[] }): Promise<{ fullPath: string } | null> {
     const { _id } = videoCacheRecord
     const { filename, project, videoId } = composeVideoCacheRecordFilename(_id)
-    const fullClientPath = join(videoCachRecordsPath, clientId, project)
+    const fullClientPath = join(videoCacheRecordsPath, clientId, project)
     await ensureDir(fullClientPath)
-    const fullPath = join(videoCachRecordsPath, filename)
+    const fullPath = join(fullClientPath, filename)
 
     // Get or create a batcher for the specific fullPath
     if (!pathBatchers.has(fullPath)) {
         const batcher = new Bottleneck.Batcher({
             maxTime: 1000, // Maximum time to wait before processing a batch
-            maxSize: 10    // Maximum number of items in a batch
+            maxSize: 1000  // Maximum number of items in a batch
         })
 
         // Handle batches for this fullPath
