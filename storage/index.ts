@@ -1,9 +1,11 @@
 import { ipcMain, app } from 'electron'
 import { writeFileSync, mkdirSync } from 'fs'
-import { writeFile,readFile, readdir } from 'fs/promises'
-import { basename, dirname, join } from 'path'
+import { readJson, ensureDir, writeJson } from 'fs-extra'
+import { writeFile, readFile, readdir } from 'fs/promises'
+import { basename, dirname, join, resolve } from 'path'
 import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './docs'
 import { getLANStoragePath } from './core'
+import { storeVcr } from './vcrs'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'VideoCache')
@@ -18,6 +20,7 @@ const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
 const VIDEO_CACHE_RECORDS_API_STORE_VCR = 'storeVideoCacheRecord'
 const VIDEO_CACHE_RECORDS_API_LIST_VCRS = 'listVideoCacheRecords'
 const VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR = 'retrieveVideoCacheRecord'
+
 
 ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     if (args === 'test') {
@@ -48,7 +51,7 @@ ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
 
 ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
     if (args === 'test') {
-        mkdirSync(VIDEO_CACHE_PATH, { recursive: true })
+        await ensureDir(VIDEO_CACHE_PATH)
         const testPath = join(VIDEO_CACHE_PATH, 'mytest.txt')
         writeFileSync(testPath, new Date(Date.now()).toISOString())
         return `${VIDEO_CACHE_API_STORE_BLOB} api test worked! Wrote to ${testPath}`
@@ -59,7 +62,7 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
         const relativeVideoPath = dirname(blobId)
         const fileName = basename(blobId)
         const fullFolder = join(VIDEO_CACHE_PATH, relativeVideoPath)
-        mkdirSync(fullFolder, { recursive: true })
+        await ensureDir(fullFolder)
         const fullPath = join(fullFolder, fileName)
         const buffer = Buffer.from(arrayBuffer)
         try {
@@ -74,38 +77,16 @@ ipcMain.handle(VIDEO_CACHE_API_STORE_BLOB, async (_, args) => {
     }
 })
 
-const composeVideoCacheRecordFilename = (_id: string): string => {
-    // BGSL_БЖЕ__230601_064416-230601_065151-240327_114822-2 <-- "BGSL_БЖЕ/230601_064416/230601_065151/240327_114822-2"
-    const [project, ...videoIdParts] = _id.split('/')
-    const videoId = videoIdParts.join('-')
-    const filename = `${project}__${videoId}.sltt-vcr`
-    return filename
-}
-
 ipcMain.handle(VIDEO_CACHE_RECORDS_API_STORE_VCR, async (_, args) => {
         if (args === 'test') {
             return `${VIDEO_CACHE_RECORDS_API_STORE_VCR} api test worked!`
         } else if (typeof args === 'object'
+            && 'clientId' in args && typeof args.clientId === 'string'
             && 'videoCacheRecord' in args && typeof args.videoCacheRecord === 'object') {
-            mkdirSync(VIDEO_CACHE_RECORDS_PATH, { recursive: true })
-            const { videoCacheRecord } = args
-            const { _id } = videoCacheRecord
-            const filename = composeVideoCacheRecordFilename(_id)
-            const fullPath = join(VIDEO_CACHE_RECORDS_PATH, filename)
-            try {
-                await writeFile(fullPath, JSON.stringify(videoCacheRecord))
-                return { videoCacheRecord, fullPath }
-            } catch (error) {
-                if (error.code === 'ENOENT') {
-                    return null
-                } else {
-                    // Handle other possible errors
-                    console.error('An error occurred:', error.message)
-                    throw error
-                }  
-            }
+            const { clientId, videoCacheRecord } = args
+            return await storeVcr(VIDEO_CACHE_RECORDS_PATH, clientId, videoCacheRecord)
         } else {
-            throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_STORE_VCR}. Expected: '{ videoCacheRecord: { _id: string, uploadeds: boolean[] } }' Got: ${JSON.stringify(args)}`)
+            throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_STORE_VCR}. Expected: '{ clientId: string, videoCacheRecord: { _id: string, uploadeds: boolean[] } }' Got: ${JSON.stringify(args)}`)
         }
 })
 
