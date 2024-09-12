@@ -86,4 +86,57 @@ describe('storeVcr', () => {
             '230601_065151/240327_114823-3': videoCacheRecord2
         })
     })
+
+    it('should handle changes to multiple paths', async () => {
+        const clientId = 'testClient'
+        const portion1videoCacheRecord1 = {
+            _id: 'BGSL_БЖЕ/230601_064416/230601_065151/240327_114822-2',
+            uploadeds: [true, false, true]
+        }
+        const portion1videoCacheRecord2 = {
+            _id: 'BGSL_БЖЕ/230601_064416/230601_065151/240327_114823-3',
+            uploadeds: [false, true, false]
+        }
+        const portion2videoCacheRecord3 = {
+            _id: 'BGSL_БЖЕ/230601_064417/230601_065152/240327_114824-4',
+            uploadeds: [true, true, true]
+        }
+
+        // Store records in different paths
+        const path1 = await storeVcr(tempDir, clientId, portion1videoCacheRecord1)
+        const path2 = await storeVcr(tempDir, clientId, portion2videoCacheRecord3)
+        const path3 = await storeVcr(tempDir, clientId, portion1videoCacheRecord2)
+
+        // Check that the result is not null
+        expect(path1).not.toBeNull()
+        expect(path2).not.toBeNull()
+        expect(path3).not.toBeNull()
+        expect(path1!.fullPath).not.toBe(path2!.fullPath)
+        expect(path1!.fullPath).toBe(path3!.fullPath)
+
+        const expectedPath1 = join(tempDir, clientId, 'BGSL_БЖЕ', 'BGSL_БЖЕ__230601_064416.sltt-vcrs')
+        const expectedPath2 = join(tempDir, clientId, 'BGSL_БЖЕ', 'BGSL_БЖЕ__230601_064417.sltt-vcrs')
+
+        // wait 1500ms for the files to be written
+        await new Promise(resolve => setTimeout(resolve, 1500))
+
+        // Check that the files exist
+        const exists1 = await pathExists(expectedPath1)
+        const exists2 = await pathExists(expectedPath2)
+        expect(exists1).toBe(true)
+        expect(exists2).toBe(true)
+
+        // Check the contents of the first file
+        const fileContents1 = await readJson(expectedPath1)
+        expect(fileContents1).toEqual({
+            '230601_065151/240327_114822-2': portion1videoCacheRecord1,
+            '230601_065151/240327_114823-3': portion1videoCacheRecord2
+        })
+
+        // Check the contents of the second file
+        const fileContents2 = await readJson(expectedPath2)
+        expect(fileContents2).toEqual({
+            '230601_065152/240327_114824-4': portion2videoCacheRecord3
+        })
+    })
 })
