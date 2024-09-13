@@ -20,7 +20,7 @@ const composeVideoCacheRecordFilename = (_id: string): {
 // Map to store batchers for each fullPath
 const pathBatchers = new Map<string, Bottleneck.Batcher>()
 
-export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoCacheRecord }: StoreVcrArgs ): Promise<StoreVcrResponse> {
+export async function storeVcr(videoCacheRecordsPath: string, clientId, { videoCacheRecord }: StoreVcrArgs ): Promise<StoreVcrResponse> {
     const { _id } = videoCacheRecord
     const { filename, project, videoId } = composeVideoCacheRecordFilename(_id)
     const fullClientPath = join(videoCacheRecordsPath, clientId, project)
@@ -84,7 +84,7 @@ async function getFiles(dir): Promise<string[]> {
     return Array.prototype.concat(...files)
 }
 
-export async function listVcrs(videoCacheRecordsPath: string, { clientId, project }: ListVcrsArgs ): Promise<ListVcrsResponse> {
+export async function listVcrs(videoCacheRecordsPath: string, clientId, { project }: ListVcrsArgs ): Promise<ListVcrsResponse> {
     try {
         // empty project means all projects
         const fullClientPath = join(videoCacheRecordsPath, clientId, project)
@@ -103,7 +103,7 @@ export async function listVcrs(videoCacheRecordsPath: string, { clientId, projec
     }
 }
 
-export async function retrieveVcrs(videoCacheRecordsPath: string, { clientId, filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
+export async function retrieveVcrs(videoCacheRecordsPath: string, clientId, { filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
     const [project] = filename.split('__')
     const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
     try {

@@ -84,7 +84,7 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_STORE_VCR, async (_, args) => {
             && 'clientId' in args && typeof args.clientId === 'string'
             && 'videoCacheRecord' in args && typeof args.videoCacheRecord === 'object') {
             const { clientId, videoCacheRecord } = args
-            return await storeVcr(VIDEO_CACHE_RECORDS_PATH, { clientId, videoCacheRecord })
+            return await storeVcr(VIDEO_CACHE_RECORDS_PATH, clientId, { videoCacheRecord })
         } else {
             throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_STORE_VCR}. Expected: '{ clientId: string, videoCacheRecord: { _id: string, uploadeds: boolean[] } }' Got: ${JSON.stringify(args)}`)
         }
@@ -97,7 +97,7 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_LIST_VCRS, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string') {
        const { clientId, project } = args
-       return await listVcrs(VIDEO_CACHE_RECORDS_PATH, { clientId, project })
+       return await listVcrs(VIDEO_CACHE_RECORDS_PATH, clientId, { project })
     } else {
         throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_LIST_VCRS}. Expected: '{ project: string }' Got: ${JSON.stringify(args)}`)
     }
@@ -110,7 +110,7 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'filename' in args && typeof args.filename === 'string') {
         const { clientId, filename } = args
-        return await retrieveVcrs(VIDEO_CACHE_RECORDS_PATH, { clientId, filename })
+        return await retrieveVcrs(VIDEO_CACHE_RECORDS_PATH, clientId, { filename })
     } else {
         throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCR}. Expected: { filename: string } Got: ${JSON.stringify(args)}`)
     }
