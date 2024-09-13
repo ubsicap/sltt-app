@@ -3,22 +3,22 @@ export interface VideoCacheRecord {
     uploadeds: boolean[]
 }
 
-type StoreVcrArgs = { clientId: string, videoCacheRecord: VideoCacheRecord }
-type StoreVcrResponse = { fullPath: string }
+export type StoreVcrArgs = { clientId: string, videoCacheRecord: VideoCacheRecord }
+export type StoreVcrResponse = { fullPath: string }
 
 export function storeVcr(
     args: StoreVcrArgs
 ): Promise<StoreVcrResponse>
 
-type ListVcrsArgs = { clientId: string, project: string }
-type ListVcrsResponse = string[]
+export type ListVcrsArgs = { clientId: string, project: string }
+export type ListVcrsResponse = string[]
 
 export function listVcrs(
     args: ListVcrsArgs
 ): Promise<ListVcrsResponse>
 
-type RetrieveVcrsArgs = { clientId: string, filename: string }
-type RetrieveVcrsResponse = { [videoId: string]: VideoCacheRecord }
+export type RetrieveVcrsArgs = { clientId: string, filename: string }
+export type RetrieveVcrsResponse = { [videoId: string]: VideoCacheRecord }
 
 export function retrieveVcrs(
     args: RetrieveVcrsArgs

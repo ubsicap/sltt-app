@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync, promises as fs } from 'fs'
 import { ensureDir } from 'fs-extra'
-import { ListDocsArgs, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
 const { readFile, writeFile, readdir } = fs
 
 const composeFilenameSafeDate = (modDate: string): string => {
@@ -154,7 +154,7 @@ export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteS
     return response
 }
 
-export const handleListDocs = async (docsFolder: string, { project, isFromRemote }: ListDocsArgs): Promise<string[]> => {
+export const handleListDocs = async (docsFolder: string, { project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
     try {
         const filenames = await listDocs(docsFolder, { project, isFromRemote })
         if (!isFromRemote) {
