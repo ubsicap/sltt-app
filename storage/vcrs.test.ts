@@ -24,7 +24,7 @@ describe('storeVcr', () => {
             uploadeds: [true, false, true]
         }
 
-        const result = await storeVcr(tempDir, clientId, { videoCacheRecord })
+        const result = await storeVcr(tempDir, { clientId, videoCacheRecord })
 
         // Check that the result is not null
         expect(result).not.toBeNull()
@@ -60,8 +60,8 @@ describe('storeVcr', () => {
             uploadeds: [false, true, false]
         }
 
-        await storeVcr(tempDir, clientId, { videoCacheRecord: videoCacheRecord1 })
-        const result = await storeVcr(tempDir, clientId, { videoCacheRecord: videoCacheRecord2 })
+        await storeVcr(tempDir, { clientId, videoCacheRecord: videoCacheRecord1 })
+        const result = await storeVcr(tempDir, { clientId, videoCacheRecord: videoCacheRecord2 })
 
         // Check that the result is not null
         expect(result).not.toBeNull()
@@ -103,9 +103,9 @@ describe('storeVcr', () => {
         }
 
         // Store records in different paths
-        const path1 = await storeVcr(tempDir, clientId, { videoCacheRecord: portion1videoCacheRecord1 })
-        const path2 = await storeVcr(tempDir, clientId, { videoCacheRecord: portion2videoCacheRecord3 })
-        const path3 = await storeVcr(tempDir, clientId, { videoCacheRecord: portion1videoCacheRecord2 })
+        const path1 = await storeVcr(tempDir, { clientId, videoCacheRecord: portion1videoCacheRecord1 })
+        const path2 = await storeVcr(tempDir, { clientId, videoCacheRecord: portion2videoCacheRecord3 })
+        const path3 = await storeVcr(tempDir, { clientId, videoCacheRecord: portion1videoCacheRecord2 })
 
         // Check that the result is not null
         expect(path1).not.toBeNull()

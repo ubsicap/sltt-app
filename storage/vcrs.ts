@@ -2,7 +2,7 @@ import { ensureDir, readJson, writeJson } from 'fs-extra'
 import { readdir } from 'fs/promises'
 import { basename, join, resolve } from 'path'
 import Bottleneck from 'bottleneck'
-import { ListVcrsArgs, ListVcrsResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse } from './vcrs.d'
+import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse } from './vcrs.d'
 
 const composeVideoCacheRecordFilename = (_id: string): {
     project: string,
@@ -20,7 +20,7 @@ const composeVideoCacheRecordFilename = (_id: string): {
 // Map to store batchers for each fullPath
 const pathBatchers = new Map<string, Bottleneck.Batcher>()
 
-export async function storeVcr(videoCacheRecordsPath: string, clientId, { videoCacheRecord }: StoreVcrArgs ): Promise<StoreVcrResponse> {
+export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoCacheRecord }: StoreVcrArgs ): Promise<StoreVcrResponse> {
     const { _id } = videoCacheRecord
     const { filename, project, videoId } = composeVideoCacheRecordFilename(_id)
     const fullClientPath = join(videoCacheRecordsPath, clientId, project)
@@ -84,7 +84,7 @@ async function getFiles(dir): Promise<string[]> {
     return Array.prototype.concat(...files)
 }
 
-export async function listVcrs(videoCacheRecordsPath: string, clientId, { project }: ListVcrsArgs ): Promise<ListVcrsResponse> {
+export async function listVcrsFiles(videoCacheRecordsPath: string, { clientId, project }: ListVcrFilesArgs ): Promise<ListVcrFilesResponse> {
     try {
         // empty project means all projects
         const fullClientPath = join(videoCacheRecordsPath, clientId, project)
@@ -103,13 +103,12 @@ export async function listVcrs(videoCacheRecordsPath: string, clientId, { projec
     }
 }
 
-export async function retrieveVcrs(videoCacheRecordsPath: string, clientId, { filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
+export async function retrieveVcrs(videoCacheRecordsPath: string, { clientId, filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
     const [project] = filename.split('__')
     const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
     try {
-        const buffer = await readJson(fullPath)
-        const videoCacheRecord = JSON.parse(buffer.toString())
-        return videoCacheRecord
+        const vcrFileJson = await readJson(fullPath)
+        return vcrFileJson
     } catch (error) {
         if (error.code === 'ENOENT') {
             return null
