@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { join } from 'path'
-import { mkdtemp, remove, pathExists, readJson } from 'fs-extra'
+import { mkdtemp, remove, pathExists, readJson, ensureDir, writeJson } from 'fs-extra'
 import { tmpdir } from 'os'
-import { storeVcr } from './vcrs' // Adjust the import path as needed
+import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs' // Adjust the import path as needed
+import { VideoCacheRecord } from './vcrs.d'
 
 describe('storeVcr', () => {
     let tempDir: string
@@ -139,4 +140,104 @@ describe('storeVcr', () => {
             '230601_065152/240327_114824-4': portion2videoCacheRecord3
         })
     })
+})
+
+describe('listVcrFiles', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        // Create a temporary directory for each test
+        tempDir = await mkdtemp(join(tmpdir(), 'videoCacheRecords-'))
+    })
+
+    afterEach(async () => {
+        // Clean up the temporary directory after each test
+        await remove(tempDir)
+    })
+
+    it('should list VCR files', async () => {
+        const clientId = 'testClient'
+        const project = 'testProject'
+        const filename1 = 'testProject__file1.sltt-vcrs'
+        const filename2 = 'testProject__file2.sltt-vcrs'
+
+        const fullClientPath = join(tempDir, clientId, project)
+        await ensureDir(fullClientPath)
+
+        // Create dummy VCR files
+        await writeJson(join(fullClientPath, filename1), {})
+        await writeJson(join(fullClientPath, filename2), {})
+
+        const result = await listVcrFiles(tempDir, { clientId, project })
+
+        // Check that the result contains the correct filenames
+        expect(result).toEqual([filename1, filename2])
+    })
+
+    it('should handle empty project in listVcrFiles', async () => {
+        const clientId = 'testClient'
+        const project = ''
+        const filename1 = 'testProject1__file1.sltt-vcrs'
+        const filename2 = 'testProject2__file2.sltt-vcrs'
+
+        const fullClientPath1 = join(tempDir, clientId, 'testProject1')
+        const fullClientPath2 = join(tempDir, clientId, 'testProject2')
+        await ensureDir(fullClientPath1)
+        await ensureDir(fullClientPath2)
+
+        // Create dummy VCR files
+        await writeJson(join(fullClientPath1, filename1), {})
+        await writeJson(join(fullClientPath2, filename2), {})
+
+        const result = await listVcrFiles(tempDir, { clientId, project })
+
+        // Check that the result contains the correct filenames
+        expect(result).toEqual([filename1, filename2])
+    })
+})
+
+describe('retrieveVcrs', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        // Create a temporary directory for each test
+        tempDir = await mkdtemp(join(tmpdir(), 'videoCacheRecords-'))
+    })
+
+    afterEach(async () => {
+        // Clean up the temporary directory after each test
+        await remove(tempDir)
+    })
+
+    it('should retrieve VCRs', async () => {
+        const clientId = 'testClient'
+        const project = 'testProject'
+        const filename = 'testProject__file1.sltt-vcrs'
+        const videoCacheRecord: VideoCacheRecord = {
+            _id: 'some-id',
+            uploadeds: [true, false, true]
+        }
+
+        const fullClientPath = join(tempDir, clientId, project)
+        await ensureDir(fullClientPath)
+
+        // Create a dummy VCR file
+        await writeJson(join(fullClientPath, filename), { 'some-id': videoCacheRecord })
+
+        const result = await retrieveVcrs(tempDir, { clientId, filename })
+
+        // Check that the result contains the correct video cache record
+        expect(result).toEqual({ 'some-id': videoCacheRecord })
+    })
+
+    it('should return null for non-existent VCR file in retrieveVcrs', async () => {
+        const clientId = 'testClient'
+        const filename = 'nonExistentProject__file1.sltt-vcrs'
+
+        const result = await retrieveVcrs(tempDir, { clientId, filename })
+
+        // Check that the result is null
+        expect(result).toBeNull()
+    })
+
 })
