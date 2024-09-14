@@ -5,7 +5,7 @@ import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
 import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './docs'
 import { getLANStoragePath } from './core'
-import { listVcrsFiles, retrieveVcrs, storeVcr } from './vcrs'
+import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'VideoCache')
@@ -97,7 +97,7 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string') {
        const { clientId, project } = args
-       return await listVcrsFiles(VIDEO_CACHE_RECORDS_PATH, { clientId, project })
+       return await listVcrFiles(VIDEO_CACHE_RECORDS_PATH, { clientId, project })
     } else {
         throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}. Expected: '{ project: string }' Got: ${JSON.stringify(args)}`)
     }

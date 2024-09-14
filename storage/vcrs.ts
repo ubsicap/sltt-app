@@ -84,7 +84,7 @@ async function getFiles(dir): Promise<string[]> {
     return Array.prototype.concat(...files)
 }
 
-export async function listVcrsFiles(videoCacheRecordsPath: string, { clientId, project }: ListVcrFilesArgs ): Promise<ListVcrFilesResponse> {
+export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, project }: ListVcrFilesArgs ): Promise<ListVcrFilesResponse> {
     try {
         // empty project means all projects
         const fullClientPath = join(videoCacheRecordsPath, clientId, project)
