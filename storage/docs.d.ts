@@ -1,4 +1,4 @@
-export type StoreDocArgs<TDoc> = { project: string, doc: TDoc, remoteSeq: number }
+export type StoreDocArgs<TDoc> = { clientId: string, project: string, doc: TDoc, remoteSeq: number }
 
 export type StoreDoc = (
     args: StoreDocArgs
@@ -6,7 +6,7 @@ export type StoreDoc = (
 
 export type StoreDocResponse = BasicDocResponse & { freshlyWritten: boolean }
 
-export type RetrieveDocArgs = { project: string, isFromRemote: boolean, filename: string }
+export type RetrieveDocArgs = { clientId: string, project: string, isFromRemote: boolean, filename: string }
 
 export type RetrieveDoc = (
     args: RetrieveDocArgs
@@ -14,7 +14,7 @@ export type RetrieveDoc = (
 
 export type RetrieveDocResponse<TDoc> = BasicDocResponse & { doc: TDoc, fullPath: string }
 
-export type ListDocsArgs = { project: string, isFromRemote: boolean }
+export type ListDocsArgs = { clientId: string, project: string, isFromRemote: boolean }
 
 export type ListDocs = (
     args: ListDocsArgs

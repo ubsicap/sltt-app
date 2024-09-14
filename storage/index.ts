@@ -120,11 +120,12 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
     if (args === 'test') {
         return `${DOCS_API_STORE_DOC} api test worked!`
     } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'doc' in args && typeof args.doc === 'object'
         && 'remoteSeq' in args && typeof args.remoteSeq === 'number') {
-        const { project, doc, remoteSeq } = args
-        return await handleStoreDoc(DOCS_PATH, { project, doc, remoteSeq })
+        const { clientId, project, doc, remoteSeq } = args
+        return await handleStoreDoc(DOCS_PATH, { clientId, project, doc, remoteSeq })
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
     }
@@ -134,12 +135,13 @@ ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
     if (args === 'test') {
         return `${DOCS_API_LIST_DOCS} api test worked!`
     } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
     ) {
         console.log('listDocs args:', args)
-        const { project, isFromRemote } = args
-        return await handleListDocs(DOCS_PATH, { project, isFromRemote })
+        const { clientId, project, isFromRemote } = args
+        return await handleListDocs(DOCS_PATH, { clientId, project, isFromRemote })
     } else {
         throw Error(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
     }
@@ -149,12 +151,13 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     if (args === 'test') {
         return `${DOCS_API_RETRIEVE_DOC} api test worked!`
     } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
         && 'filename' in args && typeof args.filename === 'string'
     ) {
-        const { project, isFromRemote, filename } = args
-        return await handleRetrieveDoc(DOCS_PATH, { project, isFromRemote, filename })
+        const { clientId, project, isFromRemote, filename } = args
+        return await handleRetrieveDoc(DOCS_PATH, { clientId, project, isFromRemote, filename })
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
     }

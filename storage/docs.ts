@@ -86,7 +86,7 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
 
 type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string }
 
-export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
+export const handleStoreDoc = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
     Promise<StoreDocResponse> => {
     if (remoteSeq > 999999999) {
         throw Error(`remoteSeq is too large: ${remoteSeq}`)
@@ -154,7 +154,7 @@ export const handleStoreDoc = async (docsFolder: string, { project, doc, remoteS
     return response
 }
 
-export const handleListDocs = async (docsFolder: string, { project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
+export const handleListDocs = async (docsFolder: string, { clientId, project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
     try {
         const filenames = await listDocs(docsFolder, { project, isFromRemote })
         if (!isFromRemote) {
@@ -182,7 +182,7 @@ export const handleListDocs = async (docsFolder: string, { project, isFromRemote
     }
 }
 
-export const handleRetrieveDoc = async (docsFolder: string, {project, isFromRemote, filename }: RetrieveDocArgs):
+export const handleRetrieveDoc = async (docsFolder: string, { clientId, project, isFromRemote, filename }: RetrieveDocArgs):
     Promise<RetrieveDocResponse<IDBObject> | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
