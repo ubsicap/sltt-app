@@ -92,12 +92,14 @@ export const handleStoreDoc = async (docsFolder: string, { clientId, project, do
     if (remoteSeq > 999999999) {
         throw Error(`remoteSeq is too large: ${remoteSeq}`)
     }
-    const fullFromPath = buildDocFolder(docsFolder, project, !!remoteSeq)
+    const isFromRemote = !!remoteSeq
+    const isLocalDoc = !isFromRemote
+    const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
     const { _id, modDate, creator, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
     if (!_id || !modDate) {
         throw Error(`_id and modDate properties are required in doc: ${JSON.stringify(doc)}`)
     }
-    if (!remoteSeq && !modBy) {
+    if (isLocalDoc && !modBy) {
         throw Error(`modBy property is required in local doc: ${JSON.stringify(doc)}`)
     }
     const filename = composeFilename(modDate, _id, creator, modBy, remoteSeq)
@@ -109,10 +111,10 @@ export const handleStoreDoc = async (docsFolder: string, { clientId, project, do
     const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
     try {
         await ensureFile(clientDocsPath)
+        const status = isLocalDoc ? `  ` : '' // placeholder first character could be used for removing local docs that are in the remote list 
         // add terse utc timestamp (miliseconds after 2024-09-01) to each line
         // this will allow for sorting by time of creation
-        const timestamp = Date.now() - Date.parse('2024-09-01')
-        await appendFile(clientDocsPath, `    ${timestamp} ` + JSON.stringify(doc) + '\n')
+        await appendFile(clientDocsPath, `${status}\t${Date.now()}\t` + JSON.stringify(doc) + '\n')
     } catch (error) {
         console.error('An error occurred:', error.message)
         throw error
