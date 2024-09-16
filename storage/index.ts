@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDoc, handleStoreDocV1 } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV1 } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 
@@ -157,7 +157,7 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
         && 'filename' in args && typeof args.filename === 'string'
     ) {
         const { clientId, project, isFromRemote, filename } = args
-        return await handleRetrieveDoc(DOCS_PATH, { clientId, project, isFromRemote, filename })
+        return await handleRetrieveDocV0(DOCS_PATH, { clientId, project, isFromRemote, filename })
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
     }

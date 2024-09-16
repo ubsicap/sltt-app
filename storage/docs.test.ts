@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleListDocsV0, handleRetrieveDoc, handleStoreDocV0 } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0 } from './docs'
 
 let tempDir: string
 
@@ -56,7 +56,7 @@ describe('handleRetrieveDoc', () => {
     const filename = 'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDoc(testDataPath, { clientId: 'client1', project, isFromRemote, filename })
+    const response = await handleRetrieveDocV0(testDataPath, { clientId: 'client1', project, isFromRemote, filename })
     expect(response).toBeTruthy()
     const { fullPath } = response!
     const relativePath = fullPath.split('storage').pop() || ''
@@ -96,7 +96,7 @@ describe('handleRetrieveDoc', () => {
   ])('should return null for $testCase because files are not found', async ({ project, doc, remoteSeq, expectedFilename }) => {
     const isFromRemote = !remoteSeq
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDoc(testDataPath, { clientId: 'client1', project, isFromRemote, filename: expectedFilename })
+    const response = await handleRetrieveDocV0(testDataPath, { clientId: 'client1', project, isFromRemote, filename: expectedFilename })
     expect(response).toBe(null)
   })
 })

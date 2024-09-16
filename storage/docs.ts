@@ -215,7 +215,7 @@ export const handleListDocsV0 = async (docsFolder: string, { clientId, project, 
     }
 }
 
-export const handleRetrieveDoc = async (docsFolder: string, { clientId, project, isFromRemote, filename }: RetrieveDocArgs):
+export const handleRetrieveDocV0 = async (docsFolder: string, { clientId, project, isFromRemote, filename }: RetrieveDocArgs):
     Promise<RetrieveDocResponse<IDBObject> | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
