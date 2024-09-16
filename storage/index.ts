@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './docs'
+import { handleListDocs, handleRetrieveDoc, handleStoreDocV1 } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 
@@ -125,7 +125,7 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
         && 'doc' in args && typeof args.doc === 'object'
         && 'remoteSeq' in args && typeof args.remoteSeq === 'number') {
         const { clientId, project, doc, remoteSeq } = args
-        return await handleStoreDoc(DOCS_PATH, { clientId, project, doc, remoteSeq })
+        return await handleStoreDocV1(DOCS_PATH, { clientId, project, doc, remoteSeq })
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
     }

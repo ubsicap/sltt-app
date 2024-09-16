@@ -2,8 +2,9 @@ import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile } from 'fs/promises'
-import { ensureDir, ensureFile } from 'fs-extra'
+import { ensureDir, ensureFile, readJson, stat, writeJson } from 'fs-extra'
 import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
+import { readJsonCatchMissing } from './utils'
 
 
 const composeFilenameSafeDate = (modDate: string): string => {
@@ -87,7 +88,7 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
 
 type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string }
 
-export const handleStoreDoc = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
+export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
     Promise<StoreDocResponse> => {
     if (remoteSeq > 999999999) {
         throw Error(`remoteSeq is too large: ${remoteSeq}`)
@@ -107,18 +108,6 @@ export const handleStoreDoc = async (docsFolder: string, { clientId, project, do
         throw Error(`attempted filename is too long: ${filename}`)
     }
     await ensureDir(fullFromPath)
-    // add doc to end of `{clientId}.sltt-docs` file
-    const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
-    try {
-        await ensureFile(clientDocsPath)
-        const status = isLocalDoc ? `  ` : '' // placeholder first character could be used for removing local docs that are in the remote list 
-        // add terse utc timestamp (miliseconds after 2024-09-01) to each line
-        // this will allow for sorting by time of creation
-        await appendFile(clientDocsPath, `${status}\t${Date.now()}\t` + JSON.stringify(doc) + '\n')
-    } catch (error) {
-        console.error('An error occurred:', error.message)
-        throw error
-    }
     let finalFilename = filename
     if (!remoteSeq) {
         // see if _id has already been stored locally with a later modDate
@@ -167,6 +156,41 @@ export const handleStoreDoc = async (docsFolder: string, { clientId, project, do
         }
     }
     return response
+}
+
+export const handleStoreDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {
+    if (remoteSeq > 999999999) {
+        throw Error(`remoteSeq is too large: ${remoteSeq}`)
+    }
+    const isFromRemote = !!remoteSeq
+    const isLocalDoc = !isFromRemote
+    const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
+    const { _id, modDate, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
+    if (!_id || !modDate) {
+        throw Error(`_id and modDate properties are required in doc: ${JSON.stringify(doc)}`)
+    }
+    if (isLocalDoc && !modBy) {
+        throw Error(`modBy property is required in local doc: ${JSON.stringify(doc)}`)
+    }
+    const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
+    try {
+        await ensureFile(clientDocsPath)
+        const status = isLocalDoc ? `  ` : '' // placeholder first character could be used for removing local docs that are in the remote list 
+        // add terse utc timestamp (miliseconds after 2024-09-01) to each line
+        // this will allow for sorting by time of creation
+        const newLine = `${status}\t${Date.now()}\t` + JSON.stringify(doc) + '\n'
+        await appendFile(fullFromPath, newLine)
+        // update the .sltt-sync-spot file with the total bytes of the fullFromPath file
+        const stats = await stat(fullFromPath)
+        const { size } = stats
+        const syncSpot = join(docsFolder, `${clientId}.sltt-sync-spot`)
+        const syncSpotJson = await readJsonCatchMissing<object>(syncSpot, {})
+        await writeJson(syncSpot, { ...syncSpotJson, [clientId]: size })
+        return newLine
+    } catch (error) {
+        console.error('An error occurred:', error.message)
+        throw error
+    }
 }
 
 export const handleListDocs = async (docsFolder: string, { clientId, project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {

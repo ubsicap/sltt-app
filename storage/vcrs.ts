@@ -3,6 +3,7 @@ import { readdir } from 'fs/promises'
 import { basename, join, resolve } from 'path'
 import Bottleneck from 'bottleneck'
 import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse } from './vcrs.d'
+import { readJsonCatchMissing } from './utils'
 
 const composeVideoCacheRecordFilename = (_id: string): {
     project: string,
@@ -45,17 +46,8 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
 
             // Process the updates for this fullPath
             try {
-                let vcrs = {}
-                try {
-                    vcrs = await readJson(fullPath)
-                } catch (error) {
-                    // if the file was not found then it's ok, we'll create it below
-                    // otherwise, rethrow the error
-                    if (error.code !== 'ENOENT') {
-                        throw error
-                    }
-                }
-                vcrs = { ...vcrs, ...vcrsUpdated }
+                const vcrsOrig = readJsonCatchMissing<object>(fullPath, {})
+                const vcrs = { ...vcrsOrig, ...vcrsUpdated }
                 await writeJson(fullPath, vcrs)
             } catch (error) {
                 console.error('An error occurred:', error.message)
@@ -106,15 +98,5 @@ export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, pr
 export async function retrieveVcrs(videoCacheRecordsPath: string, { clientId, filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
     const [project] = filename.split('__')
     const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
-    try {
-        const vcrFileJson = await readJson(fullPath)
-        return vcrFileJson
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return null
-        } else {
-            console.error('An error occurred:', error.message)
-            throw error
-        }
-    }
+    return readJsonCatchMissing<RetrieveVcrsResponse>(fullPath)
 }

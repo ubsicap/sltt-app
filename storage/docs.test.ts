@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleListDocs, handleRetrieveDoc, handleStoreDoc } from './docs'
+import { handleListDocs, handleRetrieveDoc, handleStoreDocV0 } from './docs'
 
 let tempDir: string
 
@@ -140,7 +140,7 @@ describe('handleStoreDoc', () => {
       expectedFilename: 'local-doc__2023-11-01_13-34-23-046__310202_183235-340607_145904__c160f8cc__4b9bb806.sltt-doc'
     }
   ])('should handle document storage correctly for $testCase', async ({ project, doc, remoteSeq, expectedFilename }) => {
-    const response = await handleStoreDoc(tempDir, { clientId: 'client1', project, doc, remoteSeq })
+    const response = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq })
 
     // Split the filename correctly
     const parts = expectedFilename.split('.')[0].split('__')
@@ -167,7 +167,7 @@ describe('handleStoreDoc', () => {
     }
     const expectedFilename1 = 'local-doc__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
     const expectedFilename2 = '000000001__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
-    const firstStoreResponse = await handleStoreDoc(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
+    const firstStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
     const { projectPath, normalizedFilename } = firstStoreResponse
     const localPath = join(tempDir, projectPath, normalizedFilename)
     const localFileExists = existsSync(localPath)
@@ -175,7 +175,7 @@ describe('handleStoreDoc', () => {
     expect(firstStoreResponse.freshlyWritten).toBe(true)
     expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename1)
 
-    const secondStoreResponse = await handleStoreDoc(tempDir, { clientId: 'client1', project, doc, remoteSeq: 1 })
+    const secondStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: 1 })
     const { projectPath: projectPath2, normalizedFilename: normalizedFilename2 } = secondStoreResponse
     const remotePath = join(tempDir, projectPath2, normalizedFilename2)
     const remoteFileExists = existsSync(remotePath)
@@ -195,11 +195,11 @@ describe('handleStoreDoc', () => {
     }
     const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
 
-    const firstStoreResponse = await handleStoreDoc(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
+    const firstStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
     expect(firstStoreResponse.freshlyWritten).toBe(true)
     expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename)
 
-    const secondStoreResponse = await handleStoreDoc(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
+    const secondStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
     expect(secondStoreResponse.freshlyWritten).toBe(false)
     expect(secondStoreResponse.normalizedFilename).toBe(expectedFilename)
   })
