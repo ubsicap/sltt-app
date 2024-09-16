@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleListDocs, handleRetrieveDoc, handleStoreDocV0 } from './docs'
+import { handleListDocsV0, handleRetrieveDoc, handleStoreDocV0 } from './docs'
 
 let tempDir: string
 
@@ -26,14 +26,14 @@ describe('handleListDocs', () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/empty')
-    const docs = await handleListDocs(testDataPath, { clientId: 'client1', project, isFromRemote })
+    const docs = await handleListDocsV0(testDataPath, { clientId: 'client1', project, isFromRemote })
     expect(docs).toEqual([])
   })
   it('should strip remote docs, but list earlier local docs', async () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const docs = await handleListDocs(testDataPath, { clientId: 'client1', project, isFromRemote })
+    const docs = await handleListDocsV0(testDataPath, { clientId: 'client1', project, isFromRemote })
     expect(docs).toEqual([
       'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc',
       'local-doc__2024-07-26_02-58-31-902__210629_180535-240726_025831__c62114c2__c62114c2.sltt-doc',
@@ -43,7 +43,7 @@ describe('handleListDocs', () => {
     const project = 'testProject'
     const isFromRemote = true
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const docs = await handleListDocs(testDataPath, { clientId: 'client1', project, isFromRemote })
+    const docs = await handleListDocsV0(testDataPath, { clientId: 'client1', project, isFromRemote })
     expect(docs).toEqual([
       '000000001__2024-07-25_16-26-36-672__210202_183235-240607_145904-240618_160543-240725_162634__e85c7697__e85c7697.sltt-doc',
     ])

@@ -2,7 +2,7 @@ import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile } from 'fs/promises'
-import { ensureDir, ensureFile, readJson, stat, writeJson } from 'fs-extra'
+import { ensureDir, ensureFile, stat, writeJson } from 'fs-extra'
 import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
 import { readJsonCatchMissing } from './utils'
 
@@ -180,12 +180,6 @@ export const handleStoreDocV1 = async (docsFolder: string, { clientId, project, 
         // this will allow for sorting by time of creation
         const newLine = `${status}\t${Date.now()}\t` + JSON.stringify(doc) + '\n'
         await appendFile(fullFromPath, newLine)
-        // update the .sltt-sync-spot file with the total bytes of the fullFromPath file
-        const stats = await stat(fullFromPath)
-        const { size } = stats
-        const syncSpot = join(docsFolder, `${clientId}.sltt-sync-spot`)
-        const syncSpotJson = await readJsonCatchMissing<object>(syncSpot, {})
-        await writeJson(syncSpot, { ...syncSpotJson, [clientId]: size })
         return newLine
     } catch (error) {
         console.error('An error occurred:', error.message)
@@ -193,7 +187,7 @@ export const handleStoreDocV1 = async (docsFolder: string, { clientId, project, 
     }
 }
 
-export const handleListDocs = async (docsFolder: string, { clientId, project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
+export const handleListDocsV0 = async (docsFolder: string, { clientId, project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
     try {
         const filenames = await listDocs(docsFolder, { project, isFromRemote })
         if (!isFromRemote) {
