@@ -1,9 +1,10 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
-import { existsSync, promises as fs } from 'fs'
-import { ensureDir } from 'fs-extra'
+import { existsSync } from 'fs'
+import { readFile, writeFile, readdir, unlink, appendFile } from 'fs/promises'
+import { ensureDir, ensureFile } from 'fs-extra'
 import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
-const { readFile, writeFile, readdir } = fs
+
 
 const composeFilenameSafeDate = (modDate: string): string => {
     let dateStr = modDate // 2024/06/17 09:49:07.997Z
@@ -104,6 +105,18 @@ export const handleStoreDoc = async (docsFolder: string, { clientId, project, do
         throw Error(`attempted filename is too long: ${filename}`)
     }
     await ensureDir(fullFromPath)
+    // add doc to end of `{clientId}.sltt-docs` file
+    const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
+    try {
+        await ensureFile(clientDocsPath)
+        // add terse utc timestamp (miliseconds after 2024-09-01) to each line
+        // this will allow for sorting by time of creation
+        const timestamp = Date.now() - Date.parse('2024-09-01')
+        await appendFile(clientDocsPath, `    ${timestamp} ` + JSON.stringify(doc) + '\n')
+    } catch (error) {
+        console.error('An error occurred:', error.message)
+        throw error
+    }
     let finalFilename = filename
     if (!remoteSeq) {
         // see if _id has already been stored locally with a later modDate
@@ -141,7 +154,7 @@ export const handleStoreDoc = async (docsFolder: string, { clientId, project, do
             // Check if the file exists in the local folder
             // await fs.access(localPath)
             // When the file exists, delete it
-            await fs.unlink(localPath)
+            await unlink(localPath)
             console.log(`Successfully deleted local file: ${localPath}`)
         } catch (error) {
             if (error.code === 'ENOENT') {
