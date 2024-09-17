@@ -2,7 +2,10 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0 } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
+import { mkdtemp, readFile, writeFile } from 'fs/promises'
+import { ensureDir, remove } from 'fs-extra'
+import { StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -202,5 +205,88 @@ describe('handleStoreDoc', () => {
     const secondStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
     expect(secondStoreResponse.freshlyWritten).toBe(false)
     expect(secondStoreResponse.normalizedFilename).toBe(expectedFilename)
+  })
+})
+
+describe('handleStoreRemoteDocs', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    // Create a temporary directory for each test
+    tempDir = await mkdtemp(join(tmpdir(), 'docs-'))
+  })
+
+  afterEach(async () => {
+    // Clean up the temporary directory after each test
+    await remove(tempDir)
+  })
+  // C:\\Users\\ericd\\AppData\\Local\\Temp\\docs-3SG87D\\testProject\\remote\\remote.sltt-docs
+
+  it('should handle the empty seqDocs', async () => {
+    const docsFolder = tempDir
+    const clientId = 'testClient'
+    const project = 'testProject'
+    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = []
+
+    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
+
+    // Check that the response contains no new lines
+    expect(response.newLines).toEqual([])
+  })
+
+  it('should append new lines for incoming seqDocs with higher sequence numbers', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tscl'
+    const project = 'testProject'
+    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:34', creator: 'bob@example.com' }, seq: 2 },
+    ]
+
+    const remoteSeqDocsFile = join(docsFolder, project, 'remote', 'remote.sltt-docs')
+
+    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
+
+    // Check that the remote file was updated with the new lines
+    const fileContent = await readFile(remoteSeqDocsFile, 'utf-8')
+    const allLines = fileContent.split('\n')
+    expect(allLines).toEqual([
+      expect.stringMatching(/^000000001\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com"}$/),
+      expect.stringMatching(/^000000002\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:34","creator":"bob@example.com"}$/),
+      '000000003',
+    ])
+
+    // Check that the response contains the new lines
+    expect(response.newLines).toEqual([
+      allLines[0],
+      allLines[1],
+      allLines[2],
+    ])
+  })
+
+  it('should not append new lines if the file has changed since last read', async () => {
+    const docsFolder = tempDir
+    const clientId = 'testClient'
+    const project = 'testProject'
+    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+      { doc: { _id: 'value1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
+    ]
+
+    // Create the initial remote file with sequence number 1
+    const remoteSeqDocsFile = join(docsFolder, project, 'remote.sltt-docs')
+    await ensureDir(join(docsFolder, project))
+    await writeFile(remoteSeqDocsFile, '000000001')
+
+    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+
+    // Simulate a change in the file by appending a new line
+    await writeFile(remoteSeqDocsFile, '000000002', { flag: 'a' })
+
+    const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
+
+    // Check that the response contains no new lines
+    expect(response.newLines).toEqual([])
   })
 })

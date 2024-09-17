@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV1 } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreDocV1, handleStoreRemoteDocs } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 
@@ -14,6 +14,7 @@ const DOCS_PATH = join(LAN_STORAGE_PATH, 'docs')
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
 const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
+const DOCS_STORE = 'storeDocs'
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
@@ -125,7 +126,7 @@ ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
         && 'doc' in args && typeof args.doc === 'object'
         && 'remoteSeq' in args && typeof args.remoteSeq === 'number') {
         const { clientId, project, doc, remoteSeq } = args
-        return await handleStoreDocV1(DOCS_PATH, { clientId, project, doc, remoteSeq })
+        return await handleStoreDocV0(DOCS_PATH, { clientId, project, doc, remoteSeq })
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
     }
@@ -160,5 +161,20 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
         return await handleRetrieveDocV0(DOCS_PATH, { clientId, project, isFromRemote, filename })
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_STORE, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_STORE} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && 'seqDocs' in args && Array.isArray(args.seqDocs)
+    ) {
+        const { clientId, project, seqDocs } = args
+        return await handleStoreRemoteDocs(DOCS_PATH, { clientId, project, seqDocs })
+    } else {
+        throw Error(`invalid args for ${DOCS_STORE}. Expected: '{ project: string, docs: string[] }' Got: ${JSON.stringify(args)}`)
     }
 })

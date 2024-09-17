@@ -5,7 +5,7 @@ import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs
 import { ensureDir, ensureFile, readJson, writeJson, read, close } from 'fs-extra'
 import { sortBy } from 'lodash'
 import { promisify } from 'util'
-import { ListDocsArgs, ListDocsResponse, RemoteSeqDoc, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse, SyncDocsArgs, SyncDocsResponse, SyncRemoteDocsArgs } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RemoteSeqDoc, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 import { readJsonCatchMissing } from './utils'
 
 
@@ -115,7 +115,7 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
     return { projectPath, normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
 }
 
-type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string }
+export type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string }
 
 export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
     Promise<StoreDocResponse> => {
@@ -187,10 +187,14 @@ export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, 
     return response
 }
 
-export const handleSyncRemoteDocs = async (
-    docsFolder: string, { clientId, project, seqDocs }: SyncRemoteDocsArgs<IDBObject>)
-    : Promise<SyncDocsResponse<IDBObject>> => {
+export const handleStoreRemoteDocs = async (
+    docsFolder: string, { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBObject>)
+    : Promise<StoreRemoteDocsResponse> => {
     
+    if (seqDocs.length === 0) {
+        return { newLines: [] }
+    }
+
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     await ensureDir(fullFromPath)
     
@@ -237,14 +241,6 @@ export const handleSyncRemoteDocs = async (
         await appendFile(remoteSeqDocsFile, newLines.join(''))
     }
     return { newLines }
-}
-
-export const handleSyncLocalDocs = async (
-    docsFolder: string, { clientId, project, docs, isRemote }: SyncDocsArgs<IDBObject>)
-    : Promise<SyncDocsResponse<IDBObject>> => {
-    
-    const fullFromPath = buildDocFolder(docsFolder, project, isRemote)
-    await ensureDir(fullFromPath)
 }
 
 const storeDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {
