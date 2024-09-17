@@ -1,3 +1,11 @@
+
+
+// V1
+export type RemoteSeqDoc<TDoc> = { seq: number, doc: TDoc }
+export type SyncRemoteDocsArgs<TDoc> = { clientId: string, project: string, seqDocs: RemoteSeqDoc<TDoc>[] }
+export type SyncRemoteDocsResponse<TDoc> = RemoteSeqDoc<TDoc>[]
+
+// V0
 export type StoreDocArgs<TDoc> = { clientId: string, project: string, doc: TDoc, remoteSeq: number }
 
 export type StoreDoc = (

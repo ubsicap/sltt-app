@@ -1,11 +1,40 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync } from 'fs'
-import { readFile, writeFile, readdir, unlink, appendFile } from 'fs/promises'
-import { ensureDir, ensureFile, stat, writeJson } from 'fs-extra'
-import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse } from './docs.d'
+import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
+import { ensureDir, ensureFile, readJson, writeJson, read, close } from 'fs-extra'
+import { sortBy } from 'lodash'
+import { promisify } from 'util'
+import { ListDocsArgs, ListDocsResponse, RemoteSeqDoc, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse, SyncDocsArgs, SyncDocsResponse, SyncRemoteDocsArgs } from './docs.d'
 import { readJsonCatchMissing } from './utils'
 
+
+const readAsync = promisify(read)
+const closeAsync = promisify(close)
+
+async function readLastBytes(filePath: string, byteCount: number): Promise<Buffer> {
+    // Open the file in read mode
+    const fileHandle = await open(filePath, 'r')
+    try {
+        // Get the size of the file
+        const fileStats = await stat(filePath)
+        const fileSize = fileStats.size
+
+        // Calculate the position to start reading from
+        const startPosition = Math.max(0, fileSize - byteCount)
+
+        // Create a buffer to hold the bytes
+        const buffer = Buffer.alloc(byteCount)
+
+        // Read the bytes from the file
+        await readAsync(fileHandle.fd, buffer, 0, byteCount, startPosition)
+
+        return buffer
+    } finally {
+        // Close the file
+        await closeAsync(fileHandle.fd)
+    }
+}
 
 const composeFilenameSafeDate = (modDate: string): string => {
     let dateStr = modDate // 2024/06/17 09:49:07.997Z
@@ -158,7 +187,56 @@ export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, 
     return response
 }
 
-export const handleStoreDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {
+export const handleSyncRemoteDocs = async (
+    docsFolder: string, { clientId, project, seqDocs }: SyncRemoteDocsArgs<IDBObject>)
+    : Promise<SyncDocsResponse<IDBObject>> => {
+    
+    const fullFromPath = buildDocFolder(docsFolder, project, true)
+    await ensureDir(fullFromPath)
+    
+    const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
+    // read the last `000000000` characters from the file to get the last remoteSeq
+    let nextRemoteSeq = 0
+    try {
+        const lastBytes = await readLastBytes(remoteSeqDocsFile, 9)
+        nextRemoteSeq = Number(lastBytes.toString())
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // file doesn't exist, so it's the first sync
+            console.log(`Remote file does not exist: ${remoteSeqDocsFile}`)
+        } else {
+            console.error(`Failed to read remote file: ${remoteSeqDocsFile}`, error)
+        }
+    }
+    if (nextRemoteSeq === 0) {
+        // append first nextRemoteSeq to the file
+        await appendFile(remoteSeqDocsFile, '000000001')
+        nextRemoteSeq = 1
+    }
+    // if any incoming seqDocs hava a remoteSeq greater or equal to nextRemoteSeq,
+    // append them to the end of the file
+    const newLines: string[] = []
+    const sortedSeqDocs = sortBy(seqDocs, seqDoc => seqDoc.seq)
+    for (const { doc, seq } of sortedSeqDocs) {
+        if (seq >= nextRemoteSeq) {
+            const newLine = `\t${Date.now()}\t${clientId}\t` + JSON.stringify(doc) + `\n${seq + 1}`
+            newLines.push(newLine)
+        }
+    }
+    if (newLines.length) {
+        await appendFile(remoteSeqDocsFile, newLines.join(''))
+    }
+}
+
+export const handleSyncLocalDocs = async (
+    docsFolder: string, { clientId, project, docs, isRemote }: SyncDocsArgs<IDBObject>)
+    : Promise<SyncDocsResponse<IDBObject>> => {
+    
+    const fullFromPath = buildDocFolder(docsFolder, project, isRemote)
+    await ensureDir(fullFromPath)
+}
+
+const storeDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {
     if (remoteSeq > 999999999) {
         throw Error(`remoteSeq is too large: ${remoteSeq}`)
     }
