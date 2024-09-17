@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
 import { ensureDir, ensureFile, readJson, writeJson, read, close } from 'fs-extra'
 import { sortBy } from 'lodash'
@@ -12,7 +12,7 @@ import { readJsonCatchMissing } from './utils'
 const readAsync = promisify(read)
 const closeAsync = promisify(close)
 
-async function readLastBytes(filePath: string, byteCount: number): Promise<Buffer> {
+async function readLastBytes(filePath: string, byteCount: number): Promise<{ buffer: Buffer, fileStats: Stats}> {
     // Open the file in read mode
     const fileHandle = await open(filePath, 'r')
     try {
@@ -29,7 +29,7 @@ async function readLastBytes(filePath: string, byteCount: number): Promise<Buffe
         // Read the bytes from the file
         await readAsync(fileHandle.fd, buffer, 0, byteCount, startPosition)
 
-        return buffer
+        return { buffer, fileStats }
     } finally {
         // Close the file
         await closeAsync(fileHandle.fd)
@@ -197,8 +197,10 @@ export const handleSyncRemoteDocs = async (
     const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
     // read the last `000000000` characters from the file to get the last remoteSeq
     let nextRemoteSeq = 0
+    let originalFileStats: Stats
     try {
-        const lastBytes = await readLastBytes(remoteSeqDocsFile, 9)
+        const { buffer: lastBytes, fileStats } = await readLastBytes(remoteSeqDocsFile, 9)
+        originalFileStats = fileStats
         nextRemoteSeq = Number(lastBytes.toString())
     } catch (error) {
         if (error.code === 'ENOENT') {
@@ -219,13 +221,22 @@ export const handleSyncRemoteDocs = async (
     const sortedSeqDocs = sortBy(seqDocs, seqDoc => seqDoc.seq)
     for (const { doc, seq } of sortedSeqDocs) {
         if (seq >= nextRemoteSeq) {
-            const newLine = `\t${Date.now()}\t${clientId}\t` + JSON.stringify(doc) + `\n${seq + 1}`
+            const nextSeq = `${`${seq + 1}`.padStart(9, '0')}`
+            const newLine = `\t${Date.now()}\t${clientId}\t` + JSON.stringify(doc) + `\n${nextSeq}`
             newLines.push(newLine)
         }
+    }
+    const newFileStats = await stat(remoteSeqDocsFile)
+    if (originalFileStats && newFileStats.size !== originalFileStats.size) {
+        // file has changed since we last read it
+        console.log(`Remote file has changed: ${remoteSeqDocsFile}`)
+        // silently ignore the changes for now
+        return { newLines: [] }
     }
     if (newLines.length) {
         await appendFile(remoteSeqDocsFile, newLines.join(''))
     }
+    return { newLines }
 }
 
 export const handleSyncLocalDocs = async (
