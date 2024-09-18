@@ -2,14 +2,39 @@ import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
-import { ensureDir, ensureFile, read, close } from 'fs-extra'
+import { ensureDir, ensureFile, read, close, readJSON, writeJson } from 'fs-extra'
 import { sortBy } from 'lodash'
 import { promisify } from 'util'
-import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RemoteSpot, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, RetrieveSpotsResponse, SaveSpotsArgs, SaveSpotsResponse, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { readJsonCatchMissing } from './utils'
 
 
 const readAsync = promisify(read)
 const closeAsync = promisify(close)
+
+async function readFromBytePosition(filePath: string, bytePosition: number): Promise<{ buffer: Buffer, fileStats: Stats }> {
+    // Open the file in read mode
+    const fileHandle = await open(filePath, 'r')
+    try {
+        // Get the size of the file
+        const fileStats = await stat(filePath)
+        const fileSize = fileStats.size
+
+        // Calculate the position to start reading from
+        const startPosition = Math.max(0, bytePosition)
+
+        // Create a buffer to hold the bytes
+        const buffer = Buffer.alloc(fileSize - startPosition)
+
+        // Read the bytes from the file
+        await readAsync(fileHandle.fd, buffer, 0, buffer.length, startPosition)
+
+        return { buffer, fileStats }
+    } finally {
+        // Close the file
+        await closeAsync(fileHandle.fd)
+    }
+}
 
 async function readLastBytes(filePath: string, byteCount: number): Promise<{ buffer: Buffer, fileStats: Stats}> {
     // Open the file in read mode
@@ -249,6 +274,46 @@ export const handleStoreRemoteDocs = async (
         await appendFile(remoteSeqDocsFile, newLines.join(''))
     }
     return { lastSeq, storedCount: newLines.length }
+}
+
+export const handleRetrieveRemoteDocs = async (
+    docsFolder: string,
+    { clientId, project, spotKey }: RetrieveRemoteDocsArgs): Promise<RetrieveRemoteDocsResponse<IDBObject>> => {
+        let bytesPosition = 0
+        // first retrieve spot from from spotKey (if exists)
+        const spots = await retrieveSpots(docsFolder, { clientId, project })
+        const lastSeq = spots[spotKey]?.seq || 0
+        if (spotKey && spots[spotKey]) {
+            bytesPosition = spots[spotKey].bytePosition
+        }
+        const fullFromPath = buildDocFolder(docsFolder, project, true)
+        const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
+        const { buffer, fileStats } = await readFromBytePosition(remoteSeqDocsFile, bytesPosition)
+        const remoteSeqDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
+        // We can't assume that they are in order or even end where we left off (writing race-condition)
+        const seqDocs = sortBy(remoteSeqDocLines.map((line) => {
+            const [seq, , , docStr] = line.split('\t')
+            return { seq: Number(seq), doc: JSON.parse(docStr) }
+        }).filter(seqDoc => seqDoc.seq > lastSeq), seqDocs => seqDocs.seq)
+        const newLastSeq = seqDocs.length ? seqDocs[seqDocs.length - 1].seq : lastSeq
+        return { seqDocs, spot: ['last', { seq: newLastSeq, bytePosition: fileStats.size }]}
+}
+
+export const handleSaveSpots = async (
+    docsFolder: string,
+    { clientId, project, spots }: SaveSpotsArgs): Promise<void> => {
+    
+    const fullFromPath = buildDocFolder(docsFolder, project, true)
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    await writeJson(spotsFile, spots)
+}
+
+export const retrieveSpots = async (
+    docsFolder: string,
+    { clientId, project }: RetrieveRemoteDocsArgs): Promise<RetrieveSpotsResponse> => {
+    const fullFromPath = buildDocFolder(docsFolder, project, true)
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    return readJsonCatchMissing(spotsFile, {})
 }
 
 const storeDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {

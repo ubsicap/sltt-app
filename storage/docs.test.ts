@@ -1,22 +1,22 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { mkdtempSync, rmdirSync, existsSync } from 'fs'
+import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
-import { mkdtemp, readFile, writeFile } from 'fs/promises'
-import { ensureDir, remove } from 'fs-extra'
-import { StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
+import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
+import { ensureDir, remove, writeJson } from 'fs-extra'
+import { RetrieveRemoteDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
-beforeEach(() => {
-  // Create a unique temporary directory
-  tempDir = mkdtempSync(join(tmpdir(), 'sltt-app-vitest-'))
+beforeEach(async () => {
+  // Create a temporary directory for each test
+  tempDir = await mkdtemp(join(tmpdir(), 'docs-'))
 })
 
-afterEach(() => {
-  // Clean up the temporary directory
-  rmdirSync(tempDir, { recursive: true })
+afterEach(async () => {
+  // Clean up the temporary directory after each test
+  await remove(tempDir)
 })
 
 it('should create a temp folder path', () => {
@@ -209,17 +209,6 @@ describe('handleStoreDoc', () => {
 })
 
 describe('handleStoreRemoteDocs', () => {
-  let tempDir: string
-
-  beforeEach(async () => {
-    // Create a temporary directory for each test
-    tempDir = await mkdtemp(join(tmpdir(), 'docs-'))
-  })
-
-  afterEach(async () => {
-    // Clean up the temporary directory after each test
-    await remove(tempDir)
-  })
   // C:\\Users\\ericd\\AppData\\Local\\Temp\\docs-3SG87D\\testProject\\remote\\remote.sltt-docs
 
   it('should handle the empty seqDocs', async () => {
@@ -363,4 +352,66 @@ describe('handleStoreRemoteDocs', () => {
     expect(responseClient2).toEqual({ lastSeq: 2, storedCount: 2 })
     expect(responseClient1).toEqual({ lastSeq: 1, storedCount: 1 })
   })
+
+  describe('handleRetrieveRemoteDocs', () => {
+    it('should retrieve remote docs correctly (no spot)', async () => {
+      const docsFolder = tempDir
+      const clientId = 'testClient'
+      const project = 'testProject'
+
+      // Create the initial remote file with sequence number 1 and 2
+      const fullFromPath = join(docsFolder, project, 'remote')
+      const remoteSeqDocsFile = join(fullFromPath, 'remote.sltt-docs')
+      const fileContent = [
+        '000000001\t1234567890123\ttestClient\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+        '000000002\t1234567890124\ttestClient\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
+      ].join('\n')
+      await ensureDir(fullFromPath)
+      await writeFile(remoteSeqDocsFile, fileContent)
+
+      const response: RetrieveRemoteDocsResponse<IDBObject> = await handleRetrieveRemoteDocs(docsFolder, { clientId, project })
+
+      // Check that the response contains the expected documents
+      expect(response.seqDocs).toEqual([
+        { seq: 1, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' } },
+        { seq: 2, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
+      ])
+      expect(response.spot).toEqual(['last', { seq: 2, bytePosition: fileContent.length }])
+    })
+  })
+
+  it('should retrieve remote docs correctly (from lastSpot)', async () => {
+    const docsFolder = tempDir
+    const clientId1 = 'tsc1'
+    const project = 'testProject'
+
+    // Create the initial remote file with sequence number 1 and 2
+    const fullFromPath = join(docsFolder, project, 'remote')
+    const remoteSeqDocsFile = join(fullFromPath, 'remote.sltt-docs')
+    const fileLines = [
+      '000000001\t1234567890123\ttsc1\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+      '000000002\t1234567890124\ttsc1\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
+    ]
+    await ensureDir(fullFromPath)
+    await writeFile(remoteSeqDocsFile, fileLines[0] + '\n')
+    // create spot file
+    const stats = await stat(remoteSeqDocsFile)
+    const spotFile = join(fullFromPath, `${clientId1}.sltt-spots`)
+    await writeJson(spotFile, { 'last': { seq: 1, bytePosition: stats.size } })
+
+    // finish the rest of the file
+    await appendFile(remoteSeqDocsFile, fileLines[1] + '\n')
+
+    const response: RetrieveRemoteDocsResponse<IDBObject> = await handleRetrieveRemoteDocs(
+      docsFolder, { clientId: clientId1, project, spotKey: 'last' }
+    )
+
+    // Check that the response contains the expected documents
+    expect(response.seqDocs).toEqual([
+      { seq: 2, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
+    ])
+    const finalStats = await stat(remoteSeqDocsFile)
+    expect(response.spot).toEqual(['last', { seq: 2, bytePosition: finalStats.size }])
+  })
+
 })
