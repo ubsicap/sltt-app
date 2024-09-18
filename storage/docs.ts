@@ -1,64 +1,13 @@
 import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
-import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
-import { ensureDir, ensureFile, read, close, writeJson } from 'fs-extra'
+import { readFile, writeFile, readdir, unlink, appendFile, stat } from 'fs/promises'
+import { ensureDir, ensureFile, writeJson } from 'fs-extra'
 import { sortBy, uniqBy, indexBy } from 'lodash'
-import { promisify } from 'util'
 import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc } from './docs.d'
-import { readJsonCatchMissing } from './utils'
+import { readJsonCatchMissing, readLastBytes, readFromBytePosition } from './utils'
 
 
-const readAsync = promisify(read)
-const closeAsync = promisify(close)
-
-async function readFromBytePosition(filePath: string, bytePosition: number): Promise<{ buffer: Buffer, fileStats: Stats }> {
-    // Open the file in read mode
-    const fileHandle = await open(filePath, 'r')
-    try {
-        // Get the size of the file
-        const fileStats = await stat(filePath)
-        const fileSize = fileStats.size
-
-        // Calculate the position to start reading from
-        const startPosition = Math.max(0, bytePosition)
-
-        // Create a buffer to hold the bytes
-        const buffer = Buffer.alloc(fileSize - startPosition)
-
-        // Read the bytes from the file
-        await readAsync(fileHandle.fd, buffer, 0, buffer.length, startPosition)
-
-        return { buffer, fileStats }
-    } finally {
-        // Close the file
-        await closeAsync(fileHandle.fd)
-    }
-}
-
-async function readLastBytes(filePath: string, byteCount: number): Promise<{ buffer: Buffer, fileStats: Stats}> {
-    // Open the file in read mode
-    const fileHandle = await open(filePath, 'r')
-    try {
-        // Get the size of the file
-        const fileStats = await stat(filePath)
-        const fileSize = fileStats.size
-
-        // Calculate the position to start reading from
-        const startPosition = Math.max(0, fileSize - byteCount)
-
-        // Create a buffer to hold the bytes
-        const buffer = Buffer.alloc(byteCount)
-
-        // Read the bytes from the file
-        await readAsync(fileHandle.fd, buffer, 0, byteCount, startPosition)
-
-        return { buffer, fileStats }
-    } finally {
-        // Close the file
-        await closeAsync(fileHandle.fd)
-    }
-}
 
 const composeFilenameSafeDate = (modDate: string): string => {
     let dateStr = modDate // 2024/06/17 09:49:07.997Z
