@@ -2,10 +2,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
-import { RetrieveRemoteDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -416,4 +416,66 @@ describe('handleStoreRemoteDocs', () => {
     expect(response.spot).toEqual(['last', { seq: 2, bytePosition: finalStats.size }])
   })
 
+})
+
+describe('handleStoreLocalDocs', () => {
+  it('should store local docs correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tcl1'
+    const project = 'testProject'
+    const docs: IDBModDoc[] = [
+      {
+        _id: '20240917',
+        modDate: '2024/09/17 12:30:33',
+        creator: 'bob@example.com',
+        modBy: 'alice@example.com'
+      }
+    ]
+
+    const { storedCount } = await handleStoreLocalDocs(docsFolder, { clientId, project, docs })
+    expect(storedCount).toBe(1)
+
+    // Verify that the file was created and contains the new line
+    const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
+    const fileContent = await readFile(clientDocsPath, 'utf-8')
+    const fileLines = fileContent.split('\n')
+    expect(fileLines[0]).toEqual(expect.stringMatching(/^ {2}\t\d{13}\talice@example.com\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}$/))
+    expect(fileLines[1]).toBe('')
+  })
+
+  it('should throw an error if _id or modDate is missing', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tcl1'
+    const project = 'testProject'
+    const docs: IDBModDoc[] = [
+      {
+        _id: '',
+        modDate: '',
+        creator: 'bob@example.com',
+        modBy: 'alice@example.com'
+      }
+    ]
+
+    const args: StoreLocalDocsArgs<IDBModDoc> = { clientId, project, docs }
+
+    await expect(handleStoreLocalDocs(docsFolder, args)).rejects.toThrow('_id and modDate properties are required in doc')
+  })
+
+  it('should throw an error if modBy is missing', async () => {
+    const docsFolder = tempDir
+    const clientId = 'testClient'
+    const project = 'testProject'
+    const docs: IDBModDoc[] = [
+      {
+        _id: 'doc1',
+        modDate: '2024/09/17 12:30:33',
+        creator: 'bob@example.com',
+        modBy: ''
+      }
+    ]
+
+    const args: StoreLocalDocsArgs<IDBModDoc> = { clientId, project, docs }
+
+    await expect(handleStoreLocalDocs(docsFolder, args)).rejects.toThrow('modBy property is required in local doc')
+  })
 })

@@ -4,7 +4,7 @@ import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat } from 'fs/promises'
 import { ensureDir, ensureFile, writeJson } from 'fs-extra'
 import { sortBy, uniqBy, indexBy } from 'lodash'
-import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse } from './docs.d'
 import { readJsonCatchMissing, readLastBytes, readFromBytePosition } from './utils'
 
 
@@ -282,32 +282,42 @@ const EMPTY_STATUS = '  ' // two spaces
 // 2. add an api for the client to request to cleanup local docs that are in the remote list
 // 3. let the client look through its own remote docs to skip them
 // 4. don't bother...
-const handleStoreLocalDocs = async (docsFolder: string, { clientId, project, doc }: StoreDocArgs<IDBModDoc>): Promise<string> => {
+export const handleStoreLocalDocs = async (docsFolder: string, { clientId, project, docs }: StoreLocalDocsArgs<IDBModDoc>): Promise<StoreLocalDocsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, false)
-    const { _id, modDate, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
-    if (!_id || !modDate) {
-        throw Error(`_id and modDate properties are required in doc: ${JSON.stringify(doc)}`)
+
+    for (const doc of docs) {
+        const { _id, modDate, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
+        if (!_id || !modDate) {
+            throw Error(`_id and modDate properties are required in doc: ${JSON.stringify(doc)}`)
+        }
+        if (!modBy) {
+            throw Error(`modBy property is required in local doc: ${JSON.stringify(doc)}`)
+        }
     }
-    if (!modBy) {
-        throw Error(`modBy property is required in local doc: ${JSON.stringify(doc)}`)
-    }
+    await ensureDir(fullFromPath)
     const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
-    try {
-        await ensureFile(clientDocsPath)
-        const status = EMPTY_STATUS // placeholder first character could be used for filtering local docs that are in the remote list 
-        // this will allow for sorting by time of creation
-        const newLine = `${status}\t${Date.now()}\t${modBy}\t${JSON.stringify(doc)}\n'`
-        await appendFile(fullFromPath, newLine)
-        return newLine
-    } catch (error) {
-        console.error('An error occurred:', error.message)
-        throw error
+    await ensureFile(clientDocsPath)
+
+    let counts = 0
+    for (const doc of docs) {
+        const { modBy } = doc as IDBModDoc
+        try {
+            const status = EMPTY_STATUS // placeholder first character could be used for filtering local docs that are in the remote list 
+            // this will allow for sorting by time of creation
+            const newLine = `${status}\t${Date.now()}\t${modBy}\t${JSON.stringify(doc)}\n`
+            await appendFile(clientDocsPath, newLine)
+            counts++
+        } catch (error) {
+            console.error('An error occurred:', error.message)
+            throw error
+        }
     }
+    return { storedCount: counts }
 }
 
 // might need to break this api so client can request per clientId
 // that means we'd need a way to list the clients
-const handleRetrieveLocalDocs = async (
+export const handleRetrieveLocalDocs = async (
     docsFolder: string, { clientId, project, spotKey }: RetrieveLocalDocsArgs
 ): Promise<RetrieveLocalDocsResponse<IDBModDoc>> => {
 
