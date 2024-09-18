@@ -3,9 +3,10 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreDocV1, handleStoreRemoteDocs } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveRemoteDocs, handleSaveSpots, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
+import { RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'VideoCache')
@@ -14,7 +15,9 @@ const DOCS_PATH = join(LAN_STORAGE_PATH, 'docs')
 const DOCS_API_STORE_DOC = 'storeDoc'
 const DOCS_API_LIST_DOCS = 'listDocs'
 const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
-const DOCS_STORE = 'storeDocs'
+const DOCS_API_STORE_REMOTE_DOCS = 'storeRemoteDocs'
+const DOCS_API_RETRIEVE_REMOTE_DOCS = 'retrieveRemoteDocs'
+const DOCS_API_SAVE_REMOTE_SPOTS = 'saveRemoteDocsSpots'
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
@@ -164,17 +167,48 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
     }
 })
 
-ipcMain.handle(DOCS_STORE, async (_, args) => {
+ipcMain.handle(DOCS_API_STORE_REMOTE_DOCS, async (_, args) => {
     if (args === 'test') {
-        return `${DOCS_STORE} api test worked!`
+        return `${DOCS_API_STORE_REMOTE_DOCS} api test worked!`
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'seqDocs' in args && Array.isArray(args.seqDocs)
     ) {
-        const { clientId, project, seqDocs } = args
+        const { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBObject> = args
         return await handleStoreRemoteDocs(DOCS_PATH, { clientId, project, seqDocs })
     } else {
-        throw Error(`invalid args for ${DOCS_STORE}. Expected: '{ project: string, docs: string[] }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${DOCS_API_STORE_REMOTE_DOCS}. Expected: '{ project: string, clientId: string, seqDocs: { seq: number, doc: IDBModDoc } }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_RETRIEVE_REMOTE_DOCS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_RETRIEVE_REMOTE_DOCS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && (('spotKey' in args && Array.isArray(args.seqDocs)) || !('spotKey' in args))
+    ) {
+        const { clientId, project, spotKey }: RetrieveRemoteDocsArgs = args
+        return await handleRetrieveRemoteDocs(DOCS_PATH, { clientId, project, spotKey })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_RETRIEVE_REMOTE_DOCS}. Expected: '{ project: string, clientId: string, spotKey: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_SAVE_REMOTE_SPOTS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_SAVE_REMOTE_SPOTS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && 'spots' in args && typeof args.spots === 'object' && Object.keys(args.spots).length > 0
+        && Object.values(args.spots).every(spot => typeof spot === 'object' && 'seq' in spot && 'bytePosition' in spot)
+    ) {
+        const { clientId, project, spots }: SaveRemoteSpotsArgs = args
+        return await handleSaveSpots(DOCS_PATH, { clientId, project, spots })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_SAVE_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { seq: number, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
     }
 })

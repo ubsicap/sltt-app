@@ -2,10 +2,10 @@ import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
-import { ensureDir, ensureFile, read, close, readJSON, writeJson } from 'fs-extra'
+import { ensureDir, ensureFile, read, close, writeJson } from 'fs-extra'
 import { sortBy } from 'lodash'
 import { promisify } from 'util'
-import { ListDocsArgs, ListDocsResponse, RemoteSpot, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, RetrieveSpotsResponse, SaveSpotsArgs, SaveSpotsResponse, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 import { readJsonCatchMissing } from './utils'
 
 
@@ -301,7 +301,7 @@ export const handleRetrieveRemoteDocs = async (
 
 export const handleSaveSpots = async (
     docsFolder: string,
-    { clientId, project, spots }: SaveSpotsArgs): Promise<void> => {
+    { clientId, project, spots }: SaveRemoteSpotsArgs): Promise<void> => {
     
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
@@ -310,7 +310,7 @@ export const handleSaveSpots = async (
 
 export const retrieveSpots = async (
     docsFolder: string,
-    { clientId, project }: RetrieveRemoteDocsArgs): Promise<RetrieveSpotsResponse> => {
+    { clientId, project }: RetrieveRemoteDocsArgs): Promise<GetRemoteSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
     return readJsonCatchMissing(spotsFile, {})
