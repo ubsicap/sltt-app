@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
 import { RetrieveRemoteDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
@@ -215,9 +215,9 @@ describe('handleStoreRemoteDocs', () => {
     const docsFolder = tempDir
     const clientId = 'testClient'
     const project = 'testProject'
-    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = []
+    const seqDocs: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = []
 
-    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const args: StoreRemoteDocsArgs<IDBModDoc> = { clientId, project, seqDocs }
     const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
 
     // Check that the response contains no new lines
@@ -228,14 +228,14 @@ describe('handleStoreRemoteDocs', () => {
     const docsFolder = tempDir
     const clientId = 'tscl'
     const project = 'testProject'
-    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+    const seqDocs: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = [
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:34', creator: 'bob@example.com' }, seq: 2 },
     ]
 
     const remoteSeqDocsFile = join(docsFolder, project, 'remote', 'remote.sltt-docs')
 
-    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const args: StoreRemoteDocsArgs<IDBModDoc> = { clientId, project, seqDocs }
     const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
 
     // Check that the remote file was updated with the new lines
@@ -254,7 +254,7 @@ describe('handleStoreRemoteDocs', () => {
     const docsFolder = tempDir
     const clientId = 'tscl'
     const project = 'testProject'
-    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+    const seqDocs: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = [
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:34', creator: 'bob@example.com' }, seq: 2 },
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:35', creator: 'bob@example.com' }, seq: 3 },
@@ -268,7 +268,7 @@ describe('handleStoreRemoteDocs', () => {
     await ensureDir(join(docsFolder, project, 'remote'))
     await writeFile(remoteSeqDocsFile, `${expectedExistingLines[0]}\n`)
 
-    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const args: StoreRemoteDocsArgs<IDBModDoc> = { clientId, project, seqDocs }
     const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
 
     // Check that the remote file was updated with the new lines
@@ -288,7 +288,7 @@ describe('handleStoreRemoteDocs', () => {
     const docsFolder = tempDir
     const clientId = 'tscl'
     const project = 'testProject'
-    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+    const seqDocs: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = [
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
     ]
 
@@ -300,7 +300,7 @@ describe('handleStoreRemoteDocs', () => {
     await ensureDir(join(docsFolder, project, 'remote'))
     await writeFile(remoteSeqDocsFile, `${expectedExistingLines[0]}\n`)
 
-    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const args: StoreRemoteDocsArgs<IDBModDoc> = { clientId, project, seqDocs }
     const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
 
     // Check that the remote file was updated with the new lines
@@ -319,11 +319,11 @@ describe('handleStoreRemoteDocs', () => {
     const clientId1 = 'tsc1'
     const clientId2 = 'tsc2'
     const project = 'testProject'
-    const seqDocs1: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+    const seqDocs1: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = [
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
     ]
 
-    const seqDocs2: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+    const seqDocs2: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = [
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
       { doc: { _id: '20240917', modDate: '2024/09/17 12:30:34', creator: 'bob@example.com' }, seq: 2 },
     ]
@@ -369,7 +369,7 @@ describe('handleStoreRemoteDocs', () => {
       await ensureDir(fullFromPath)
       await writeFile(remoteSeqDocsFile, fileContent)
 
-      const response: RetrieveRemoteDocsResponse<IDBObject> = await handleRetrieveRemoteDocs(docsFolder, { clientId, project })
+      const response: RetrieveRemoteDocsResponse<IDBModDoc> = await handleRetrieveRemoteDocs(docsFolder, { clientId, project })
 
       // Check that the response contains the expected documents
       expect(response.seqDocs).toEqual([
@@ -404,7 +404,7 @@ describe('handleStoreRemoteDocs', () => {
     // finish the rest of the file
     await appendFile(remoteSeqDocsFile, fileLines.slice(1).join('\n') + '\n')
 
-    const response: RetrieveRemoteDocsResponse<IDBObject> = await handleRetrieveRemoteDocs(
+    const response: RetrieveRemoteDocsResponse<IDBModDoc> = await handleRetrieveRemoteDocs(
       docsFolder, { clientId: clientId1, project, spotKey: 'last' }
     )
 

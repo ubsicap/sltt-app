@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveRemoteDocs, handleSaveRemoteSpots, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveRemoteDocs, handleSaveRemoteSpots, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
@@ -175,7 +175,7 @@ ipcMain.handle(DOCS_API_STORE_REMOTE_DOCS, async (_, args) => {
         && 'project' in args && typeof args.project === 'string'
         && 'seqDocs' in args && Array.isArray(args.seqDocs)
     ) {
-        const { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBObject> = args
+        const { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBModDoc> = args
         return await handleStoreRemoteDocs(DOCS_PATH, { clientId, project, seqDocs })
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_REMOTE_DOCS}. Expected: '{ project: string, clientId: string, seqDocs: { seq: number, doc: IDBModDoc } }' Got: ${JSON.stringify(args)}`)

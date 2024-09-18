@@ -3,9 +3,9 @@ import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
 import { ensureDir, ensureFile, read, close, writeJson } from 'fs-extra'
-import { sortBy, uniqBy } from 'lodash'
+import { sortBy, uniqBy, indexBy } from 'lodash'
 import { promisify } from 'util'
-import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc } from './docs.d'
 import { readJsonCatchMissing } from './utils'
 
 
@@ -139,9 +139,9 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
     return { projectPath, normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy }
 }
 
-export type IDBObject = { _id: string, modDate: string, creator: string, modBy?: string }
+export type IDBModDoc = { _id: string, modDate: string, creator: string, modBy?: string }
 
-export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>):
+export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBModDoc>):
     Promise<StoreDocResponse> => {
     if (remoteSeq > 999999999) {
         throw Error(`remoteSeq is too large: ${remoteSeq}`)
@@ -212,11 +212,16 @@ export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, 
 }
 
 export const handleStoreRemoteDocs = async (
-    docsFolder: string, { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBObject>)
+    docsFolder: string, { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBModDoc>)
     : Promise<StoreRemoteDocsResponse> => {
 
     if (seqDocs.length === 0) {
         return { lastSeq: -1, storedCount: 0 }
+    }
+
+    const seqDocOutOfRange = seqDocs.find(seqDoc => seqDoc.seq > 999999999)
+    if (seqDocOutOfRange) {
+        throw Error(`remote seq (${seqDocOutOfRange.seq}) too large: ${JSON.stringify(seqDocOutOfRange)}`)
     }
 
     const fullFromPath = buildDocFolder(docsFolder, project, true)
@@ -278,7 +283,7 @@ export const handleStoreRemoteDocs = async (
 
 export const handleRetrieveRemoteDocs = async (
     docsFolder: string,
-    { clientId, project, spotKey }: RetrieveRemoteDocsArgs): Promise<RetrieveRemoteDocsResponse<IDBObject>> => {
+    { clientId, project, spotKey }: RetrieveRemoteDocsArgs): Promise<RetrieveRemoteDocsResponse<IDBModDoc>> => {
         let bytesPosition = 0
         // first retrieve spot from from spotKey (if exists)
         const spots = await retrieveRemoteSpots(docsFolder, { clientId, project })
@@ -311,39 +316,109 @@ export const handleSaveRemoteSpots = async (
 
 export const retrieveRemoteSpots = async (
     docsFolder: string,
-    { clientId, project }: RetrieveRemoteDocsArgs): Promise<GetRemoteSpotsResponse> => {
+    { clientId, project }: GetRemoteSpotsArgs): Promise<GetRemoteSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
     return readJsonCatchMissing(spotsFile, {})
 }
 
-const storeDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {
-    if (remoteSeq > 999999999) {
-        throw Error(`remoteSeq is too large: ${remoteSeq}`)
-    }
-    const isFromRemote = !!remoteSeq
-    const isLocalDoc = !isFromRemote
-    const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
+const EMPTY_STATUS = '  ' // two spaces
+
+
+// TODO: keep track of master list of ids and modDates json file
+// so we can filter out local docs that are in the remote list
+// when to do this?
+// 1. when a client stores a remote or local doc, we could use an index to check if the id is in some client local list, and mark its status
+// that index could be trimmed to remove those ids that are not in the remote list
+// 2. add an api for the client to request to cleanup local docs that are in the remote list
+// 3. let the client look through its own remote docs to skip them
+// 4. don't bother...
+const handleStoreLocalDocs = async (docsFolder: string, { clientId, project, doc }: StoreDocArgs<IDBModDoc>): Promise<string> => {
+    const fullFromPath = buildDocFolder(docsFolder, project, false)
     const { _id, modDate, modBy } = doc as { _id: string, modDate: string, creator: string, modBy: string }
     if (!_id || !modDate) {
         throw Error(`_id and modDate properties are required in doc: ${JSON.stringify(doc)}`)
     }
-    if (isLocalDoc && !modBy) {
+    if (!modBy) {
         throw Error(`modBy property is required in local doc: ${JSON.stringify(doc)}`)
     }
     const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
     try {
         await ensureFile(clientDocsPath)
-        const status = isLocalDoc ? `  ` : '' // placeholder first character could be used for removing local docs that are in the remote list 
-        // add terse utc timestamp (miliseconds after 2024-09-01) to each line
+        const status = EMPTY_STATUS // placeholder first character could be used for filtering local docs that are in the remote list 
         // this will allow for sorting by time of creation
-        const newLine = `${status}\t${Date.now()}\t` + JSON.stringify(doc) + '\n'
+        const newLine = `${status}\t${Date.now()}\t${modBy}\t${JSON.stringify(doc)}\n'`
         await appendFile(fullFromPath, newLine)
         return newLine
     } catch (error) {
         console.error('An error occurred:', error.message)
         throw error
     }
+}
+
+// might need to break this api so client can request per clientId
+// that means we'd need a way to list the clients
+const handleRetrieveLocalDocs = async (
+    docsFolder: string, { clientId, project, spotKey }: RetrieveLocalDocsArgs
+): Promise<RetrieveLocalDocsResponse<IDBModDoc>> => {
+
+    // get a directory listing of all the {clientId}.sltt-docs files
+    const fullFromPath = buildDocFolder(docsFolder, project, false)
+    await ensureDir(fullFromPath)
+    // all files in the directory
+    const filenames = await readdir(fullFromPath)
+    // filter out the ones that are not {clientId}.sltt-docs files
+    const clientDocFiles = filenames.filter(filename => filename === `${clientId}.sltt-docs`)
+    // get the clientIds from the filenames
+    const otherClientIds = clientDocFiles.map(filename => filename.split('.')[0])
+        .filter(otherClientId => otherClientId !== clientId)
+    // get the last spots for these clientIds
+    const spots = await retrieveLocalSpots(docsFolder, { clientId, project })
+    // map the clientIds to starting byte positions (default to 0)
+    const clientBytePositions = {}
+    const lastSpotsByClientId = indexBy(spots[spotKey] || [], spot => spot.clientId)
+    for (const clientId of otherClientIds) {
+        const spot = lastSpotsByClientId[clientId]
+        const clientBytePosition = spot ? spot.bytePosition : 0
+        clientBytePositions[clientId] = clientBytePosition
+    }
+    // now read the files from the last spot byte positions
+    const localDocs: LocalDoc<IDBModDoc>[] = []
+    const newSpots = []
+    for (const clientId of otherClientIds) {
+        const clientDocFile = join(fullFromPath, `${clientId}.sltt-docs`)
+        const bytesPosition = clientBytePositions[clientId]
+        const { buffer, fileStats } = await readFromBytePosition(clientDocFile, bytesPosition)
+        const clientDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
+        const clientLocalDocs = clientDocLines.map((line) => {
+            const [status, , , docStr] = line.split('\t')
+            return { status, doc: JSON.parse(docStr) }
+        }).filter(localDoc => localDoc.status === EMPTY_STATUS).map(
+            localDoc => ({ clientId, doc: localDoc.doc })
+        )
+        localDocs.push(...clientLocalDocs)
+        const newSpot = { clientId, bytePosition: fileStats.size }
+        newSpots.push(newSpot)
+    }
+    const sortedLocalDocs = sortBy(localDocs, localDoc => localDoc.doc.modDate)
+    return { localDocs: sortedLocalDocs, spot: [spotKey, newSpots] }
+}
+
+export const handleSaveLocalSpots = async (
+    docsFolder: string,
+    { clientId, project, spots }: SaveLocalSpotsArgs): Promise<void> => {
+    
+    const fullFromPath = buildDocFolder(docsFolder, project, false)
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    await writeJson(spotsFile, spots)
+}
+
+export const retrieveLocalSpots = async (
+    docsFolder: string,
+    { clientId, project }: GetLocalSpotsArgs): Promise<GetLocalSpotsResponse> => {
+    const fullFromPath = buildDocFolder(docsFolder, project, false)
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    return readJsonCatchMissing(spotsFile, {})
 }
 
 export const handleListDocsV0 = async (docsFolder: string, { clientId, project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
@@ -375,7 +450,7 @@ export const handleListDocsV0 = async (docsFolder: string, { clientId, project, 
 }
 
 export const handleRetrieveDocV0 = async (docsFolder: string, { clientId, project, isFromRemote, filename }: RetrieveDocArgs):
-    Promise<RetrieveDocResponse<IDBObject> | null> => {
+    Promise<RetrieveDocResponse<IDBModDoc> | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
     const fullPath = join(fullFromPath, normalizedFilename)
