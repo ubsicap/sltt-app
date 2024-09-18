@@ -2,11 +2,10 @@ import { createHash } from 'crypto'
 import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
-import { ensureDir, ensureFile, readJson, writeJson, read, close } from 'fs-extra'
+import { ensureDir, ensureFile, read, close } from 'fs-extra'
 import { sortBy } from 'lodash'
 import { promisify } from 'util'
-import { ListDocsArgs, ListDocsResponse, RemoteSeqDoc, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
-import { readJsonCatchMissing } from './utils'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 
 const readAsync = promisify(read)
@@ -190,22 +189,22 @@ export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, 
 export const handleStoreRemoteDocs = async (
     docsFolder: string, { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBObject>)
     : Promise<StoreRemoteDocsResponse> => {
-    
+
     if (seqDocs.length === 0) {
-        return { newLines: [] }
+        return { lastSeq: -1, storedCount: 0 }
     }
 
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     await ensureDir(fullFromPath)
     
     const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
-    // read the last `000000000` characters from the file to get the last remoteSeq
-    let nextRemoteSeq = 0
+    // read the last `000000000` characters from the file to get the last stored remoteSeq
+    let lastStoredSeq = 0
     let originalFileStats: Stats
     try {
         const { buffer: lastBytes, fileStats } = await readLastBytes(remoteSeqDocsFile, 9)
         originalFileStats = fileStats
-        nextRemoteSeq = Number(lastBytes.toString())
+        lastStoredSeq = Number(lastBytes.toString())
     } catch (error) {
         if (error.code === 'ENOENT') {
             // file doesn't exist, so it's the first sync
@@ -214,33 +213,42 @@ export const handleStoreRemoteDocs = async (
             console.error(`Failed to read remote file: ${remoteSeqDocsFile}`, error)
         }
     }
-    if (nextRemoteSeq === 0) {
-        // append first nextRemoteSeq to the file
-        await appendFile(remoteSeqDocsFile, '000000001')
-        nextRemoteSeq = 1
-    }
-    // if any incoming seqDocs hava a remoteSeq greater or equal to nextRemoteSeq,
+    // if any incoming seqDocs hava a seq greater than lastStoredSeq,
     // append them to the end of the file
     const newLines: string[] = []
     const sortedSeqDocs = sortBy(seqDocs, seqDoc => seqDoc.seq)
+    const lastSeq = sortedSeqDocs[sortedSeqDocs.length - 1].seq
     for (const { doc, seq } of sortedSeqDocs) {
-        if (seq >= nextRemoteSeq) {
-            const nextSeq = `${`${seq + 1}`.padStart(9, '0')}`
-            const newLine = `\t${Date.now()}\t${clientId}\t` + JSON.stringify(doc) + `\n${nextSeq}`
+        if (seq > lastStoredSeq) {
+            const paddedSeq = `${seq}`.padStart(9, '0')
+            const newLine = `${paddedSeq}\t${Date.now()}\t${clientId}\t` + JSON.stringify(doc) + `\t${paddedSeq}\n`
             newLines.push(newLine)
         }
     }
-    const newFileStats = await stat(remoteSeqDocsFile)
-    if (originalFileStats && newFileStats.size !== originalFileStats.size) {
+    let newSize = -1
+    try {
+        const newFileStats = await stat(remoteSeqDocsFile)
+        newSize = newFileStats.size
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            // file doesn't exist, so it's the first sync
+            console.log(`Remote file does not exist: ${remoteSeqDocsFile}`)
+        } else {
+            throw error
+        }
+    }
+    
+    if ((newSize > -1 && originalFileStats) && newSize !== originalFileStats.size) {
         // file has changed since we last read it
-        console.log(`Remote file has changed: ${remoteSeqDocsFile}`)
+        const error = `Since last read remote.sltt-docs changed from size ${originalFileStats.size} to ${newSize}`
+        console.log(error)
         // silently ignore the changes for now
-        return { newLines: [] }
+        return { lastSeq, storedCount: 0, error }
     }
     if (newLines.length) {
         await appendFile(remoteSeqDocsFile, newLines.join(''))
     }
-    return { newLines }
+    return { lastSeq, storedCount: newLines.length }
 }
 
 const storeDocV1 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBObject>): Promise<string> => {

@@ -3,7 +3,7 @@
 // V1
 export type RemoteSeqDoc<TDoc> = { seq: number, doc: TDoc }
 export type StoreRemoteDocsArgs<TDoc> = { clientId: string, project: string, seqDocs: RemoteSeqDoc<TDoc>[] }
-export type StoreRemoteDocsResponse = { newLines: string[] }
+export type StoreRemoteDocsResponse = { lastSeq: number, storedCount: number, error?: string }
 
 // V0
 export type StoreDocArgs<TDoc> = { clientId: string, project: string, doc: TDoc, remoteSeq: number }

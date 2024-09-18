@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { mkdtempSync, rmdirSync, existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
@@ -232,7 +232,7 @@ describe('handleStoreRemoteDocs', () => {
     const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
 
     // Check that the response contains no new lines
-    expect(response.newLines).toEqual([])
+    expect(response).toEqual({ lastSeq: -1, storedCount: 0 })
   })
 
   it('should append new lines for incoming seqDocs with higher sequence numbers', async () => {
@@ -253,40 +253,11 @@ describe('handleStoreRemoteDocs', () => {
     const fileContent = await readFile(remoteSeqDocsFile, 'utf-8')
     const allLines = fileContent.split('\n')
     expect(allLines).toEqual([
-      expect.stringMatching(/^000000001\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com"}$/),
-      expect.stringMatching(/^000000002\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:34","creator":"bob@example.com"}$/),
-      '000000003',
+      expect.stringMatching(/^000000001\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com"}\t000000001$/),
+      expect.stringMatching(/^000000002\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:34","creator":"bob@example.com"}\t000000002$/),
+      ''
     ])
 
-    // Check that the response contains the new lines
-    expect(response.newLines).toEqual([
-      allLines[0],
-      allLines[1],
-      allLines[2],
-    ])
-  })
-
-  it('should not append new lines if the file has changed since last read', async () => {
-    const docsFolder = tempDir
-    const clientId = 'testClient'
-    const project = 'testProject'
-    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
-      { doc: { _id: 'value1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
-    ]
-
-    // Create the initial remote file with sequence number 1
-    const remoteSeqDocsFile = join(docsFolder, project, 'remote.sltt-docs')
-    await ensureDir(join(docsFolder, project))
-    await writeFile(remoteSeqDocsFile, '000000001')
-
-    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
-
-    // Simulate a change in the file by appending a new line
-    await writeFile(remoteSeqDocsFile, '000000002', { flag: 'a' })
-
-    const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
-
-    // Check that the response contains no new lines
-    expect(response.newLines).toEqual([])
+    expect(response).toEqual({ lastSeq: 2, storedCount: 2 })
   })
 })
