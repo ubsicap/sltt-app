@@ -235,7 +235,7 @@ describe('handleStoreRemoteDocs', () => {
     expect(response).toEqual({ lastSeq: -1, storedCount: 0 })
   })
 
-  it('should append new lines for incoming seqDocs with higher sequence numbers', async () => {
+  it('should append new lines for incoming seqDocs to new remote.sltt-docs', async () => {
     const docsFolder = tempDir
     const clientId = 'tscl'
     const project = 'testProject'
@@ -259,5 +259,39 @@ describe('handleStoreRemoteDocs', () => {
     ])
 
     expect(response).toEqual({ lastSeq: 2, storedCount: 2 })
+  })
+
+  it('should append new lines for incoming seqDocs with higher seqs to existing remote.sltt-docs', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tscl'
+    const project = 'testProject'
+    const seqDocs: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:34', creator: 'bob@example.com' }, seq: 2 },
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:35', creator: 'bob@example.com' }, seq: 3 },
+    ]
+
+    const expectedExistingLines = [
+      '000000001\t1631874633046\ttscl\t{"_id":"20240917","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+    ]
+
+    const remoteSeqDocsFile = join(docsFolder, project, 'remote', 'remote.sltt-docs')
+    await ensureDir(join(docsFolder, project, 'remote'))
+    await writeFile(remoteSeqDocsFile, `${expectedExistingLines[0]}\n`)
+
+    const args: StoreRemoteDocsArgs<IDBObject> = { clientId, project, seqDocs }
+    const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(docsFolder, args)
+
+    // Check that the remote file was updated with the new lines
+    const fileContent = await readFile(remoteSeqDocsFile, 'utf-8')
+    const allLines = fileContent.split('\n')
+    expect(allLines).toEqual([
+      expectedExistingLines[0],
+      expect.stringMatching(/^000000002\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:34","creator":"bob@example.com"}\t000000002$/),
+      expect.stringMatching(/^000000003\t\d{13}\ttscl\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:35","creator":"bob@example.com"}\t000000003$/),
+      ''
+    ])
+
+    expect(response).toEqual({ lastSeq: 3, storedCount: 2 })
   })
 })
