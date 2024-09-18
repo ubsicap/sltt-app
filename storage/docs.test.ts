@@ -324,4 +324,43 @@ describe('handleStoreRemoteDocs', () => {
 
     expect(response).toEqual({ lastSeq: 1, storedCount: 0 })
   })
+
+  it('should handle multiple clients simultaneously updating remote.sltt-docs', async () => {
+    const docsFolder = tempDir
+    const clientId1 = 'tsc1'
+    const clientId2 = 'tsc2'
+    const project = 'testProject'
+    const seqDocs1: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
+    ]
+
+    const seqDocs2: StoreRemoteDocsArgs<IDBObject>['seqDocs'] = [
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' }, seq: 1 },
+      { doc: { _id: '20240917', modDate: '2024/09/17 12:30:34', creator: 'bob@example.com' }, seq: 2 },
+    ]
+
+    const remoteSeqDocsFile = join(docsFolder, project, 'remote', 'remote.sltt-docs')
+
+    const [responseClient2, responseClient1]: StoreRemoteDocsResponse[] = await Promise.all([
+      handleStoreRemoteDocs(docsFolder, {
+        clientId: clientId2, project, seqDocs: seqDocs2
+      }),
+      handleStoreRemoteDocs(docsFolder, {
+        clientId: clientId1, project, seqDocs: seqDocs1
+      }),
+    ])
+
+    // Check that the remote file was updated with the new lines
+    const fileContent = await readFile(remoteSeqDocsFile, 'utf-8')
+    const allLines = fileContent.split('\n')
+    expect(allLines).toEqual([
+      expect.stringMatching(/^000000001\t\d{13}\ttsc2\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com"}\t000000001$/),
+      expect.stringMatching(/^000000002\t\d{13}\ttsc2\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:34","creator":"bob@example.com"}\t000000002$/),
+      expect.stringMatching(/^000000001\t\d{13}\ttsc1\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com"}\t000000001$/),
+      ''
+    ])
+
+    expect(responseClient2).toEqual({ lastSeq: 2, storedCount: 2 })
+    expect(responseClient1).toEqual({ lastSeq: 1, storedCount: 1 })
+  })
 })
