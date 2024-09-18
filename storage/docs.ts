@@ -3,7 +3,7 @@ import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat, open } from 'fs/promises'
 import { ensureDir, ensureFile, read, close, writeJson } from 'fs-extra'
-import { sortBy } from 'lodash'
+import { sortBy, uniqBy } from 'lodash'
 import { promisify } from 'util'
 import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 import { readJsonCatchMissing } from './utils'
@@ -290,11 +290,12 @@ export const handleRetrieveRemoteDocs = async (
         const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
         const { buffer, fileStats } = await readFromBytePosition(remoteSeqDocsFile, bytesPosition)
         const remoteSeqDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
-        // We can't assume that they are in order or even end where we left off (writing race-condition)
-        const seqDocs = sortBy(remoteSeqDocLines.map((line) => {
+        // We can't assume that they are in order, unique or even end where we left off (writing race-condition)
+        const seqDocsFirstPass = remoteSeqDocLines.map((line) => {
             const [seq, , , docStr] = line.split('\t')
             return { seq: Number(seq), doc: JSON.parse(docStr) }
-        }).filter(seqDoc => seqDoc.seq > lastSeq), seqDocs => seqDocs.seq)
+        }).filter(seqDoc => seqDoc.seq > lastSeq)
+        const seqDocs = uniqBy(seqDocsFirstPass, (seqDoc) => seqDoc.seq)
         const newLastSeq = seqDocs.length ? seqDocs[seqDocs.length - 1].seq : lastSeq
         return { seqDocs, spot: ['last', { seq: newLastSeq, bytePosition: fileStats.size }]}
 }

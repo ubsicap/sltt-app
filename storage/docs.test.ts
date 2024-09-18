@@ -391,6 +391,8 @@ describe('handleStoreRemoteDocs', () => {
     const fileLines = [
       '000000001\t1234567890123\ttsc1\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
       '000000002\t1234567890124\ttsc1\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
+      '000000001\t1234567890123\ttsc2\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+      '000000002\t1234567890124\ttsc2\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
     ]
     await ensureDir(fullFromPath)
     await writeFile(remoteSeqDocsFile, fileLines[0] + '\n')
@@ -400,7 +402,7 @@ describe('handleStoreRemoteDocs', () => {
     await writeJson(spotFile, { 'last': { seq: 1, bytePosition: stats.size } })
 
     // finish the rest of the file
-    await appendFile(remoteSeqDocsFile, fileLines[1] + '\n')
+    await appendFile(remoteSeqDocsFile, fileLines.slice(1).join('\n') + '\n')
 
     const response: RetrieveRemoteDocsResponse<IDBObject> = await handleRetrieveRemoteDocs(
       docsFolder, { clientId: clientId1, project, spotKey: 'last' }
