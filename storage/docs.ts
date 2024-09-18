@@ -281,7 +281,7 @@ export const handleRetrieveRemoteDocs = async (
     { clientId, project, spotKey }: RetrieveRemoteDocsArgs): Promise<RetrieveRemoteDocsResponse<IDBObject>> => {
         let bytesPosition = 0
         // first retrieve spot from from spotKey (if exists)
-        const spots = await retrieveSpots(docsFolder, { clientId, project })
+        const spots = await retrieveRemoteSpots(docsFolder, { clientId, project })
         const lastSeq = spots[spotKey]?.seq || 0
         if (spotKey && spots[spotKey]) {
             bytesPosition = spots[spotKey].bytePosition
@@ -300,7 +300,7 @@ export const handleRetrieveRemoteDocs = async (
         return { seqDocs, spot: ['last', { seq: newLastSeq, bytePosition: fileStats.size }]}
 }
 
-export const handleSaveSpots = async (
+export const handleSaveRemoteSpots = async (
     docsFolder: string,
     { clientId, project, spots }: SaveRemoteSpotsArgs): Promise<void> => {
     
@@ -309,7 +309,7 @@ export const handleSaveSpots = async (
     await writeJson(spotsFile, spots)
 }
 
-export const retrieveSpots = async (
+export const retrieveRemoteSpots = async (
     docsFolder: string,
     { clientId, project }: RetrieveRemoteDocsArgs): Promise<GetRemoteSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, true)

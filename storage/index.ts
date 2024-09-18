@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveRemoteDocs, handleSaveSpots, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveRemoteDocs, handleSaveRemoteSpots, handleStoreDocV0, handleStoreRemoteDocs, IDBObject } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
@@ -207,7 +207,7 @@ ipcMain.handle(DOCS_API_SAVE_REMOTE_SPOTS, async (_, args) => {
         && Object.values(args.spots).every(spot => typeof spot === 'object' && 'seq' in spot && 'bytePosition' in spot)
     ) {
         const { clientId, project, spots }: SaveRemoteSpotsArgs = args
-        return await handleSaveSpots(DOCS_PATH, { clientId, project, spots })
+        return await handleSaveRemoteSpots(DOCS_PATH, { clientId, project, spots })
     } else {
         throw Error(`invalid args for ${DOCS_API_SAVE_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { seq: number, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
     }
