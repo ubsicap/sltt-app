@@ -510,14 +510,14 @@ describe('handleRetrieveLocalDocs', () => {
 
     // Check that the response contains the expected documents
     expect(response.localDocs).toEqual([
-      { clientId, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
-      { clientId, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
       { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
-      { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } }
+      { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
+      { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
+      { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
     ])
     expect(response.spot).toEqual([spotKey, [
-      { clientId, bytePosition: client1DocsContent.length },
-      { clientId: 'tsc2', bytePosition: client2DocsContent.length }
+      { clientId: 'tsc1', bytePosition: client1DocsContent.length + 1 },
+      { clientId: 'tsc2', bytePosition: client2DocsContent.length + 1 }
     ]])
   })
 
