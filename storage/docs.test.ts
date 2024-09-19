@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs, EMPTY_STATUS } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
 import { RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
@@ -213,7 +213,7 @@ describe('handleStoreRemoteDocs', () => {
 
   it('should handle the empty seqDocs', async () => {
     const docsFolder = tempDir
-    const clientId = 'testClient'
+    const clientId = 'tsc1'
     const project = 'testProject'
     const seqDocs: StoreRemoteDocsArgs<IDBModDoc>['seqDocs'] = []
 
@@ -356,15 +356,15 @@ describe('handleStoreRemoteDocs', () => {
   describe('handleRetrieveRemoteDocs', () => {
     it('should retrieve remote docs correctly (no spot)', async () => {
       const docsFolder = tempDir
-      const clientId = 'testClient'
+      const clientId = 'tsc1'
       const project = 'testProject'
 
       // Create the initial remote file with sequence number 1 and 2
       const fullFromPath = join(docsFolder, project, 'remote')
       const remoteSeqDocsFile = join(fullFromPath, 'remote.sltt-docs')
       const fileContent = [
-        '000000001\t1234567890123\ttestClient\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
-        '000000002\t1234567890124\ttestClient\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
+        '000000001\t1234567890123\ttsc1\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+        '000000002\t1234567890124\ttsc1\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
       ].join('\n')
       await ensureDir(fullFromPath)
       await writeFile(remoteSeqDocsFile, fileContent)
@@ -463,7 +463,7 @@ describe('handleStoreLocalDocs', () => {
 
   it('should throw an error if modBy is missing', async () => {
     const docsFolder = tempDir
-    const clientId = 'testClient'
+    const clientId = 'tsc1'
     const project = 'testProject'
     const docs: IDBModDoc[] = [
       {
@@ -481,11 +481,71 @@ describe('handleStoreLocalDocs', () => {
 })
 
 describe('handleRetrieveLocalDocs', () => {
-  it('should retrieve local docs correctly', async () => {
+  it('should retrieve local docs correctly - includeOwn - first retrieval', async () => {
     const docsFolder = tempDir
     const clientId = 'tsc1'
     const project = 'testProject'
-    const spotKey = 'last'
+    const spotKey = 'testSpotKey'
+    const includeOwn = true
+
+    // Create the initial local file with some docs
+    const fullFromPath = join(docsFolder, project, 'local')
+    await ensureDir(fullFromPath)
+    const client1DocFile = join(fullFromPath, `tsc1.sltt-docs`)
+    const client1DocsContent = [
+      `${EMPTY_STATUS}\t1234567890123\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}`,
+      `${EMPTY_STATUS}\t1234567890124\tbob@example.com\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com","modBy":"alice@example.com"}`,
+    ].join('\n')
+    await writeFile(client1DocFile, client1DocsContent + '\n')
+
+    const client2DocsFile = join(fullFromPath, `tsc2.sltt-docs`)
+    const client2DocsContent = [
+      `${EMPTY_STATUS}\t1234567890125\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 10:30:33","creator":"bob@example.com","modBy":"bob@example.com"}`,
+      `${EMPTY_STATUS}\t1234567890126\tbob@example.com\t{"_id":"doc3","modDate":"2024/09/17 11:30:34","creator":"alice@example.com","modBy":"bob@example.com"}`,
+    ].join('\n')
+    await writeFile(client2DocsFile, client2DocsContent + '\n')
+
+    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
+    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
+
+    // Check that the response contains the expected documents
+    expect(response.localDocs).toEqual([
+      { clientId, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
+      { clientId, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
+      { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
+      { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } }
+    ])
+    expect(response.spot).toEqual([spotKey, [
+      { clientId, bytePosition: client1DocsContent.length },
+      { clientId: 'tsc2', bytePosition: client2DocsContent.length }
+    ]])
+  })
+
+  it('should handle empty directory correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tsc1'
+    const project = 'testProject'
+    const spotKey = 'testSpotKey'
+    const includeOwn = true
+
+    // Ensure the directory exists but is empty
+    const fullFromPath = join(docsFolder, project, 'local')
+    await ensureDir(fullFromPath)
+
+    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
+    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
+
+    // Check that the response contains no documents
+    expect(response.localDocs).toEqual([])
+    expect(response.spot).toEqual([spotKey, []])
+  })
+
+  it('should exclude own docs when includeOwn is false', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tsc1'
+    const project = 'testProject'
+    const spotKey = 'testSpotKey'
+    const includeOwn = false
 
     // Create the initial local file with some docs
     const fullFromPath = join(docsFolder, project, 'local')
@@ -495,33 +555,19 @@ describe('handleRetrieveLocalDocs', () => {
       ' \t1234567890123\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}',
       ' \t1234567890124\tbob@example.com\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}'
     ].join('\n')
-    await writeFile(clientDocFile, fileContent + '\n')
+    await writeFile(clientDocFile, fileContent)
 
-    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey }
+    // Create a spot file
+    const spotFile = join(docsFolder, `${spotKey}.json`)
+    const spotContent = JSON.stringify({
+      [spotKey]: [{ clientId, bytePosition: 0 }]
+    })
+    await writeFile(spotFile, spotContent)
+
+    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
     const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
 
-    // Check that the response contains the expected documents
-    expect(response.localDocs).toEqual([
-      { clientId, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' } },
-      { clientId, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
-    ])
-    expect(response.spot).toEqual([spotKey, [{ clientId, bytePosition: fileContent.length }]])
-  })
-
-  it('should handle empty directory correctly', async () => {
-    const docsFolder = tempDir
-    const clientId = 'tsc1'
-    const project = 'testProject'
-    const spotKey = 'last'
-
-    // Ensure the directory exists but is empty
-    const fullFromPath = join(docsFolder, project)
-    await ensureDir(fullFromPath)
-
-    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey }
-    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
-
-    // Check that the response contains no documents
+    // Check that the response contains no documents since includeOwn is false
     expect(response.localDocs).toEqual([])
     expect(response.spot).toEqual([spotKey, []])
   })

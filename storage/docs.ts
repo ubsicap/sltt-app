@@ -271,7 +271,7 @@ export const retrieveRemoteSpots = async (
     return readJsonCatchMissing(spotsFile, {})
 }
 
-const EMPTY_STATUS = '  ' // two spaces
+export const EMPTY_STATUS = '  ' // two spaces
 
 
 // TODO: keep track of master list of ids and modDates json file
