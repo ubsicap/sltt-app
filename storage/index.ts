@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveRemoteDocs, handleSaveRemoteSpots, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc } from './docs'
+import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
@@ -18,6 +18,10 @@ const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
 const DOCS_API_STORE_REMOTE_DOCS = 'storeRemoteDocs'
 const DOCS_API_RETRIEVE_REMOTE_DOCS = 'retrieveRemoteDocs'
 const DOCS_API_SAVE_REMOTE_SPOTS = 'saveRemoteDocsSpots'
+const DOCS_API_STORE_LOCAL_DOCS = 'storeLocalDocs'
+const DOCS_API_RETRIEVE_LOCAL_DOCS = 'retrieveLocalDocs'
+const DOCS_API_SAVE_LOCAL_SPOTS = 'saveLocalSpots'
+const DOCS_API_GET_LOCAL_SPOTS = 'getLocalSpots'
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
@@ -210,5 +214,51 @@ ipcMain.handle(DOCS_API_SAVE_REMOTE_SPOTS, async (_, args) => {
         return await handleSaveRemoteSpots(DOCS_PATH, { clientId, project, spots })
     } else {
         throw Error(`invalid args for ${DOCS_API_SAVE_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { seq: number, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_STORE_LOCAL_DOCS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_STORE_LOCAL_DOCS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && 'docs' in args && Array.isArray(args.docs)
+    ) {
+        const { clientId, project, docs } = args
+        return await handleStoreLocalDocs(DOCS_PATH, { clientId, project, docs })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_STORE_LOCAL_DOCS}. Expected: '{ project: string, clientId: string, docs: IDBModDoc[] }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_RETRIEVE_LOCAL_DOCS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_RETRIEVE_LOCAL_DOCS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && (('spotKey' in args && Array.isArray(args.seqDocs)) || !('spotKey' in args))
+    ) {
+        const { clientId, project, spotKey } = args
+        return await handleRetrieveLocalDocs(DOCS_PATH, { clientId, project, spotKey })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_RETRIEVE_LOCAL_DOCS}. Expected: '{ project: string, clientId: string, spotKey: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_SAVE_LOCAL_SPOTS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_SAVE_LOCAL_SPOTS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && 'spots' in args && typeof args.spots === 'object' && Object.keys(args.spots).length > 0
+        && Object.values(args.spots).every(spot => typeof spot === 'object' && 'clientId' in spot && 'bytePosition' in spot)
+    ) {
+        const { clientId, project, spots } = args
+        return await handleSaveLocalSpots(DOCS_PATH, { clientId, project, spots })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_SAVE_LOCAL_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { clientId: string, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
     }
 })
