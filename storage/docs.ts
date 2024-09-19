@@ -3,7 +3,7 @@ import { basename, join, parse, sep } from 'path'
 import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat } from 'fs/promises'
 import { ensureDir, ensureFile, writeJson } from 'fs-extra'
-import { sortBy, uniqBy, indexBy } from 'lodash'
+import { sortBy, uniqBy, keyBy } from 'lodash'
 import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse } from './docs.d'
 import { readJsonCatchMissing, readLastBytes, readFromBytePosition } from './utils'
 
@@ -335,7 +335,7 @@ export const handleRetrieveLocalDocs = async (
     const spots = await retrieveLocalSpots(docsFolder, { clientId, project })
     // map the clientIds to starting byte positions (default to 0)
     const clientBytePositions = {}
-    const lastSpotsByClientId = indexBy(spots[spotKey] || [], spot => spot.clientId)
+    const lastSpotsByClientId = keyBy(spots[spotKey] || [], spot => spot.clientId)
     for (const clientId of otherClientIds) {
         const spot = lastSpotsByClientId[clientId]
         const clientBytePosition = spot ? spot.bytePosition : 0
