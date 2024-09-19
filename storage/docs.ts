@@ -318,7 +318,7 @@ export const handleStoreLocalDocs = async (docsFolder: string, { clientId, proje
 // might need to break this api so client can request per clientId
 // that means we'd need a way to list the clients
 export const handleRetrieveLocalDocs = async (
-    docsFolder: string, { clientId, project, spotKey }: RetrieveLocalDocsArgs
+    docsFolder: string, { clientId, project, spotKey, includeOwn }: RetrieveLocalDocsArgs
 ): Promise<RetrieveLocalDocsResponse<IDBModDoc>> => {
 
     // get a directory listing of all the {clientId}.sltt-docs files
@@ -326,37 +326,38 @@ export const handleRetrieveLocalDocs = async (
     await ensureDir(fullFromPath)
     // all files in the directory
     const filenames = await readdir(fullFromPath)
-    // filter out the ones that are not {clientId}.sltt-docs files
-    const clientDocFiles = filenames.filter(filename => filename === `${clientId}.sltt-docs`)
+    // filter out the ones that are not .sltt-docs files
+    const allClientDocFiles = filenames.filter(filename => filename.endsWith(`.sltt-docs`))
     // get the clientIds from the filenames
-    const otherClientIds = clientDocFiles.map(filename => filename.split('.')[0])
-        .filter(otherClientId => otherClientId !== clientId)
+    const allStoredClientIds = allClientDocFiles.map(filename => filename.split('.')[0])
     // get the last spots for these clientIds
     const spots = await retrieveLocalSpots(docsFolder, { clientId, project })
     // map the clientIds to starting byte positions (default to 0)
     const clientBytePositions = {}
     const lastSpotsByClientId = keyBy(spots[spotKey] || [], spot => spot.clientId)
-    for (const clientId of otherClientIds) {
-        const spot = lastSpotsByClientId[clientId]
+    for (const storedClientId of allStoredClientIds) {
+        if (!includeOwn && storedClientId === clientId) continue
+        const spot = lastSpotsByClientId[storedClientId]
         const clientBytePosition = spot ? spot.bytePosition : 0
-        clientBytePositions[clientId] = clientBytePosition
+        clientBytePositions[storedClientId] = clientBytePosition
     }
     // now read the files from the last spot byte positions
     const localDocs: LocalDoc<IDBModDoc>[] = []
     const newSpots = []
-    for (const clientId of otherClientIds) {
-        const clientDocFile = join(fullFromPath, `${clientId}.sltt-docs`)
-        const bytesPosition = clientBytePositions[clientId]
+    for (const storedClientId of allStoredClientIds) {
+        if (!includeOwn && storedClientId === clientId) continue
+        const clientDocFile = join(fullFromPath, `${storedClientId}.sltt-docs`)
+        const bytesPosition = clientBytePositions[storedClientId]
         const { buffer, fileStats } = await readFromBytePosition(clientDocFile, bytesPosition)
         const clientDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
         const clientLocalDocs = clientDocLines.map((line) => {
             const [status, , , docStr] = line.split('\t')
             return { status, doc: JSON.parse(docStr) }
         }).filter(localDoc => localDoc.status === EMPTY_STATUS).map(
-            localDoc => ({ clientId, doc: localDoc.doc })
+            localDoc => ({ clientId: storedClientId, doc: localDoc.doc })
         )
         localDocs.push(...clientLocalDocs)
-        const newSpot = { clientId, bytePosition: fileStats.size }
+        const newSpot = { clientId: storedClientId, bytePosition: fileStats.size }
         newSpots.push(newSpot)
     }
     const sortedLocalDocs = sortBy(localDocs, localDoc => localDoc.doc.modDate)

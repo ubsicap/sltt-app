@@ -20,7 +20,7 @@ export type StoreLocalDocsResponse = { storedCount: number }
 
 export type LocalDoc<TDoc> = { clientId: string, doc: TDoc }
 export type LocalSpot = { clientId: string, bytePosition: number }
-export type RetrieveLocalDocsArgs = { clientId: string, project: string, spotKey?: string }
+export type RetrieveLocalDocsArgs = { clientId: string, project: string, spotKey?: string, includeOwn?: boolean }
 export type RetrieveLocalDocsResponse<TDoc> = { localDocs: LocalDoc<TDoc>[], spot: [spotKey: string, LocalSpot[]] }
 
 export type SaveLocalSpotsArgs = { clientId: string, project: string, spots: { [spotKey: string]: LocalSpot[] } }

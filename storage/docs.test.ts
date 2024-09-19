@@ -2,10 +2,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
-import { RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -477,5 +477,52 @@ describe('handleStoreLocalDocs', () => {
     const args: StoreLocalDocsArgs<IDBModDoc> = { clientId, project, docs }
 
     await expect(handleStoreLocalDocs(docsFolder, args)).rejects.toThrow('modBy property is required in local doc')
+  })
+})
+
+describe('handleRetrieveLocalDocs', () => {
+  it('should retrieve local docs correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tsc1'
+    const project = 'testProject'
+    const spotKey = 'last'
+
+    // Create the initial local file with some docs
+    const fullFromPath = join(docsFolder, project, 'local')
+    await ensureDir(fullFromPath)
+    const clientDocFile = join(fullFromPath, `${clientId}.sltt-docs`)
+    const fileContent = [
+      ' \t1234567890123\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}',
+      ' \t1234567890124\tbob@example.com\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}'
+    ].join('\n')
+    await writeFile(clientDocFile, fileContent + '\n')
+
+    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey }
+    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
+
+    // Check that the response contains the expected documents
+    expect(response.localDocs).toEqual([
+      { clientId, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' } },
+      { clientId, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
+    ])
+    expect(response.spot).toEqual([spotKey, [{ clientId, bytePosition: fileContent.length }]])
+  })
+
+  it('should handle empty directory correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tsc1'
+    const project = 'testProject'
+    const spotKey = 'last'
+
+    // Ensure the directory exists but is empty
+    const fullFromPath = join(docsFolder, project)
+    await ensureDir(fullFromPath)
+
+    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey }
+    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
+
+    // Check that the response contains no documents
+    expect(response.localDocs).toEqual([])
+    expect(response.spot).toEqual([spotKey, []])
   })
 })
