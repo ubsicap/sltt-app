@@ -361,7 +361,7 @@ export const handleRetrieveLocalDocs = async (
         newSpots.push(newSpot)
     }
     const sortedLocalDocs = sortBy(localDocs, localDoc => localDoc.doc.modDate)
-    return { localDocs: sortedLocalDocs, spot: [spotKey, newSpots] }
+    return { localDocs: sortedLocalDocs, spot: ['last', newSpots] }
 }
 
 export const handleSaveLocalSpots = async (

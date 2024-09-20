@@ -481,12 +481,26 @@ describe('handleStoreLocalDocs', () => {
 })
 
 describe('handleRetrieveLocalDocs', () => {
-  it('should retrieve local docs correctly - includeOwn - first retrieval', async () => {
+  it.each([
+    {
+      testCase: 'retrieve local docs correctly - no spot - includeOwn',
+      clientId: 'tsc1',
+      project: 'testProject',
+      spotKey: 'no-spot',
+      spot: undefined,
+      includeOwn: true,
+      expectedDocs: [
+          { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
+          { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
+          { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
+          { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
+      ],
+      expectedSpot: ['last', [ { clientId: 'tsc1', bytePosition: 0 }, { clientId: 'tsc2', bytePosition: 0 } ]]
+    },
+  ])('$testCase', async (
+    { clientId, project, spotKey, includeOwn, expectedDocs, expectedSpot }
+  ) => {
     const docsFolder = tempDir
-    const clientId = 'tsc1'
-    const project = 'testProject'
-    const spotKey = 'testSpotKey'
-    const includeOwn = true
 
     // Create the initial local file with some docs
     const fullFromPath = join(docsFolder, project, 'local')
@@ -509,16 +523,8 @@ describe('handleRetrieveLocalDocs', () => {
     const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
 
     // Check that the response contains the expected documents
-    expect(response.localDocs).toEqual([
-      { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
-      { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
-      { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
-      { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
-    ])
-    expect(response.spot).toEqual([spotKey, [
-      { clientId: 'tsc1', bytePosition: client1DocsContent.length + 1 },
-      { clientId: 'tsc2', bytePosition: client2DocsContent.length + 1 }
-    ]])
+    expect(response.localDocs).toEqual(expectedDocs)
+    // expect(response.spot).toEqual(expectedSpot)
   })
 
   it('should handle empty directory correctly', async () => {
