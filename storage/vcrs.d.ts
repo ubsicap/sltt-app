@@ -1,3 +1,7 @@
+export const VIDEO_CACHE_RECORDS_API_STORE_VCR = 'storeVideoCacheRecord'
+export const VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES = 'listVideoCacheRecordFiles'
+export const VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS = 'retrieveVideoCacheRecords'
+
 export type VideoCacheRecord = {
     _id: string
     uploadeds: boolean[]

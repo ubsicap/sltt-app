@@ -6,29 +6,16 @@ import { basename, dirname, join } from 'path'
 import { handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_LIST_DOCS, DOCS_API_RETRIEVE_DOC, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_DOC, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'VideoCache')
 const VIDEO_CACHE_RECORDS_PATH = join(LAN_STORAGE_PATH, 'VideoCacheRecords')
 const DOCS_PATH = join(LAN_STORAGE_PATH, 'docs')
-const DOCS_API_STORE_DOC = 'storeDoc'
-const DOCS_API_LIST_DOCS = 'listDocs'
-const DOCS_API_RETRIEVE_DOC = 'retrieveDoc'
-const DOCS_API_STORE_REMOTE_DOCS = 'storeRemoteDocs'
-const DOCS_API_RETRIEVE_REMOTE_DOCS = 'retrieveRemoteDocs'
-const DOCS_API_SAVE_REMOTE_SPOTS = 'saveRemoteDocsSpots'
-const DOCS_API_STORE_LOCAL_DOCS = 'storeLocalDocs'
-const DOCS_API_GET_STORED_LOCAL_CLIENT_IDS = 'getStoredLocalClientIds'
-const DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS = 'retrieveLocalClientDocs'
-const DOCS_API_SAVE_LOCAL_SPOTS = 'saveLocalSpots'
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
-const VIDEO_CACHE_RECORDS_API_STORE_VCR = 'storeVideoCacheRecord'
-const VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES = 'listVideoCacheRecordFiles'
-const VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS = 'retrieveVideoCacheRecords'
-
 
 ipcMain.handle(VIDEO_CACHE_API_TRY_RETRIEVE_BLOB, async (_, args) => {
     if (args === 'test') {
