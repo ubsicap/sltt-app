@@ -5,7 +5,7 @@ import { tmpdir } from 'os'
 import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs, EMPTY_STATUS } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
-import { RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { LocalSpot, RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -497,8 +497,34 @@ describe('handleRetrieveLocalDocs', () => {
       ],
       expectedSpot: ['last', [ { clientId: 'tsc1', bytePosition: 276 }, { clientId: 'tsc2', bytePosition: 272 } ]]
     },
+    {
+      testCase: 'retrieve local docs correctly - no spot - exclude own',
+      clientId: 'tsc1',
+      project: 'testProject',
+      spotKey: 'no-spot',
+      spot: undefined,
+      includeOwn: false,
+      expectedDocs: [
+          { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
+          { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
+      ],
+      expectedSpot: ['last', [ { clientId: 'tsc2', bytePosition: 272 } ]]
+    },
+    {
+      testCase: 'retrieve local docs correctly - spot - exclude own',
+      clientId: 'tsc1',
+      project: 'testProject',
+      spotKey: 'last',
+      spot: {'last': [{ clientId: 'tsc2', bytePosition: 136 }]},
+      includeOwn: false,
+      expectedDocs: [
+          { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
+      ],
+      expectedSpot: ['last', [ { clientId: 'tsc2', bytePosition: 272 } ]]
+    },
   ])('$testCase', async (
-    { clientId, project, spotKey, includeOwn, expectedDocs, expectedSpot }
+    { clientId, project, spotKey, spot, includeOwn, expectedDocs, expectedSpot }: 
+    { clientId: string, project: string, spotKey: string, spot: { [spotKey: string]: LocalSpot[] } | undefined, includeOwn: boolean, expectedDocs: { clientId: string, doc: IDBModDoc }[], expectedSpot: (string|LocalSpot[])[] }
   ) => {
     const docsFolder = tempDir
 
@@ -513,11 +539,22 @@ describe('handleRetrieveLocalDocs', () => {
     await writeFile(client1DocFile, client1DocsContent + '\n')
 
     const client2DocsFile = join(fullFromPath, `tsc2.sltt-docs`)
-    const client2DocsContent = [
+    const client2DocsLines = [
       `${EMPTY_STATUS}\t1234567890125\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 10:30:33","creator":"bob@example.com","modBy":"bob@example.com"}`,
       `${EMPTY_STATUS}\t1234567890126\tbob@example.com\t{"_id":"doc3","modDate":"2024/09/17 11:30:34","creator":"alice@example.com","modBy":"bob@example.com"}`,
-    ].join('\n')
-    await writeFile(client2DocsFile, client2DocsContent + '\n')
+    ]
+    await appendFile(client2DocsFile, client2DocsLines[0] + '\n')
+    if (spot) {
+      const stats = await stat(client2DocsFile)
+      console.log('stats client2DocsLines[0]', stats.size)
+      expect(stats.size).toBe(spot['last'][0].bytePosition)
+    }
+    await appendFile(client2DocsFile, client2DocsLines[1] + '\n')
+
+    if (spot) {
+      const spotFile = join(docsFolder, project, 'local', `${clientId}.sltt-spots`)
+      await writeJson(spotFile, spot)
+    }
 
     const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
     const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
