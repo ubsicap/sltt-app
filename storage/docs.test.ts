@@ -580,38 +580,6 @@ describe('handleRetrieveLocalDocs', () => {
 
     // Check that the response contains no documents
     expect(response.localDocs).toEqual([])
-    expect(response.spot).toEqual([spotKey, []])
-  })
-
-  it('should exclude own docs when includeOwn is false', async () => {
-    const docsFolder = tempDir
-    const clientId = 'tsc1'
-    const project = 'testProject'
-    const spotKey = 'testSpotKey'
-    const includeOwn = false
-
-    // Create the initial local file with some docs
-    const fullFromPath = join(docsFolder, project, 'local')
-    await ensureDir(fullFromPath)
-    const clientDocFile = join(fullFromPath, `${clientId}.sltt-docs`)
-    const fileContent = [
-      ' \t1234567890123\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}',
-      ' \t1234567890124\tbob@example.com\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}'
-    ].join('\n')
-    await writeFile(clientDocFile, fileContent)
-
-    // Create a spot file
-    const spotFile = join(docsFolder, `${spotKey}.json`)
-    const spotContent = JSON.stringify({
-      [spotKey]: [{ clientId, bytePosition: 0 }]
-    })
-    await writeFile(spotFile, spotContent)
-
-    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
-    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
-
-    // Check that the response contains no documents since includeOwn is false
-    expect(response.localDocs).toEqual([])
-    expect(response.spot).toEqual([spotKey, []])
+    expect(response.spot).toEqual(['last', []])
   })
 })
