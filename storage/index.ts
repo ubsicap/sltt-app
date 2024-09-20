@@ -250,10 +250,11 @@ ipcMain.handle(DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, async (_, args) => {
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
+        && 'localClientId' in args && typeof args.localClientId === 'string'
         && (('spotKey' in args && Array.isArray(args.seqDocs)) || !('spotKey' in args))
     ) {
-        const { clientId, project, spotKey } = args
-        return await handleRetrieveLocalClientDocs(DOCS_PATH, { clientId, project, spotKey })
+        const { clientId, localClientId, project, spotKey } = args
+        return await handleRetrieveLocalClientDocs(DOCS_PATH, { clientId, localClientId, project, spotKey })
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}. Expected: '{ project: string, clientId: string, spotKey?: string }' Got: ${JSON.stringify(args)}`)
     }
