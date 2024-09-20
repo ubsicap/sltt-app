@@ -23,14 +23,14 @@ export type GetStoredLocalClientIdsResponse = string[]
 
 export type LocalDoc<TDoc> = { clientId: string, doc: TDoc }
 export type LocalSpot = { clientId: string, bytePosition: number }
-export type RetrieveLocalDocsArgs = { clientId: string, project: string, spotKey?: string, includeOwn?: boolean }
-export type RetrieveLocalDocsResponse<TDoc> = { localDocs: LocalDoc<TDoc>[], spot: [spotKey: string, LocalSpot[]] }
+export type RetrieveLocalClientDocsArgs = { clientId: string, localClientId: string, project: string, spotKey?: string }
+export type RetrieveLocalClientDocsResponse<TDoc> = { localDocs: LocalDoc<TDoc>[], spot: LocalSpot }
 
 export type SaveLocalSpotsArgs = { clientId: string, project: string, spots: { [spotKey: string]: LocalSpot[] } }
 export type SaveLocalSpotsResponse = void
 
 export type GetLocalSpotsArgs = { clientId: string, project: string }
-export type GetLocalSpotsResponse = { [key: string]: LocalSpot[] }
+export type GetLocalSpotsResponse = { [key: string]: { [clientId: string]: LocalSpot } }
 
 // V0
 export type StoreDocArgs<TDoc> = { clientId: string, project: string, doc: TDoc, remoteSeq: number }

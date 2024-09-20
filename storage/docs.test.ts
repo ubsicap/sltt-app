@@ -2,10 +2,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs, EMPTY_STATUS, handleGetStoredLocalClientIds } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalClientDocs, EMPTY_STATUS, handleGetStoredLocalClientIds } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
-import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -520,51 +520,54 @@ describe('handleGetStoredLocalClientIds', () => {
   })
 })
 
-describe('handleRetrieveLocalDocs', () => {
+describe('handleRetrieveLocalClientDocs', () => {
   it.each([
     {
-      testCase: 'retrieve local docs correctly - no spot - includeOwn',
+      testCase: 'retrieve local docs correctly - no spot - tsc1, tsc2',
       clientId: 'tsc1',
+      localClientIds: ['tsc1', 'tsc2'],
       project: 'testProject',
       spotKey: 'no-spot',
-      spot: undefined,
-      includeOwn: true,
+      spots: undefined,
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
           { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
           { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
       ],
-      expectedSpot: ['last', [ { clientId: 'tsc1', bytePosition: 276 }, { clientId: 'tsc2', bytePosition: 272 } ]]
+      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 276 }, 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
     },
     {
-      testCase: 'retrieve local docs correctly - no spot - exclude own',
+      testCase: 'retrieve local docs correctly - no spot - tsc2',
       clientId: 'tsc1',
+      localClientIds: ['tsc2'],
       project: 'testProject',
       spotKey: 'no-spot',
-      spot: undefined,
-      includeOwn: false,
+      spots: undefined,
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpot: ['last', [ { clientId: 'tsc2', bytePosition: 272 } ]]
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
     },
     {
-      testCase: 'retrieve local docs correctly - spot - exclude own',
+      testCase: 'retrieve local docs correctly - spot - tsc2',
       clientId: 'tsc1',
+      localClientIds: ['tsc2'],
       project: 'testProject',
       spotKey: 'last',
-      spot: {'last': [{ clientId: 'tsc2', bytePosition: 136 }]},
-      includeOwn: false,
+      spots: [{
+        spotsFilename: 'tsc1.sltt-spots',
+        spotsContent: {'last': { 'tsc2': { clientId: 'tsc2', bytePosition: 136 } }},
+      }],
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpot: ['last', [ { clientId: 'tsc2', bytePosition: 272 } ]]
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
     },
   ])('$testCase', async (
-    { clientId, project, spotKey, spot, includeOwn, expectedDocs, expectedSpot }: 
-    { clientId: string, project: string, spotKey: string, spot: { [spotKey: string]: LocalSpot[] } | undefined, includeOwn: boolean, expectedDocs: { clientId: string, doc: IDBModDoc }[], expectedSpot: (string|LocalSpot[])[] }
+    { clientId, localClientIds, project, spotKey, spots, expectedDocs, expectedSpots }: 
+      { clientId: string, localClientIds: string[], project: string, spotKey: string, spots: ({ spotsFilename: string, spotsContent: { [spotKey: string]: { [clientId: string]: LocalSpot }} }[] | undefined), expectedDocs: { clientId: string, doc: IDBModDoc }[], expectedSpots: { [clientId: string]: LocalSpot } }
   ) => {
     const docsFolder = tempDir
 
@@ -584,42 +587,40 @@ describe('handleRetrieveLocalDocs', () => {
       `${EMPTY_STATUS}\t1234567890126\tbob@example.com\t{"_id":"doc3","modDate":"2024/09/17 11:30:34","creator":"alice@example.com","modBy":"bob@example.com"}`,
     ]
     await appendFile(client2DocsFile, client2DocsLines[0] + '\n')
-    if (spot) {
+    if (spots) {
       const stats = await stat(client2DocsFile)
       console.log('stats client2DocsLines[0]', stats.size)
-      expect(stats.size).toBe(spot['last'][0].bytePosition)
+      expect(stats.size).toBe(spots[0].spotsContent[spotKey]['tsc2'].bytePosition)
     }
     await appendFile(client2DocsFile, client2DocsLines[1] + '\n')
 
-    if (spot) {
-      const spotFile = join(docsFolder, project, 'local', `${clientId}.sltt-spots`)
-      await writeJson(spotFile, spot)
+    for (const spot of (spots || [])) {
+      const spotFile = join(fullFromPath, spot.spotsFilename)
+      await writeJson(spotFile, spot.spotsContent)
     }
 
-    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
-    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
+    for (const localClientId of localClientIds) {
+      const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project, spotKey }
+      const response: RetrieveLocalClientDocsResponse<IDBModDoc> = await handleRetrieveLocalClientDocs(docsFolder, args)
 
-    // Check that the response contains the expected documents
-    expect(response.localDocs).toEqual(expectedDocs)
-    expect(response.spot).toEqual(expectedSpot)
+      // Check that the response contains the expected documents
+      expect(response.localDocs).toEqual(expectedDocs.filter(localDoc => localDoc.clientId === localClientId))
+      expect(response.spot).toEqual(expectedSpots[localClientId])
+    }
   })
 
   it('should handle empty directory correctly', async () => {
     const docsFolder = tempDir
     const clientId = 'tsc1'
+    const localClientId = 'tsc2'
     const project = 'testProject'
     const spotKey = 'testSpotKey'
-    const includeOwn = true
 
     // Ensure the directory exists but is empty
     const fullFromPath = join(docsFolder, project, 'local')
     await ensureDir(fullFromPath)
 
-    const args: RetrieveLocalDocsArgs = { clientId, project, spotKey, includeOwn }
-    const response: RetrieveLocalDocsResponse<IDBModDoc> = await handleRetrieveLocalDocs(docsFolder, args)
-
-    // Check that the response contains no documents
-    expect(response.localDocs).toEqual([])
-    expect(response.spot).toEqual(['last', []])
+    const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project, spotKey }
+    await expect(handleRetrieveLocalClientDocs(docsFolder, args)).rejects.toThrow(`ENOENT: no such file or directory, open '${join(fullFromPath, `${localClientId}.sltt-docs`)}'`)
   })
 })

@@ -3,7 +3,7 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
+import { handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
@@ -20,7 +20,7 @@ const DOCS_API_RETRIEVE_REMOTE_DOCS = 'retrieveRemoteDocs'
 const DOCS_API_SAVE_REMOTE_SPOTS = 'saveRemoteDocsSpots'
 const DOCS_API_STORE_LOCAL_DOCS = 'storeLocalDocs'
 const DOCS_API_GET_STORED_LOCAL_CLIENT_IDS = 'getStoredLocalClientIds'
-const DOCS_API_RETRIEVE_LOCAL_DOCS = 'retrieveLocalDocs'
+const DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS = 'retrieveLocalClientDocs'
 const DOCS_API_SAVE_LOCAL_SPOTS = 'saveLocalSpots'
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
@@ -244,19 +244,18 @@ ipcMain.handle(DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, async (_, args) => {
     }
 })
 
-ipcMain.handle(DOCS_API_RETRIEVE_LOCAL_DOCS, async (_, args) => {
+ipcMain.handle(DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, async (_, args) => {
     if (args === 'test') {
-        return `${DOCS_API_RETRIEVE_LOCAL_DOCS} api test worked!`
+        return `${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS} api test worked!`
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && (('spotKey' in args && Array.isArray(args.seqDocs)) || !('spotKey' in args))
-        && (('includeOwn' in args && typeof args.includeOwn === 'boolean') || !('includeOwn' in args))
     ) {
-        const { clientId, project, spotKey, includeOwn } = args
-        return await handleRetrieveLocalDocs(DOCS_PATH, { clientId, project, spotKey, includeOwn })
+        const { clientId, project, spotKey } = args
+        return await handleRetrieveLocalClientDocs(DOCS_PATH, { clientId, project, spotKey })
     } else {
-        throw Error(`invalid args for ${DOCS_API_RETRIEVE_LOCAL_DOCS}. Expected: '{ project: string, clientId: string, spotKey: string }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}. Expected: '{ project: string, clientId: string, spotKey?: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 

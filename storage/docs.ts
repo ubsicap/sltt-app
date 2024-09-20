@@ -4,7 +4,7 @@ import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat } from 'fs/promises'
 import { ensureDir, ensureFile, writeJson } from 'fs-extra'
 import { sortBy, uniqBy, keyBy } from 'lodash'
-import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse, GetStoredLocalClientIdsResponse, GetStoredLocalClientIdsArgs } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalClientDocsResponse, RetrieveLocalClientDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse, GetStoredLocalClientIdsResponse, GetStoredLocalClientIdsArgs, LocalSpot } from './docs.d'
 import { readJsonCatchMissing, readLastBytes, readFromBytePosition } from './utils'
 
 
@@ -330,51 +330,35 @@ export const handleGetStoredLocalClientIds = async (
 
 // might need to break this api so client can request per clientId
 // that means we'd need a way to list the clients
-export const handleRetrieveLocalDocs = async (
-    docsFolder: string, { clientId, project, spotKey, includeOwn }: RetrieveLocalDocsArgs
-): Promise<RetrieveLocalDocsResponse<IDBModDoc>> => {
+export const handleRetrieveLocalClientDocs = async (
+    docsFolder: string, { clientId, localClientId, project, spotKey }: RetrieveLocalClientDocsArgs
+): Promise<RetrieveLocalClientDocsResponse<IDBModDoc>> => {
 
     // get a directory listing of all the {clientId}.sltt-docs files
     const fullFromPath = buildDocFolder(docsFolder, project, false)
     await ensureDir(fullFromPath)
-    // all files in the directory
-    const filenames = await readdir(fullFromPath)
-    // filter out the ones that are not .sltt-docs files
-    const allClientDocFiles = filenames.filter(filename => filename.endsWith(`.sltt-docs`))
-    // get the clientIds from the filenames
-    const allStoredClientIds = allClientDocFiles.map(filename => filename.split('.')[0])
     // get the last spots for these clientIds
     const spots = await retrieveLocalSpots(docsFolder, { clientId, project })
     // map the clientIds to starting byte positions (default to 0)
-    const clientBytePositions = {}
-    const lastSpotsByClientId = keyBy(spots[spotKey] || [], spot => spot.clientId)
-    for (const storedClientId of allStoredClientIds) {
-        if (!includeOwn && storedClientId === clientId) continue
-        const spot = lastSpotsByClientId[storedClientId]
-        const clientBytePosition = spot ? spot.bytePosition : 0
-        clientBytePositions[storedClientId] = clientBytePosition
-    }
+    const spot: LocalSpot = (spots[spotKey] || [])[localClientId]
+    const clientBytePosition = spot ? spot.bytePosition : 0
+
     // now read the files from the last spot byte positions
     const localDocs: LocalDoc<IDBModDoc>[] = []
-    const newSpots = []
-    for (const storedClientId of allStoredClientIds) {
-        if (!includeOwn && storedClientId === clientId) continue
-        const clientDocFile = join(fullFromPath, `${storedClientId}.sltt-docs`)
-        const bytesPosition = clientBytePositions[storedClientId]
-        const { buffer, fileStats } = await readFromBytePosition(clientDocFile, bytesPosition)
-        const clientDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
-        const clientLocalDocs = clientDocLines.map((line) => {
-            const [status, , , docStr] = line.split('\t')
-            return { status, doc: JSON.parse(docStr) }
-        }).filter(localDoc => localDoc.status === EMPTY_STATUS).map(
-            localDoc => ({ clientId: storedClientId, doc: localDoc.doc })
-        )
-        localDocs.push(...clientLocalDocs)
-        const newSpot = { clientId: storedClientId, bytePosition: fileStats.size }
-        newSpots.push(newSpot)
-    }
+    const clientDocFile = join(fullFromPath, `${localClientId}.sltt-docs`)
+    const { buffer, fileStats } = await readFromBytePosition(clientDocFile, clientBytePosition)
+    const clientDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
+    const clientLocalDocs = clientDocLines.map((line) => {
+        const [status, , , docStr] = line.split('\t')
+        return { status, doc: JSON.parse(docStr) }
+    }).filter(localDoc => localDoc.status === EMPTY_STATUS).map(
+        localDoc => ({ clientId: localClientId, doc: localDoc.doc })
+    )
+    localDocs.push(...clientLocalDocs)
+    const newSpot: LocalSpot = { clientId: localClientId, bytePosition: fileStats.size }
+
     const sortedLocalDocs = sortBy(localDocs, localDoc => localDoc.doc.modDate)
-    return { localDocs: sortedLocalDocs, spot: ['last', newSpots] }
+    return { localDocs: sortedLocalDocs, spot: newSpot }
 }
 
 export const handleSaveLocalSpots = async (
