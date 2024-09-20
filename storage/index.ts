@@ -3,10 +3,10 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
+import { handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'VideoCache')
@@ -19,9 +19,9 @@ const DOCS_API_STORE_REMOTE_DOCS = 'storeRemoteDocs'
 const DOCS_API_RETRIEVE_REMOTE_DOCS = 'retrieveRemoteDocs'
 const DOCS_API_SAVE_REMOTE_SPOTS = 'saveRemoteDocsSpots'
 const DOCS_API_STORE_LOCAL_DOCS = 'storeLocalDocs'
+const DOCS_API_GET_STORED_LOCAL_CLIENT_IDS = 'getStoredLocalClientIds'
 const DOCS_API_RETRIEVE_LOCAL_DOCS = 'retrieveLocalDocs'
 const DOCS_API_SAVE_LOCAL_SPOTS = 'saveLocalSpots'
-const DOCS_API_GET_LOCAL_SPOTS = 'getLocalSpots'
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
@@ -229,6 +229,18 @@ ipcMain.handle(DOCS_API_STORE_LOCAL_DOCS, async (_, args) => {
         return await handleStoreLocalDocs(DOCS_PATH, { clientId, project, docs })
     } else {
         throw Error(`invalid args for ${DOCS_API_STORE_LOCAL_DOCS}. Expected: '{ project: string, clientId: string, docs: IDBModDoc[] }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'project' in args && typeof args.project === 'string') {
+        const { project }: GetStoredLocalClientIdsArgs = args
+        return await handleGetStoredLocalClientIds(DOCS_PATH, { project })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS}. Expected: '{ project: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 

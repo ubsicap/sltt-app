@@ -2,10 +2,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs, EMPTY_STATUS } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalDocs, EMPTY_STATUS, handleGetStoredLocalClientIds } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, remove, writeJson } from 'fs-extra'
-import { LocalSpot, RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RetrieveLocalDocsArgs, RetrieveLocalDocsResponse, RetrieveRemoteDocsResponse, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -477,6 +477,46 @@ describe('handleStoreLocalDocs', () => {
     const args: StoreLocalDocsArgs<IDBModDoc> = { clientId, project, docs }
 
     await expect(handleStoreLocalDocs(docsFolder, args)).rejects.toThrow('modBy property is required in local doc')
+  })
+})
+
+describe('handleGetStoredLocalClientIds', () => {
+  it('should retrieve stored local client IDs correctly', async () => {
+    const docsFolder = tempDir
+    const project = 'testProject'
+
+    // Create the initial local files with some client IDs
+    const fullFromPath = join(docsFolder, project, 'local')
+    await ensureDir(fullFromPath)
+    const clientDocFiles = ['tcl1.sltt-docs', 'tcl2.sltt-docs', 'tcl3.sltt-docs']
+    for (const filename of clientDocFiles) {
+      await writeFile(join(fullFromPath, filename), '')
+    }
+    const otherFiles = ['foo.txt', 'bar.doc']
+    for (const filename of otherFiles) {
+      await writeFile(join(fullFromPath, filename), '')
+    }
+
+    const args: GetStoredLocalClientIdsArgs = { project }
+    const response: GetStoredLocalClientIdsResponse = await handleGetStoredLocalClientIds(docsFolder, args)
+
+    // Check that the response contains the expected client IDs
+    expect(response).toEqual(['tcl1', 'tcl2', 'tcl3'])
+  })
+
+  it('should handle empty directory correctly', async () => {
+    const docsFolder = tempDir
+    const project = 'testProject'
+
+    // Ensure the directory exists but is empty
+    const fullFromPath = join(docsFolder, project)
+    await ensureDir(fullFromPath)
+
+    const args: GetStoredLocalClientIdsArgs = { project }
+    const response: GetStoredLocalClientIdsResponse = await handleGetStoredLocalClientIds(docsFolder, args)
+
+    // Check that the response contains no client IDs
+    expect(response).toEqual([])
   })
 })
 

@@ -4,7 +4,7 @@ import { existsSync, Stats } from 'fs'
 import { readFile, writeFile, readdir, unlink, appendFile, stat } from 'fs/promises'
 import { ensureDir, ensureFile, writeJson } from 'fs-extra'
 import { sortBy, uniqBy, keyBy } from 'lodash'
-import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse } from './docs.d'
+import { ListDocsArgs, ListDocsResponse, RetrieveDocArgs, RetrieveDocResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreDocArgs, StoreDocResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalDocsResponse, RetrieveLocalDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse, GetStoredLocalClientIdsResponse, GetStoredLocalClientIdsArgs } from './docs.d'
 import { readJsonCatchMissing, readLastBytes, readFromBytePosition } from './utils'
 
 
@@ -313,6 +313,19 @@ export const handleStoreLocalDocs = async (docsFolder: string, { clientId, proje
         }
     }
     return { storedCount: counts }
+}
+
+export const handleGetStoredLocalClientIds = async (
+    docsFolder: string, { project }: GetStoredLocalClientIdsArgs): Promise<GetStoredLocalClientIdsResponse> => {
+    const fullFromPath = buildDocFolder(docsFolder, project, false)
+    await ensureDir(fullFromPath)
+    // all files in the directory
+    const filenames = await readdir(fullFromPath)
+    // filter out the ones that are not .sltt-docs files
+    const allClientDocFiles = filenames.filter(filename => filename.endsWith(`.sltt-docs`))
+    // get the clientIds from the filenames
+    const allStoredClientIds = allClientDocFiles.map(filename => filename.split('.')[0])
+    return allStoredClientIds
 }
 
 // might need to break this api so client can request per clientId
