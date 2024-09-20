@@ -495,7 +495,7 @@ describe('handleRetrieveLocalDocs', () => {
           { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
           { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
       ],
-      expectedSpot: ['last', [ { clientId: 'tsc1', bytePosition: 0 }, { clientId: 'tsc2', bytePosition: 0 } ]]
+      expectedSpot: ['last', [ { clientId: 'tsc1', bytePosition: 276 }, { clientId: 'tsc2', bytePosition: 272 } ]]
     },
   ])('$testCase', async (
     { clientId, project, spotKey, includeOwn, expectedDocs, expectedSpot }
@@ -524,7 +524,7 @@ describe('handleRetrieveLocalDocs', () => {
 
     // Check that the response contains the expected documents
     expect(response.localDocs).toEqual(expectedDocs)
-    // expect(response.spot).toEqual(expectedSpot)
+    expect(response.spot).toEqual(expectedSpot)
   })
 
   it('should handle empty directory correctly', async () => {
