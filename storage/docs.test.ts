@@ -376,7 +376,7 @@ describe('handleStoreRemoteDocs', () => {
         { seq: 1, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' } },
         { seq: 2, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
       ])
-      expect(response.spot).toEqual(['last', { seq: 2, bytePosition: fileContent.length }])
+      expect(response.spot).toEqual({ seq: 2, bytePosition: fileContent.length })
     })
   })
 
@@ -413,7 +413,7 @@ describe('handleStoreRemoteDocs', () => {
       { seq: 2, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
     ])
     const finalStats = await stat(remoteSeqDocsFile)
-    expect(response.spot).toEqual(['last', { seq: 2, bytePosition: finalStats.size }])
+    expect(response.spot).toEqual({ seq: 2, bytePosition: finalStats.size })
   })
 
 })
