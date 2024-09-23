@@ -370,7 +370,7 @@ export const handleGetLocalSpots = async (
     { clientId, project }: GetLocalSpotsArgs): Promise<GetLocalSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, false)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
-    return readJsonCatchMissing(spotsFile, {})
+    return readJsonCatchMissing<GetLocalSpotsResponse>(spotsFile, {})
 }
 
 export const handleListDocsV0 = async (docsFolder: string, { project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {

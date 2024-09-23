@@ -39,7 +39,7 @@ export type SaveLocalSpotsArgs = { clientId: string, project: string, spots: { [
 export type SaveLocalSpotsResponse = void
 
 export type GetLocalSpotsArgs = { clientId: string, project: string }
-export type GetLocalSpotsResponse = { [key: string]: { [clientId: string]: LocalSpot } } | Record<string, never>
+export type GetLocalSpotsResponse = { [key: string]: LocalSpot[] } | Record<string, never>
 
 // V0
 export const DOCS_API_STORE_DOC = 'storeDoc'

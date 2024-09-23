@@ -700,6 +700,7 @@ describe('handleGetLocalSpots', () => {
     const response = await handleGetLocalSpots(docsFolder, { clientId, project })
 
     expect(response).toEqual({ 'last': spots })
+    expect(Array.isArray(response.last)).toBe(true)
   })
 
   it('should handle missing spots file correctly', async () => {
