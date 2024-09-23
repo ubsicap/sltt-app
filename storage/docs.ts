@@ -260,6 +260,7 @@ export const handleSaveRemoteSpots = async (
     
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    await ensureDir(fullFromPath)
     await writeJson(spotsFile, spots)
 }
 
