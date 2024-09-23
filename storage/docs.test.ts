@@ -2,10 +2,10 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { existsSync } from 'fs'
 import { join, resolve } from 'path'
 import { tmpdir } from 'os'
-import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalClientDocs, EMPTY_STATUS, handleGetStoredLocalClientIds, handleSaveRemoteSpots } from './docs'
+import { handleRetrieveRemoteDocs, handleListDocsV0, handleRetrieveDocV0, handleStoreDocV0, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalClientDocs, EMPTY_STATUS, handleGetStoredLocalClientIds, handleSaveRemoteSpots, handleGetRemoteSpots, handleSaveLocalSpots, handleGetLocalSpots } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, readJson, remove, writeJson } from 'fs-extra'
-import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsResponse, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -435,6 +435,34 @@ describe('handleSaveRemoteSpots', () => {
   })
 })
 
+describe('handleGetRemoteSpots', () => {
+  it('should get remote spots correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tsc1'
+    const project = 'testProject'
+    const spot = { seq: 0, bytePosition: 0 }
+
+    const fullFromPath = join(docsFolder, project, 'remote')
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    await ensureDir(fullFromPath)
+    await writeJson(spotsFile, { 'last': spot })
+
+    const response = await handleGetRemoteSpots(docsFolder, { clientId, project })
+
+    expect(response).toEqual({ 'last': spot })
+  })
+
+  it('should handle missing spots file correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tsc1'
+    const project = 'testProject'
+
+    const response = await handleGetRemoteSpots(docsFolder, { clientId, project })
+
+    expect(response).toEqual(undefined)
+  })
+})
+
 describe('handleStoreLocalDocs', () => {
   it('should store local docs correctly', async () => {
     const docsFolder = tempDir
@@ -634,5 +662,53 @@ describe('handleRetrieveLocalClientDocs', () => {
 
     const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project }
     await expect(handleRetrieveLocalClientDocs(docsFolder, args)).rejects.toThrow(`ENOENT: no such file or directory, open '${join(fullFromPath, `${localClientId}.sltt-docs`)}'`)
+  })
+})
+
+describe('handleSaveLocalSpots', () => {
+  it('should save local spots correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tcl1'
+    const project = 'testProject'
+    const spots: LocalSpot[] = [{ clientId: 'tcl2', bytePosition: 0 }]
+
+    const args: SaveLocalSpotsArgs = { clientId, project, spots: { 'last': spots } }
+
+    await handleSaveLocalSpots(docsFolder, args)
+
+    // Verify that the spots file was created and contains the correct data
+    const fullFromPath = join(docsFolder, project, 'local')
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    const savedSpots = await readJson(spotsFile, 'utf-8')
+
+    expect(savedSpots).toEqual(args.spots)
+  })
+})
+
+describe('handleGetLocalSpots', () => {
+  it('should get local spots correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tcl1'
+    const project = 'testProject'
+    const spots: LocalSpot[] = [{ clientId: 'tcl2', bytePosition: 0 }]
+
+    const fullFromPath = join(docsFolder, project, 'local')
+    const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
+    await ensureDir(fullFromPath)
+    await writeJson(spotsFile, { 'last': spots })
+
+    const response = await handleGetLocalSpots(docsFolder, { clientId, project })
+
+    expect(response).toEqual({ 'last': spots })
+  })
+
+  it('should handle missing spots file correctly', async () => {
+    const docsFolder = tempDir
+    const clientId = 'tcl1'
+    const project = 'testProject'
+
+    const response = await handleGetLocalSpots(docsFolder, { clientId, project })
+
+    expect(response).toEqual(undefined)
   })
 })
