@@ -8,11 +8,14 @@ import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_LIST_DOCS, DOCS_API_RETRIEVE_DOC, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_DOC, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
+import { handleRegisterClientUser } from './clients'
+import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'VideoCache')
 const VIDEO_CACHE_RECORDS_PATH = join(LAN_STORAGE_PATH, 'VideoCacheRecords')
 const DOCS_PATH = join(LAN_STORAGE_PATH, 'docs')
+const CLIENTS_FOLDER = join(LAN_STORAGE_PATH, 'clients')
 
 const VIDEO_CACHE_API_STORE_BLOB = 'storeVideoBlob'
 const VIDEO_CACHE_API_TRY_RETRIEVE_BLOB = 'tryRetrieveVideoBlob'
@@ -152,6 +155,19 @@ ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
         return await handleRetrieveDocV0(DOCS_PATH, { project, isFromRemote, filename })
     } else {
         throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(CLIENTS_API_REGISTER_CLIENT_USER, async (_, args) => {
+    if (args === 'test') {
+        return `${CLIENTS_API_REGISTER_CLIENT_USER} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'username' in args && typeof args.username === 'string') {
+        const { clientId, username } = args
+        return await handleRegisterClientUser(CLIENTS_FOLDER, { clientId, username })
+    } else {
+        throw Error(`invalid args for ${CLIENTS_API_REGISTER_CLIENT_USER}. Expected: '{ clientId: string, username: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 
