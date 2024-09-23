@@ -29,14 +29,14 @@ describe('handleListDocs', () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/empty')
-    const docs = await handleListDocsV0(testDataPath, { clientId: 'client1', project, isFromRemote })
+    const docs = await handleListDocsV0(testDataPath, { project, isFromRemote })
     expect(docs).toEqual([])
   })
   it('should strip remote docs, but list earlier local docs', async () => {
     const project = 'testProject'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const docs = await handleListDocsV0(testDataPath, { clientId: 'client1', project, isFromRemote })
+    const docs = await handleListDocsV0(testDataPath, { project, isFromRemote })
     expect(docs).toEqual([
       'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc',
       'local-doc__2024-07-26_02-58-31-902__210629_180535-240726_025831__c62114c2__c62114c2.sltt-doc',
@@ -46,7 +46,7 @@ describe('handleListDocs', () => {
     const project = 'testProject'
     const isFromRemote = true
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const docs = await handleListDocsV0(testDataPath, { clientId: 'client1', project, isFromRemote })
+    const docs = await handleListDocsV0(testDataPath, { project, isFromRemote })
     expect(docs).toEqual([
       '000000001__2024-07-25_16-26-36-672__210202_183235-240607_145904-240618_160543-240725_162634__e85c7697__e85c7697.sltt-doc',
     ])
@@ -59,7 +59,7 @@ describe('handleRetrieveDoc', () => {
     const filename = 'local-doc__2024-07-25_14-50-23-046__210629_180535-240725_145023__c62114c2__c62114c2.sltt-doc'
     const isFromRemote = false
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDocV0(testDataPath, { clientId: 'client1', project, isFromRemote, filename })
+    const response = await handleRetrieveDocV0(testDataPath, { project, isFromRemote, filename })
     expect(response).toBeTruthy()
     const { fullPath } = response!
     const relativePath = fullPath.split('storage').pop() || ''
@@ -99,7 +99,7 @@ describe('handleRetrieveDoc', () => {
   ])('should return null for $testCase because files are not found', async ({ project, doc, remoteSeq, expectedFilename }) => {
     const isFromRemote = !remoteSeq
     const testDataPath = resolve(__dirname, './test-data/listTests/local-and-remote')
-    const response = await handleRetrieveDocV0(testDataPath, { clientId: 'client1', project, isFromRemote, filename: expectedFilename })
+    const response = await handleRetrieveDocV0(testDataPath, { project, isFromRemote, filename: expectedFilename })
     expect(response).toBe(null)
   })
 })
@@ -143,7 +143,7 @@ describe('handleStoreDoc', () => {
       expectedFilename: 'local-doc__2023-11-01_13-34-23-046__310202_183235-340607_145904__c160f8cc__4b9bb806.sltt-doc'
     }
   ])('should handle document storage correctly for $testCase', async ({ project, doc, remoteSeq, expectedFilename }) => {
-    const response = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq })
+    const response = await handleStoreDocV0(tempDir, { project, doc, remoteSeq })
 
     // Split the filename correctly
     const parts = expectedFilename.split('.')[0].split('__')
@@ -170,7 +170,7 @@ describe('handleStoreDoc', () => {
     }
     const expectedFilename1 = 'local-doc__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
     const expectedFilename2 = '000000001__2024-06-29_11-35-22-044__210202_183235-240607_145904__3de71188__no-mod-by.sltt-doc'
-    const firstStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
+    const firstStoreResponse = await handleStoreDocV0(tempDir, { project, doc, remoteSeq: Number.NaN })
     const { projectPath, normalizedFilename } = firstStoreResponse
     const localPath = join(tempDir, projectPath, normalizedFilename)
     const localFileExists = existsSync(localPath)
@@ -178,7 +178,7 @@ describe('handleStoreDoc', () => {
     expect(firstStoreResponse.freshlyWritten).toBe(true)
     expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename1)
 
-    const secondStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: 1 })
+    const secondStoreResponse = await handleStoreDocV0(tempDir, { project, doc, remoteSeq: 1 })
     const { projectPath: projectPath2, normalizedFilename: normalizedFilename2 } = secondStoreResponse
     const remotePath = join(tempDir, projectPath2, normalizedFilename2)
     const remoteFileExists = existsSync(remotePath)
@@ -198,11 +198,11 @@ describe('handleStoreDoc', () => {
     }
     const expectedFilename = 'local-doc__2024-07-30_12-34-23-046__210202_183235-240607_145904__8cf5a227__no-mod-by.sltt-doc'
 
-    const firstStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
+    const firstStoreResponse = await handleStoreDocV0(tempDir, { project, doc, remoteSeq: Number.NaN })
     expect(firstStoreResponse.freshlyWritten).toBe(true)
     expect(firstStoreResponse.normalizedFilename).toBe(expectedFilename)
 
-    const secondStoreResponse = await handleStoreDocV0(tempDir, { clientId: 'client1', project, doc, remoteSeq: Number.NaN })
+    const secondStoreResponse = await handleStoreDocV0(tempDir, { project, doc, remoteSeq: Number.NaN })
     expect(secondStoreResponse.freshlyWritten).toBe(false)
     expect(secondStoreResponse.normalizedFilename).toBe(expectedFilename)
   })
@@ -380,7 +380,7 @@ describe('handleStoreRemoteDocs', () => {
     })
   })
 
-  it('should retrieve remote docs correctly (from lastSpot)', async () => {
+  it('should retrieve remote docs correctly (from spot)', async () => {
     const docsFolder = tempDir
     const clientId1 = 'tsc1'
     const project = 'testProject'
@@ -396,16 +396,13 @@ describe('handleStoreRemoteDocs', () => {
     ]
     await ensureDir(fullFromPath)
     await writeFile(remoteSeqDocsFile, fileLines[0] + '\n')
-    // create spot file
     const stats = await stat(remoteSeqDocsFile)
-    const spotFile = join(fullFromPath, `${clientId1}.sltt-spots`)
-    await writeJson(spotFile, { 'last': { seq: 1, bytePosition: stats.size } })
 
     // finish the rest of the file
     await appendFile(remoteSeqDocsFile, fileLines.slice(1).join('\n') + '\n')
 
     const response: RetrieveRemoteDocsResponse<IDBModDoc> = await handleRetrieveRemoteDocs(
-      docsFolder, { clientId: clientId1, project, spotKey: 'last' }
+      docsFolder, { clientId: clientId1, project, spot: { seq: 1, bytePosition: stats.size } }
     )
 
     // Check that the response contains the expected documents
@@ -575,10 +572,9 @@ describe('handleRetrieveLocalClientDocs', () => {
       clientId: 'tsc1',
       localClientIds: ['tsc2'],
       project: 'testProject',
-      spotKey: 'last',
       spots: [{
-        spotsFilename: 'tsc1.sltt-spots',
-        spotsContent: {'last': { 'tsc2': { clientId: 'tsc2', bytePosition: 136 } }},
+        spotsClient: 'tsc1',
+        spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 136 } },
       }],
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
@@ -586,8 +582,8 @@ describe('handleRetrieveLocalClientDocs', () => {
       expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
     },
   ])('$testCase', async (
-    { clientId, localClientIds, project, spotKey, spots, expectedDocs, expectedSpots }: 
-      { clientId: string, localClientIds: string[], project: string, spotKey: string, spots: ({ spotsFilename: string, spotsContent: { [spotKey: string]: { [clientId: string]: LocalSpot }} }[] | undefined), expectedDocs: { clientId: string, doc: IDBModDoc }[], expectedSpots: { [clientId: string]: LocalSpot } }
+    { clientId, localClientIds, project, spots, expectedDocs, expectedSpots }: 
+      { clientId: string, localClientIds: string[], project: string, spots: ({ spotsClient: string, spotsContent: { [clientId: string]: LocalSpot } }[] | undefined), expectedDocs: { clientId: string, doc: IDBModDoc }[], expectedSpots: { [clientId: string]: LocalSpot } }
   ) => {
     const docsFolder = tempDir
 
@@ -610,17 +606,14 @@ describe('handleRetrieveLocalClientDocs', () => {
     if (spots) {
       const stats = await stat(client2DocsFile)
       console.log('stats client2DocsLines[0]', stats.size)
-      expect(stats.size).toBe(spots[0].spotsContent[spotKey]['tsc2'].bytePosition)
+      if (stats.size !== spots[0].spotsContent['tsc2'].bytePosition) {
+        throw { stats, spots }
+      }
     }
     await appendFile(client2DocsFile, client2DocsLines[1] + '\n')
 
-    for (const spot of (spots || [])) {
-      const spotFile = join(fullFromPath, spot.spotsFilename)
-      await writeJson(spotFile, spot.spotsContent)
-    }
-
     for (const localClientId of localClientIds) {
-      const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project, spotKey }
+      const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project, spot: spots ? spots[0].spotsContent[localClientId] : undefined }
       const response: RetrieveLocalClientDocsResponse<IDBModDoc> = await handleRetrieveLocalClientDocs(docsFolder, args)
 
       // Check that the response contains the expected documents
@@ -634,13 +627,12 @@ describe('handleRetrieveLocalClientDocs', () => {
     const clientId = 'tsc1'
     const localClientId = 'tsc2'
     const project = 'testProject'
-    const spotKey = 'testSpotKey'
 
     // Ensure the directory exists but is empty
     const fullFromPath = join(docsFolder, project, 'local')
     await ensureDir(fullFromPath)
 
-    const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project, spotKey }
+    const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project }
     await expect(handleRetrieveLocalClientDocs(docsFolder, args)).rejects.toThrow(`ENOENT: no such file or directory, open '${join(fullFromPath, `${localClientId}.sltt-docs`)}'`)
   })
 })

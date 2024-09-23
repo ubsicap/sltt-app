@@ -3,10 +3,10 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
+import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_LIST_DOCS, DOCS_API_RETRIEVE_DOC, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_DOC, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_LIST_DOCS, DOCS_API_RETRIEVE_DOC, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_DOC, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
@@ -179,12 +179,12 @@ ipcMain.handle(DOCS_API_RETRIEVE_REMOTE_DOCS, async (_, args) => {
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
-        && (('spotKey' in args && Array.isArray(args.seqDocs)) || !('spotKey' in args))
+        && (('spot' in args && typeof args.spot === 'object' && typeof args.spot.seq === 'number' && typeof args.spot.bytePosition === 'number' ) || !('spot' in args))
     ) {
-        const { clientId, project, spotKey }: RetrieveRemoteDocsArgs = args
-        return await handleRetrieveRemoteDocs(DOCS_PATH, { clientId, project, spotKey })
+        const { clientId, project, spot }: RetrieveRemoteDocsArgs = args
+        return await handleRetrieveRemoteDocs(DOCS_PATH, { clientId, project, spot })
     } else {
-        throw Error(`invalid args for ${DOCS_API_RETRIEVE_REMOTE_DOCS}. Expected: '{ project: string, clientId: string, spotKey: string }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${DOCS_API_RETRIEVE_REMOTE_DOCS}. Expected: '{ project: string, clientId: string, spot: { seq: number, bytePosition: number } }' Got: ${JSON.stringify(args)}`)
     }
 })
 
@@ -201,6 +201,19 @@ ipcMain.handle(DOCS_API_SAVE_REMOTE_SPOTS, async (_, args) => {
         return await handleSaveRemoteSpots(DOCS_PATH, { clientId, project, spots })
     } else {
         throw Error(`invalid args for ${DOCS_API_SAVE_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { seq: number, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_GET_REMOTE_SPOTS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_GET_REMOTE_SPOTS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string') {
+        const { clientId, project } = args
+        return await handleGetRemoteSpots(DOCS_PATH, { clientId, project })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_GET_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 
@@ -238,12 +251,12 @@ ipcMain.handle(DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'localClientId' in args && typeof args.localClientId === 'string'
-        && (('spotKey' in args && Array.isArray(args.seqDocs)) || !('spotKey' in args))
+        && (('spot' in args && typeof args.spot === 'object' && typeof args.spot.clientId === 'string' && typeof args.spot.bytePosition === 'number') || !('spot' in args))
     ) {
-        const { clientId, localClientId, project, spotKey } = args
-        return await handleRetrieveLocalClientDocs(DOCS_PATH, { clientId, localClientId, project, spotKey })
+        const { clientId, localClientId, project, spot } = args
+        return await handleRetrieveLocalClientDocs(DOCS_PATH, { clientId, localClientId, project, spot })
     } else {
-        throw Error(`invalid args for ${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}. Expected: '{ project: string, clientId: string, spotKey?: string }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}. Expected: '{ project: string, clientId: string, spot?: { clientId: string, bytePosition: number} }' Got: ${JSON.stringify(args)}`)
     }
 })
 
@@ -260,5 +273,18 @@ ipcMain.handle(DOCS_API_SAVE_LOCAL_SPOTS, async (_, args) => {
         return await handleSaveLocalSpots(DOCS_PATH, { clientId, project, spots })
     } else {
         throw Error(`invalid args for ${DOCS_API_SAVE_LOCAL_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { clientId: string, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(DOCS_API_GET_LOCAL_SPOTS, async (_, args) => {
+    if (args === 'test') {
+        return `${DOCS_API_GET_LOCAL_SPOTS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'project' in args && typeof args.project === 'string') {
+        const { clientId, project } = args
+        return await handleGetLocalSpots(DOCS_PATH, { clientId, project })
+    } else {
+        throw Error(`invalid args for ${DOCS_API_GET_LOCAL_SPOTS}. Expected: '{ project: string, clientId: string }' Got: ${JSON.stringify(args)}`)
     }
 })

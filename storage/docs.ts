@@ -90,7 +90,7 @@ const parseFilename = (filename: string): { projectPath: string, normalizedFilen
 
 export type IDBModDoc = { _id: string, modDate: string, creator: string, modBy?: string }
 
-export const handleStoreDocV0 = async (docsFolder: string, { clientId, project, doc, remoteSeq }: StoreDocArgs<IDBModDoc>):
+export const handleStoreDocV0 = async (docsFolder: string, { project, doc, remoteSeq }: StoreDocArgs<IDBModDoc>):
     Promise<StoreDocResponse> => {
     if (remoteSeq > 999999999) {
         throw Error(`remoteSeq is too large: ${remoteSeq}`)
@@ -232,14 +232,10 @@ export const handleStoreRemoteDocs = async (
 
 export const handleRetrieveRemoteDocs = async (
     docsFolder: string,
-    { clientId, project, spotKey }: RetrieveRemoteDocsArgs): Promise<RetrieveRemoteDocsResponse<IDBModDoc>> => {
-        let bytesPosition = 0
-        // first retrieve spot from from spotKey (if exists)
-        const spots = await retrieveRemoteSpots(docsFolder, { clientId, project })
-        const lastSeq = spots[spotKey]?.seq || 0
-        if (spotKey && spots[spotKey]) {
-            bytesPosition = spots[spotKey].bytePosition
-        }
+    { clientId, project, spot }: RetrieveRemoteDocsArgs): Promise<RetrieveRemoteDocsResponse<IDBModDoc>> => {
+        console.log('handleRetrieveRemoteDocs:', { clientId, project, spot })
+        const bytesPosition = spot?.bytePosition || 0
+        const lastSeq = spot?.seq || -1
         const fullFromPath = buildDocFolder(docsFolder, project, true)
         const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
         const { buffer, fileStats } = await readFromBytePosition(remoteSeqDocsFile, bytesPosition)
@@ -264,7 +260,7 @@ export const handleSaveRemoteSpots = async (
     await writeJson(spotsFile, spots)
 }
 
-export const retrieveRemoteSpots = async (
+export const handleGetRemoteSpots = async (
     docsFolder: string,
     { clientId, project }: GetRemoteSpotsArgs): Promise<GetRemoteSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, true)
@@ -332,16 +328,13 @@ export const handleGetStoredLocalClientIds = async (
 // might need to break this api so client can request per clientId
 // that means we'd need a way to list the clients
 export const handleRetrieveLocalClientDocs = async (
-    docsFolder: string, { clientId, localClientId, project, spotKey }: RetrieveLocalClientDocsArgs
+    docsFolder: string, { clientId, localClientId, project, spot }: RetrieveLocalClientDocsArgs
 ): Promise<RetrieveLocalClientDocsResponse<IDBModDoc>> => {
+    console.log('handleRetrieveLocalClientDocs:', { clientId, localClientId, project, spot })
 
     // get a directory listing of all the {clientId}.sltt-docs files
     const fullFromPath = buildDocFolder(docsFolder, project, false)
     await ensureDir(fullFromPath)
-    // get the last spots for these clientIds
-    const spots = await retrieveLocalSpots(docsFolder, { clientId, project })
-    // map the clientIds to starting byte positions (default to 0)
-    const spot: LocalSpot = (spots[spotKey] || [])[localClientId]
     const clientBytePosition = spot ? spot.bytePosition : 0
 
     // now read the files from the last spot byte positions
@@ -371,15 +364,15 @@ export const handleSaveLocalSpots = async (
     await writeJson(spotsFile, spots)
 }
 
-export const retrieveLocalSpots = async (
+export const handleGetLocalSpots = async (
     docsFolder: string,
     { clientId, project }: GetLocalSpotsArgs): Promise<GetLocalSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, false)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
-    return readJsonCatchMissing(spotsFile, {})
+    return readJsonCatchMissing(spotsFile, undefined)
 }
 
-export const handleListDocsV0 = async (docsFolder: string, { clientId, project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
+export const handleListDocsV0 = async (docsFolder: string, { project, isFromRemote }: ListDocsArgs): Promise<ListDocsResponse> => {
     try {
         const filenames = await listDocs(docsFolder, { project, isFromRemote })
         if (!isFromRemote) {
@@ -407,7 +400,7 @@ export const handleListDocsV0 = async (docsFolder: string, { clientId, project, 
     }
 }
 
-export const handleRetrieveDocV0 = async (docsFolder: string, { clientId, project, isFromRemote, filename }: RetrieveDocArgs):
+export const handleRetrieveDocV0 = async (docsFolder: string, { project, isFromRemote, filename }: RetrieveDocArgs):
     Promise<RetrieveDocResponse<IDBModDoc> | null> => {
     const { normalizedFilename, remoteSeq, filenameModDate, filenameId, filenameCreator, filenameModBy } = parseFilename(filename)
     const fullFromPath = buildDocFolder(docsFolder, project, isFromRemote)
