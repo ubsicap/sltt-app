@@ -19,7 +19,7 @@ export type SaveRemoteSpotsArgs = { clientId: string, project: string, spots: { 
 export type SaveRemoteSpotsResponse = void
 
 export type GetRemoteSpotsArgs = { clientId: string, project: string }
-export type GetRemoteSpotsResponse = { [key: string]: RemoteSpot } | undefined
+export type GetRemoteSpotsResponse = { [key: string]: RemoteSpot } | Record<string, never>
 
 export type RetrieveRemoteDocsArgs = { clientId: string, project: string, spot?: RemoteSpot }
 export type RetrieveRemoteDocsResponse<TDoc> = { seqDocs: RemoteSeqDoc<TDoc>[], spot: RemoteSpot }
@@ -39,7 +39,7 @@ export type SaveLocalSpotsArgs = { clientId: string, project: string, spots: { [
 export type SaveLocalSpotsResponse = void
 
 export type GetLocalSpotsArgs = { clientId: string, project: string }
-export type GetLocalSpotsResponse = { [key: string]: { [clientId: string]: LocalSpot } } | undefined
+export type GetLocalSpotsResponse = { [key: string]: { [clientId: string]: LocalSpot } } | Record<string, never>
 
 // V0
 export const DOCS_API_STORE_DOC = 'storeDoc'

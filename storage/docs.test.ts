@@ -459,7 +459,7 @@ describe('handleGetRemoteSpots', () => {
 
     const response = await handleGetRemoteSpots(docsFolder, { clientId, project })
 
-    expect(response).toEqual(undefined)
+    expect(response).toEqual({})
   })
 })
 
@@ -709,6 +709,6 @@ describe('handleGetLocalSpots', () => {
 
     const response = await handleGetLocalSpots(docsFolder, { clientId, project })
 
-    expect(response).toEqual(undefined)
+    expect(response).toEqual({})
   })
 })
