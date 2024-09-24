@@ -484,7 +484,7 @@ describe('handleStoreLocalDocs', () => {
     const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
     const fileContent = await readFile(clientDocsPath, 'utf-8')
     const fileLines = fileContent.split('\n')
-    expect(fileLines[0]).toEqual(expect.stringMatching(/^ {2}\t\d{13}\talice@example.com\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}$/))
+    expect(fileLines[0]).toEqual(expect.stringMatching(/^ {2}\t\d{13}\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}$/))
     expect(fileLines[1]).toBe('')
   })
 
@@ -580,7 +580,7 @@ describe('handleRetrieveLocalClientDocs', () => {
           { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
           { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
       ],
-      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 276 }, 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
+      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 242 }, 'tsc2': { clientId: 'tsc2', bytePosition: 238 }}
     },
     {
       testCase: 'retrieve local docs correctly - no spot - tsc2',
@@ -593,7 +593,7 @@ describe('handleRetrieveLocalClientDocs', () => {
           { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238 }}
     },
     {
       testCase: 'retrieve local docs correctly - spot - tsc2',
@@ -602,12 +602,12 @@ describe('handleRetrieveLocalClientDocs', () => {
       project: 'testProject',
       spots: [{
         spotsClient: 'tsc1',
-        spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 136 } },
+        spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 118 } },
       }],
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 272 }}
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238 }}
     },
   ])('$testCase', async (
     { clientId, localClientIds, project, spots, expectedDocs, expectedSpots }: 
@@ -620,15 +620,15 @@ describe('handleRetrieveLocalClientDocs', () => {
     await ensureDir(fullFromPath)
     const client1DocFile = join(fullFromPath, `tsc1.sltt-docs`)
     const client1DocsContent = [
-      `${EMPTY_STATUS}\t1234567890123\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}`,
-      `${EMPTY_STATUS}\t1234567890124\tbob@example.com\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com","modBy":"alice@example.com"}`,
+      `${EMPTY_STATUS}\t1234567890123\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}`,
+      `${EMPTY_STATUS}\t1234567890124\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com","modBy":"alice@example.com"}`,
     ].join('\n')
     await writeFile(client1DocFile, client1DocsContent + '\n')
 
     const client2DocsFile = join(fullFromPath, `tsc2.sltt-docs`)
     const client2DocsLines = [
-      `${EMPTY_STATUS}\t1234567890125\talice@example.com\t{"_id":"doc1","modDate":"2024/09/17 10:30:33","creator":"bob@example.com","modBy":"bob@example.com"}`,
-      `${EMPTY_STATUS}\t1234567890126\tbob@example.com\t{"_id":"doc3","modDate":"2024/09/17 11:30:34","creator":"alice@example.com","modBy":"bob@example.com"}`,
+      `${EMPTY_STATUS}\t1234567890125\t{"_id":"doc1","modDate":"2024/09/17 10:30:33","creator":"bob@example.com","modBy":"bob@example.com"}`,
+      `${EMPTY_STATUS}\t1234567890126\t{"_id":"doc3","modDate":"2024/09/17 11:30:34","creator":"alice@example.com","modBy":"bob@example.com"}`,
     ]
     await appendFile(client2DocsFile, client2DocsLines[0] + '\n')
     if (spots) {

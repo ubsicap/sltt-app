@@ -297,11 +297,10 @@ export const handleStoreLocalDocs = async (docsFolder: string, { clientId, proje
 
     let counts = 0
     for (const doc of docs) {
-        const { modBy } = doc as IDBModDoc
         try {
             const status = EMPTY_STATUS // placeholder first character could be used for filtering local docs that are in the remote list 
             // this will allow for sorting by time of creation
-            const newLine = `${status}\t${Date.now()}\t${modBy}\t${JSON.stringify(doc)}\n`
+            const newLine = `${status}\t${Date.now()}\t${JSON.stringify(doc)}\n`
             await appendFile(clientDocsPath, newLine)
             counts++
         } catch (error) {
@@ -343,7 +342,7 @@ export const handleRetrieveLocalClientDocs = async (
     const { buffer, fileStats } = await readFromBytePosition(clientDocFile, clientBytePosition)
     const clientDocLines = buffer.toString().split('\n').filter(line => line.length > 0)
     const clientLocalDocs = clientDocLines.map((line) => {
-        const [status, , , docStr] = line.split('\t')
+        const [status, /* timestamp */, docStr] = line.split('\t')
         return { status, doc: JSON.parse(docStr) }
     }).filter(localDoc => localDoc.status === EMPTY_STATUS).map(
         localDoc => ({ clientId: localClientId, doc: localDoc.doc })
