@@ -40,7 +40,11 @@ export async function readFromBytePosition(filePath: string, bytePosition: numbe
         return { buffer, fileStats }
     } finally {
         // Close the file
-        await closeAsync(fileHandle.fd)
+        try {
+            await fileHandle.close()
+        } catch (closeErr) {
+            console.error('Error closing file:', closeErr)
+        }
     }
 }
 
@@ -64,7 +68,10 @@ export async function readLastBytes(filePath: string, byteCount: number): Promis
 
         return { buffer, fileStats }
     } finally {
-        // Close the file
-        await closeAsync(fileHandle.fd)
+        try {
+            await fileHandle.close()
+        } catch (closeErr) {
+            console.error('Error closing file:', closeErr)
+        }
     }
 }
