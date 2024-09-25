@@ -11,7 +11,7 @@ export const handleRegisterClientUser = async (clientsFolder: string, { clientId
     }
     const clientUserFilePath = `${clientsFolder}/${clientId}.sltt-users`
     await ensureDir(clientsFolder)
-    const clientUsers = await readJsonCatchMissing(clientUserFilePath, {})
+    const clientUsers = await readJsonCatchMissing<{ [username: string]: string }, Record<string, never>>(clientUserFilePath, {})
     clientUsers[username] = new Date().toISOString()
     await writeJson(clientUserFilePath, clientUsers)
     return clientUsers[username]

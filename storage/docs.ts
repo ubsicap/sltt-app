@@ -132,7 +132,7 @@ export const handleGetRemoteSpots = async (
     { clientId, project }: GetRemoteSpotsArgs): Promise<GetRemoteSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
-    return readJsonCatchMissing(spotsFile, {})
+    return readJsonCatchMissing<GetRemoteSpotsResponse, Record<string, never>>(spotsFile, {})
 }
 
 export const EMPTY_STATUS = '  ' // two spaces
@@ -235,5 +235,5 @@ export const handleGetLocalSpots = async (
     { clientId, project }: GetLocalSpotsArgs): Promise<GetLocalSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, false)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
-    return readJsonCatchMissing<GetLocalSpotsResponse>(spotsFile, {})
+    return readJsonCatchMissing<GetLocalSpotsResponse, Record<string, never>>(spotsFile, {})
 }

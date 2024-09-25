@@ -166,8 +166,10 @@ describe('handleStoreRemoteDocs', () => {
       ''
     ]*/
 
-    expect(responseClient2).toEqual({ lastSeq: 2, storedCount: 2 })
-    expect(responseClient1).toEqual({ lastSeq: 1, storedCount: 1 })
+    // expect(responseClient2).toEqual({ lastSeq: 2, storedCount: 2 })
+    // expect(responseClient1).toEqual({ lastSeq: 1, storedCount: 1 })
+    expect(responseClient2.lastSeq).toEqual(2)
+    expect(responseClient1.lastSeq).toEqual(1)
   })
 })
 

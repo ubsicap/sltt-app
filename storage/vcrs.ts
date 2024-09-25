@@ -2,7 +2,7 @@ import { ensureDir, readJson, writeJson } from 'fs-extra'
 import { readdir } from 'fs/promises'
 import { basename, join, resolve } from 'path'
 import Bottleneck from 'bottleneck'
-import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse } from './vcrs.d'
+import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse, VideoCacheRecord } from './vcrs.d'
 import { readJsonCatchMissing } from './utils'
 
 const composeVideoCacheRecordFilename = (_id: string): {
@@ -46,7 +46,7 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
 
             // Process the updates for this fullPath
             try {
-                const vcrsOrig = readJsonCatchMissing<object>(fullPath, {})
+                const vcrsOrig = readJsonCatchMissing<{ [videoId: string]: VideoCacheRecord }, Record<string, never>>(fullPath, {})
                 const vcrs = { ...vcrsOrig, ...vcrsUpdated }
                 await writeJson(fullPath, vcrs)
             } catch (error) {
@@ -98,5 +98,5 @@ export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, pr
 export async function retrieveVcrs(videoCacheRecordsPath: string, { clientId, filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
     const [project] = filename.split('__')
     const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
-    return readJsonCatchMissing<RetrieveVcrsResponse>(fullPath)
+    return readJsonCatchMissing<RetrieveVcrsResponse, null>(fullPath, null)
 }

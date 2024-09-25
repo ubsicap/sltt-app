@@ -2,7 +2,7 @@ import { readJson, read, Stats, ensureFile } from 'fs-extra'
 import { promisify } from 'util'
 import { stat, open } from 'fs/promises'
 
-export async function readJsonCatchMissing<T>(filePath: string, defaultValue: T | undefined): Promise<T> {
+export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault | undefined): Promise<T|TDefault> {
     try {
         const contents = await readJson(filePath)
         return contents
