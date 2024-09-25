@@ -22,6 +22,8 @@ const buildDocFolder = (docsFolder: string, project: string, isFromRemote: boole
 
 export type IDBModDoc = { _id: string, modDate: string, creator: string, modBy?: string }
 
+const MAX_REMOTE_SEQ = 999999999
+
 export const handleStoreRemoteDocs = async (
     docsFolder: string, { clientId, project, seqDocs }: StoreRemoteDocsArgs<IDBModDoc>)
     : Promise<StoreRemoteDocsResponse> => {
@@ -30,7 +32,7 @@ export const handleStoreRemoteDocs = async (
         return { lastSeq: -1, storedCount: 0 }
     }
 
-    const seqDocOutOfRange = seqDocs.find(seqDoc => seqDoc.seq > 999999999)
+    const seqDocOutOfRange = seqDocs.find(seqDoc => seqDoc.seq > MAX_REMOTE_SEQ)
     if (seqDocOutOfRange) {
         throw Error(`remote seq (${seqDocOutOfRange.seq}) too large: ${JSON.stringify(seqDocOutOfRange)}`)
     }
@@ -43,7 +45,7 @@ export const handleStoreRemoteDocs = async (
     let lastStoredSeq = 0
     let originalFileStats: Stats
     try {
-        const { buffer: lastBytes, fileStats } = await readLastBytes(remoteSeqDocsFile, 9)
+        const { buffer: lastBytes, fileStats } = await readLastBytes(remoteSeqDocsFile, `${MAX_REMOTE_SEQ}`.length)
         originalFileStats = fileStats
         if (originalFileStats.size > 0 && lastBytes.length) {
             lastStoredSeq = Number(lastBytes.toString())
