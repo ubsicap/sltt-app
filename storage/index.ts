@@ -12,6 +12,7 @@ import { handleRegisterClientUser } from './clients'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
+console.log('LAN_STORAGE_PATH:', LAN_STORAGE_PATH)
 const VIDEO_CACHE_PATH = join(getLANStoragePath(app.getPath('userData')), 'blobs')
 const VIDEO_CACHE_RECORDS_PATH = join(LAN_STORAGE_PATH, 'vcrs')
 const DOCS_PATH = join(LAN_STORAGE_PATH, 'docs')
