@@ -193,7 +193,7 @@ ipcMain.handle(DOCS_API_RETRIEVE_REMOTE_DOCS, async (_, args) => {
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
-        && (('spot' in args && typeof args.spot === 'object' && typeof args.spot.seq === 'number' && typeof args.spot.bytePosition === 'number' ) || !('spot' in args))
+        && (('spot' in args && typeof args.spot === 'object' && typeof args.spot.seq === 'number' && typeof args.spot.bytePosition === 'number' ) || (args.spot === undefined))
     ) {
         const { clientId, project, spot }: RetrieveRemoteDocsArgs = args
         return await handleRetrieveRemoteDocs(DOCS_PATH, { clientId, project, spot })
@@ -265,7 +265,7 @@ ipcMain.handle(DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'localClientId' in args && typeof args.localClientId === 'string'
-        && (('spot' in args && typeof args.spot === 'object' && typeof args.spot.clientId === 'string' && typeof args.spot.bytePosition === 'number') || !('spot' in args))
+        && (('spot' in args && typeof args.spot === 'object' && typeof args.spot.clientId === 'string' && typeof args.spot.bytePosition === 'number') || (args.spot === undefined))
     ) {
         const { clientId, localClientId, project, spot } = args
         return await handleRetrieveLocalClientDocs(DOCS_PATH, { clientId, localClientId, project, spot })
