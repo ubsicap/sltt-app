@@ -1,4 +1,4 @@
-import { readJson, read, close, Stats, ensureFile } from 'fs-extra'
+import { readJson, read, Stats, ensureFile } from 'fs-extra'
 import { promisify } from 'util'
 import { stat, open } from 'fs/promises'
 
@@ -17,7 +17,6 @@ export async function readJsonCatchMissing<T>(filePath: string, defaultValue: T 
 }
 
 const readAsync = promisify(read)
-const closeAsync = promisify(close)
 
 export async function readFromBytePosition(filePath: string, bytePosition: number): Promise<{ buffer: Buffer, fileStats: Stats }> {
     // Open the file in read mode
