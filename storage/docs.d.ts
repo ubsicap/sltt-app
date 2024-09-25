@@ -13,7 +13,7 @@ export type RemoteSeqDoc<TDoc> = { seq: number, doc: TDoc }
 export type StoreRemoteDocsArgs<TDoc> = { clientId: string, project: string, seqDocs: RemoteSeqDoc<TDoc>[] }
 export type StoreRemoteDocsResponse = { lastSeq: number, storedCount: number, error?: string }
 
-type Spot = { bytePosition: number }
+type Spot = { bytePosition: number, modDate: string }
 export type RemoteSpot = { seq: number } & Spot
 export type SaveRemoteSpotsArgs = { clientId: string, project: string, spots: { [spotKey: string]: RemoteSpot } }
 export type SaveRemoteSpotsResponse = void
