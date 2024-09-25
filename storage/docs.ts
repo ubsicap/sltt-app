@@ -68,7 +68,7 @@ export const handleStoreRemoteDocs = async (
     const lastSeq = sortedSeqDocs[sortedSeqDocs.length - 1].seq
     for (const { doc, seq } of sortedSeqDocs) {
         if (seq > lastStoredSeq) {
-            const paddedSeq = `${seq}`.padStart(9, '0')
+            const paddedSeq = `${seq}`.padStart(`${MAX_REMOTE_SEQ}`.length, '0')
             const newLine = `${paddedSeq}\t${Date.now()}\t${clientId}\t` + JSON.stringify(doc) + `\t${paddedSeq}\n`
             newLines.push(newLine)
         }
