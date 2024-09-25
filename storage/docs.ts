@@ -183,7 +183,12 @@ export const handleStoreRemoteDocs = async (
     try {
         const { buffer: lastBytes, fileStats } = await readLastBytes(remoteSeqDocsFile, 9)
         originalFileStats = fileStats
-        lastStoredSeq = Number(lastBytes.toString())
+        if (originalFileStats.size > 0 && lastBytes.length) {
+            lastStoredSeq = Number(lastBytes.toString())
+        }
+        if (Number.isNaN(lastStoredSeq)) {
+            throw Error(`lastBytes is NaN: ${lastBytes}`)
+        }
     } catch (error) {
         if (error.code === 'ENOENT') {
             // file doesn't exist, so it's the first sync

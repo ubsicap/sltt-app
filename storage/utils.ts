@@ -1,4 +1,4 @@
-import { readJson, read, close } from 'fs-extra'
+import { readJson, read, close, Stats, ensureFile } from 'fs-extra'
 import { promisify } from 'util'
 import { stat, open } from 'fs/promises'
 
@@ -21,6 +21,7 @@ const closeAsync = promisify(close)
 
 export async function readFromBytePosition(filePath: string, bytePosition: number): Promise<{ buffer: Buffer, fileStats: Stats }> {
     // Open the file in read mode
+    await ensureFile(filePath)
     const fileHandle = await open(filePath, 'r')
     try {
         // Get the size of the file
@@ -45,6 +46,7 @@ export async function readFromBytePosition(filePath: string, bytePosition: numbe
 
 export async function readLastBytes(filePath: string, byteCount: number): Promise<{ buffer: Buffer, fileStats: Stats}> {
     // Open the file in read mode
+    await ensureFile(filePath)
     const fileHandle = await open(filePath, 'r')
     try {
         // Get the size of the file
