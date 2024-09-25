@@ -3,10 +3,10 @@ import { writeFileSync } from 'fs'
 import { ensureDir } from 'fs-extra'
 import { writeFile, readFile } from 'fs/promises'
 import { basename, dirname, join } from 'path'
-import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleListDocsV0, handleRetrieveDocV0, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreDocV0, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
+import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_LIST_DOCS, DOCS_API_RETRIEVE_DOC, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_DOC, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 import { handleRegisterClientUser } from './clients'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
@@ -112,50 +112,6 @@ ipcMain.handle(VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, async (_, args) => {
         return await retrieveVcrs(VIDEO_CACHE_RECORDS_PATH, { clientId, filename })
     } else {
         throw Error(`invalid args for ${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}. Expected: { filename: string } Got: ${JSON.stringify(args)}`)
-    }
-})
-
-ipcMain.handle(DOCS_API_STORE_DOC, async (_, args) => {
-    if (args === 'test') {
-        return `${DOCS_API_STORE_DOC} api test worked!`
-    } else if (typeof args === 'object'
-        && 'project' in args && typeof args.project === 'string'
-        && 'doc' in args && typeof args.doc === 'object'
-        && 'remoteSeq' in args && typeof args.remoteSeq === 'number') {
-        const { project, doc, remoteSeq } = args
-        return await handleStoreDocV0(DOCS_PATH, { project, doc, remoteSeq })
-    } else {
-        throw Error(`invalid args for ${DOCS_API_STORE_DOC}. Expected: { project: string, doc: string, remoteSeq: string } Got: ${JSON.stringify(args)}`)
-    }
-})
-
-ipcMain.handle(DOCS_API_LIST_DOCS, async (_, args) => {
-    if (args === 'test') {
-        return `${DOCS_API_LIST_DOCS} api test worked!`
-    } else if (typeof args === 'object'
-        && 'project' in args && typeof args.project === 'string'
-        && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
-    ) {
-        console.log('listDocs args:', args)
-        const { project, isFromRemote } = args
-        return await handleListDocsV0(DOCS_PATH, { project, isFromRemote })
-    } else {
-        throw Error(`invalid args for ${DOCS_API_LIST_DOCS}. Expected: '{ project: string, isFromRemote: boolean }' Got: ${JSON.stringify(args)}`)
-    }
-})
-
-ipcMain.handle(DOCS_API_RETRIEVE_DOC, async (_, args) => {
-    if (args === 'test') {
-        return `${DOCS_API_RETRIEVE_DOC} api test worked!`
-    } else if (typeof args === 'object'
-        && 'project' in args && typeof args.project === 'string'
-        && 'isFromRemote' in args && typeof args.isFromRemote === 'boolean'
-        && 'filename' in args && typeof args.filename === 'string'
-    ) {
-        const { project, isFromRemote, filename } = args
-        return await handleRetrieveDocV0(DOCS_PATH, { project, isFromRemote, filename })
-    } else {
-        throw Error(`invalid args for ${DOCS_API_RETRIEVE_DOC}. Expected: '{ project: string, isFromRemote: boolean, filename: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 
