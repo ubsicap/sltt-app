@@ -1,4 +1,4 @@
-import { ensureDir, readJson, writeJson } from 'fs-extra'
+import { ensureDir, writeJson } from 'fs-extra'
 import { readdir } from 'fs/promises'
 import { basename, join, resolve } from 'path'
 import Bottleneck from 'bottleneck'
