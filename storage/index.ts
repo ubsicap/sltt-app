@@ -9,7 +9,7 @@ import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORE
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 import { handleRegisterClientUser } from './clients'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
-import { BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB } from './blobs.d'
+import { BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveBlob, handleStoreBlob } from './blobs'
 
 const LAN_STORAGE_PATH = getLANStoragePath(app.getPath('userData'))
@@ -24,7 +24,7 @@ ipcMain.handle(BLOBS_API_RETRIEVE_BLOB, async (_, args) => {
         return `${BLOBS_API_RETRIEVE_BLOB} api test worked!`
     } else if (typeof args === 'object'
         && 'blobId' in args && typeof args.blobId === 'string') {
-        const { blobId } = args
+        const { blobId }: RetrieveBlobArgs = args
         return await handleRetrieveBlob(BLOBS_PATH, { blobId })
     } else {
         throw Error(`invalid args for ${BLOBS_API_RETRIEVE_BLOB}. Expected: { blobId: string } Got: ${JSON.stringify(args)}`)
@@ -40,7 +40,7 @@ ipcMain.handle(BLOBS_API_STORE_BLOB, async (_, args) => {
     } else if (typeof args === 'object'
         && 'blobId' in args && typeof args.blobId === 'string'
         && 'arrayBuffer' in args && args.arrayBuffer instanceof ArrayBuffer) {
-        const { blobId, arrayBuffer } = args
+        const { blobId, arrayBuffer }: StoreBlobArgs = args
         return await handleStoreBlob(BLOBS_PATH, { blobId, arrayBuffer })
     } else {
         throw Error(`invalid args for ${BLOBS_API_STORE_BLOB}. Expected: {blobId: string, arrayBuffer: ArrayBuffer} Got: ${JSON.stringify(args)}`)

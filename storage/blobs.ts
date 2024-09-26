@@ -1,9 +1,10 @@
 import { ensureDir } from 'fs-extra'
 import { readFile, writeFile } from 'fs/promises'
 import { dirname, basename, join } from 'path'
+import { RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
 
 
-export const handleRetrieveBlob = async (blobsPath, { blobId }): Promise<Buffer> => {
+export const handleRetrieveBlob = async (blobsPath, { blobId }: RetrieveBlobArgs ): Promise<RetrieveBlobResponse> => {
     const relativeVideoPath = dirname(blobId)
     const fileName = basename(blobId)
     const fullFolder = join(blobsPath, relativeVideoPath)
@@ -21,7 +22,7 @@ export const handleRetrieveBlob = async (blobsPath, { blobId }): Promise<Buffer>
     }
 }
 
-export const handleStoreBlob = async (blobsPath, { blobId, arrayBuffer }): Promise<{ fullPath: string }> => {
+export const handleStoreBlob = async (blobsPath, { blobId, arrayBuffer }: StoreBlobArgs): Promise<StoreBlobResponse> => {
     const relativeVideoPath = dirname(blobId)
     const fileName = basename(blobId)
     const fullFolder = join(blobsPath, relativeVideoPath)
