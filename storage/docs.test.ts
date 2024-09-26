@@ -247,6 +247,37 @@ describe('handleRetrieveRemoteDocs', () => {
     const finalStats = await stat(remoteSeqDocsFile)
     expect(response.spot).toEqual({ seq: 2, bytePosition: finalStats.size, modDate: '2024/09/17 12:30:34' })
   })
+
+  it('should retrieve no remote docs (from spot)', async () => {
+    const docsFolder = tempDir
+    const clientId1 = 'tsc1'
+    const project = 'testProject'
+
+    // Create the initial remote file with sequence number 1 and 2
+    const fullFromPath = join(docsFolder, project, 'remote')
+    const remoteSeqDocsFile = join(fullFromPath, 'remote.sltt-docs')
+    const fileLines = [
+      '000000001\t1234567890123\ttsc1\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+      '000000002\t1234567890124\ttsc1\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
+      '000000001\t1234567890123\ttsc2\t{"_id":"doc1","modDate":"2024/09/17 12:30:33","creator":"bob@example.com"}\t000000001',
+      '000000002\t1234567890124\ttsc2\t{"_id":"doc2","modDate":"2024/09/17 12:30:34","creator":"alice@example.com"}\t000000002',
+    ]
+    await ensureDir(fullFromPath)
+    await writeFile(remoteSeqDocsFile, fileLines[0] + '\n')
+
+    // finish the rest of the file
+    await appendFile(remoteSeqDocsFile, fileLines.slice(1).join('\n') + '\n')
+    const finalStats = await stat(remoteSeqDocsFile)
+
+    const response: RetrieveRemoteDocsResponse<IDBModDoc> = await handleRetrieveRemoteDocs(
+      docsFolder, { clientId: clientId1, project, spot: { seq: 2, bytePosition: finalStats.size, modDate: '2024/09/17 12:30:34' } }
+    )
+
+    // Check that the response contains no documents
+    expect(response.seqDocs).toEqual([])
+
+    expect(response.spot).toEqual({ seq: 2, bytePosition: finalStats.size, modDate: '2024/09/17 12:30:34' })
+  })
 })
 
 describe('handleSaveRemoteSpots', () => {
@@ -443,6 +474,18 @@ describe('handleRetrieveLocalClientDocs', () => {
       ],
       expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
+    {
+      testCase: 'retrieve no local docs - spot - tsc2',
+      clientId: 'tsc1',
+      localClientIds: ['tsc2'],
+      project: 'testProject',
+      spots: [{
+        spotsClient: 'tsc1',
+        spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' } },
+      }],
+      expectedDocs: [],
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
+    },
   ])('$testCase', async (
     { clientId, localClientIds, project, spots, expectedDocs, expectedSpots }: 
       { clientId: string, localClientIds: string[], project: string, spots: ({ spotsClient: string, spotsContent: { [clientId: string]: LocalSpot } }[] | undefined), expectedDocs: { clientId: string, doc: IDBModDoc }[], expectedSpots: { [clientId: string]: LocalSpot } }
@@ -468,11 +511,16 @@ describe('handleRetrieveLocalClientDocs', () => {
     if (spots) {
       const stats = await stat(client2DocsFile)
       console.log('stats client2DocsLines[0]', stats.size)
-      if (stats.size !== spots[0].spotsContent['tsc2'].bytePosition) {
-        throw { stats, spots }
+      const spotContent = spots.find(
+        spot => spot.spotsClient === clientId && client2DocsLines[0].split('\t')[2].includes(spot.spotsContent['tsc2'].modDate)
+      )
+      if (spotContent && stats.size !== spotContent['tsc2'].bytePosition) {
+        expect(stats.size).toBe(spots[0].spotsContent['tsc2'].bytePosition) // precondition
       }
     }
     await appendFile(client2DocsFile, client2DocsLines[1] + '\n')
+    const stats2 = await stat(client2DocsFile)
+    console.log('stats2 client2DocsLines[1]', stats2.size)
 
     for (const localClientId of localClientIds) {
       const args: RetrieveLocalClientDocsArgs = { clientId, localClientId, project, spot: spots ? spots[0].spotsContent[localClientId] : undefined }

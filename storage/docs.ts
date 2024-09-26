@@ -219,7 +219,7 @@ export const handleRetrieveLocalClientDocs = async (
     )
     localDocs.push(...clientLocalDocs)
     const sortedLocalDocs = sortBy(localDocs, localDoc => localDoc.doc.modDate)
-    const lastModDate = sortedLocalDocs.slice(-1)[0]?.doc.modDate || ''
+    const lastModDate = sortedLocalDocs.slice(-1)[0]?.doc.modDate || spot?.modDate || ''
     const newSpot: LocalSpot = { clientId: localClientId, bytePosition: fileStats.size, modDate: lastModDate }
     return { localDocs: sortedLocalDocs, spot: newSpot }
 }
