@@ -5,7 +5,7 @@ import { tmpdir } from 'os'
 import { handleRetrieveRemoteDocs, handleStoreRemoteDocs, IDBModDoc, handleStoreLocalDocs, handleRetrieveLocalClientDocs, EMPTY_STATUS, handleGetStoredLocalClientIds, handleSaveRemoteSpots, handleGetRemoteSpots, handleSaveLocalSpots, handleGetLocalSpots } from './docs'
 import { appendFile, mkdtemp, readFile, stat, writeFile } from 'fs/promises'
 import { ensureDir, readJson, remove, writeJson } from 'fs-extra'
-import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, LocalSpot, RemoteSpot, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 
 let tempDir: string
 
@@ -185,7 +185,8 @@ describe('handleRetrieveRemoteDocs', () => {
     expect(response.seqDocs).toEqual([])
     expect(response.spot).toEqual({
       bytePosition: 0,
-      seq: -1
+      seq: -1,
+      modDate: ''
     })
   })
 
@@ -211,7 +212,7 @@ describe('handleRetrieveRemoteDocs', () => {
       { seq: 1, doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com' } },
       { seq: 2, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
     ])
-    expect(response.spot).toEqual({ seq: 2, bytePosition: fileContent.length })
+    expect(response.spot).toEqual({ seq: 2, bytePosition: fileContent.length, modDate: '2024/09/17 12:30:34' })
   })
 
   it('should retrieve remote docs correctly (from spot)', async () => {
@@ -236,7 +237,7 @@ describe('handleRetrieveRemoteDocs', () => {
     await appendFile(remoteSeqDocsFile, fileLines.slice(1).join('\n') + '\n')
 
     const response: RetrieveRemoteDocsResponse<IDBModDoc> = await handleRetrieveRemoteDocs(
-      docsFolder, { clientId: clientId1, project, spot: { seq: 1, bytePosition: stats.size } }
+      docsFolder, { clientId: clientId1, project, spot: { seq: 1, bytePosition: stats.size, modDate: '2024/09/17 12:30:33' } }
     )
 
     // Check that the response contains the expected documents
@@ -244,7 +245,7 @@ describe('handleRetrieveRemoteDocs', () => {
       { seq: 2, doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com' } }
     ])
     const finalStats = await stat(remoteSeqDocsFile)
-    expect(response.spot).toEqual({ seq: 2, bytePosition: finalStats.size })
+    expect(response.spot).toEqual({ seq: 2, bytePosition: finalStats.size, modDate: '2024/09/17 12:30:34' })
   })
 })
 
@@ -253,7 +254,7 @@ describe('handleSaveRemoteSpots', () => {
     const docsFolder = tempDir
     const clientId = 'tsc1'
     const project = 'testProject'
-    const spot = { seq: 0, bytePosition: 0 }
+    const spot: RemoteSpot = { seq: 0, bytePosition: 0, modDate: '' }
 
     const args: SaveRemoteSpotsArgs = { clientId, project, spots: { 'last': spot } }
 
@@ -273,7 +274,7 @@ describe('handleGetRemoteSpots', () => {
     const docsFolder = tempDir
     const clientId = 'tsc1'
     const project = 'testProject'
-    const spot = { seq: 0, bytePosition: 0 }
+    const spot: RemoteSpot = { seq: 0, bytePosition: 0, modDate: '' }
 
     const fullFromPath = join(docsFolder, project, 'remote')
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
@@ -413,7 +414,7 @@ describe('handleRetrieveLocalClientDocs', () => {
           { clientId: 'tsc1', doc: { _id: 'doc1', modDate: '2024/09/17 12:30:33', creator: 'bob@example.com', modBy: 'alice@example.com' } },
           { clientId: 'tsc1', doc: { _id: 'doc2', modDate: '2024/09/17 12:30:34', creator: 'alice@example.com', modBy: 'alice@example.com' } },
       ],
-      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 242 }, 'tsc2': { clientId: 'tsc2', bytePosition: 238 }}
+      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 242, modDate: '2024/09/17 12:30:34' }, 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
     {
       testCase: 'retrieve local docs correctly - no spot - tsc2',
@@ -426,7 +427,7 @@ describe('handleRetrieveLocalClientDocs', () => {
           { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238 }}
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
     {
       testCase: 'retrieve local docs correctly - spot - tsc2',
@@ -435,12 +436,12 @@ describe('handleRetrieveLocalClientDocs', () => {
       project: 'testProject',
       spots: [{
         spotsClient: 'tsc1',
-        spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 118 } },
+        spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 118, modDate: '2024/09/16 11:30:34' } },
       }],
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238 }}
+      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
   ])('$testCase', async (
     { clientId, localClientIds, project, spots, expectedDocs, expectedSpots }: 
@@ -495,6 +496,7 @@ describe('handleRetrieveLocalClientDocs', () => {
     expect(response.spot).toEqual({
       bytePosition: 0,
       clientId,
+      modDate: '',
     })
   })
 })
@@ -504,7 +506,7 @@ describe('handleSaveLocalSpots', () => {
     const docsFolder = tempDir
     const clientId = 'tcl1'
     const project = 'testProject'
-    const spots: LocalSpot[] = [{ clientId: 'tcl2', bytePosition: 0 }]
+    const spots: LocalSpot[] = [{ clientId: 'tcl2', bytePosition: 0, modDate: '' }]
 
     const args: SaveLocalSpotsArgs = { clientId, project, spots: { 'last': spots } }
 
@@ -524,7 +526,7 @@ describe('handleGetLocalSpots', () => {
     const docsFolder = tempDir
     const clientId = 'tcl1'
     const project = 'testProject'
-    const spots: LocalSpot[] = [{ clientId: 'tcl2', bytePosition: 0 }]
+    const spots: LocalSpot[] = [{ clientId: 'tcl2', bytePosition: 0, modDate: '' }]
 
     const fullFromPath = join(docsFolder, project, 'local')
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)

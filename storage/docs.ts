@@ -105,6 +105,7 @@ export const handleRetrieveRemoteDocs = async (
         console.log('handleRetrieveRemoteDocs:', { clientId, project, spot })
         const bytesPosition = spot?.bytePosition || 0
         const lastSeq = spot?.seq || -1
+        const lastModDate = spot?.modDate || ''
         const fullFromPath = buildDocFolder(docsFolder, project, true)
         const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
         const { buffer, fileStats } = await readFromBytePosition(remoteSeqDocsFile, bytesPosition)
@@ -116,7 +117,8 @@ export const handleRetrieveRemoteDocs = async (
         }).filter(seqDoc => seqDoc.seq > lastSeq)
         const seqDocs = uniqBy(seqDocsFirstPass, (seqDoc) => seqDoc.seq)
         const newLastSeq = seqDocs.length ? seqDocs[seqDocs.length - 1].seq : lastSeq
-        return { seqDocs, spot: { seq: newLastSeq, bytePosition: fileStats.size }}
+        const newModDate = seqDocs.length ? seqDocs[seqDocs.length - 1].doc.modDate : lastModDate
+        return { seqDocs, spot: { seq: newLastSeq, bytePosition: fileStats.size, modDate: newModDate }}
 }
 
 export const handleSaveRemoteSpots = async (
@@ -216,9 +218,9 @@ export const handleRetrieveLocalClientDocs = async (
         localDoc => ({ clientId: localClientId, doc: localDoc.doc })
     )
     localDocs.push(...clientLocalDocs)
-    const newSpot: LocalSpot = { clientId: localClientId, bytePosition: fileStats.size }
-
     const sortedLocalDocs = sortBy(localDocs, localDoc => localDoc.doc.modDate)
+    const lastModDate = sortedLocalDocs.slice(-1)[0]?.doc.modDate || ''
+    const newSpot: LocalSpot = { clientId: localClientId, bytePosition: fileStats.size, modDate: lastModDate }
     return { localDocs: sortedLocalDocs, spot: newSpot }
 }
 
