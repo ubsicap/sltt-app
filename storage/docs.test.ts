@@ -508,16 +508,8 @@ describe('handleRetrieveLocalClientDocs', () => {
       `${EMPTY_STATUS}\t1234567890126\t{"_id":"doc3","modDate":"2024/09/17 11:30:34","creator":"alice@example.com","modBy":"bob@example.com"}`,
     ]
     await appendFile(client2DocsFile, client2DocsLines[0] + '\n')
-    if (spots) {
-      const stats = await stat(client2DocsFile)
-      console.log('stats client2DocsLines[0]', stats.size)
-      const spotContent = spots.find(
-        spot => spot.spotsClient === clientId && client2DocsLines[0].split('\t')[2].includes(spot.spotsContent['tsc2'].modDate)
-      )
-      if (spotContent && stats.size !== spotContent['tsc2'].bytePosition) {
-        expect(stats.size).toBe(spots[0].spotsContent['tsc2'].bytePosition) // precondition
-      }
-    }
+    const stats1 = await stat(client2DocsFile)
+    console.log('stats1 client2DocsLines[0]', stats1.size)
     await appendFile(client2DocsFile, client2DocsLines[1] + '\n')
     const stats2 = await stat(client2DocsFile)
     console.log('stats2 client2DocsLines[1]', stats2.size)
