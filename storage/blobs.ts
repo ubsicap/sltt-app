@@ -1,6 +1,6 @@
 import { ensureDir } from 'fs-extra'
 import { readFile, writeFile } from 'fs/promises'
-import { dirname, basename, join } from 'path'
+import { dirname, basename, join, posix } from 'path'
 import { RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
 import { getFiles } from './utils'
 
@@ -48,13 +48,9 @@ export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: { client
         const videoBlobPattern = /^\d{6}_\d{6}-\d+$/
         const pasDocBlobPattern = /^pasDoc_\d{6}_\d{6}\/\d{4}_\d{2}_\d{2}T\d{2}_\d{2}_\d{2}\.\d{3}Z\.txt-\d+$/
         const blobFilePaths = allFiles.filter((file) => videoBlobPattern.test(basename(file)) || pasDocBlobPattern.test(basename(file)))
-        // now normalize the blob file paths to blobId format like TESTnm/210202_183235/220729_192753/240127_150252/240127_152035/240826_150758-1
-        const blobIds = blobFilePaths.map((file) => {
-            const relativePath = file.replace(fullClientPath, '')
-            return relativePath.replace(/\\/g, '/').replace(/\.txt$/, '')
-        })
+        // now normalize the blob file paths to remove fullClientPath and use forward slashes
+        const blobIds = blobFilePaths.map((file) => posix.relative(fullClientPath, file))
         return blobIds
-
     } catch (error) {
         if (error.code === 'ENOENT') {
             return []
