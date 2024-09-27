@@ -1,16 +1,21 @@
 import { readJson, read, Stats, ensureFile, readdir } from 'fs-extra'
 import { promisify } from 'util'
 import { stat, open } from 'fs/promises'
-import { resolve } from 'path'
+import { posix, resolve } from 'path'
 
-// from https://stackoverflow.com/a/45130990/24056785
-export async function getFiles(dir): Promise<string[]> {
+/**
+ * from https://stackoverflow.com/a/45130990/24056785
+ * @param dir parent directory to search for files
+ * @param normalizePosix whether to normalize the file paths to posix format
+ * @returns all file paths (recursively) under given `dir`
+ */
+export async function getFiles(dir: string, normalizePosix = false): Promise<string[]> {
     const dirents = await readdir(dir, { withFileTypes: true })
     const files = await Promise.all(dirents.map((dirent) => {
         const res = resolve(dir, dirent.name)
         return dirent.isDirectory() ? getFiles(res) : res
     }))
-    return Array.prototype.concat(...files)
+    return Array.prototype.concat(...files).map(file => normalizePosix ? posix.normalize(file): file)
 }
 
 export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault | undefined): Promise<T|TDefault> {
