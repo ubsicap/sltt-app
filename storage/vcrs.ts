@@ -1,9 +1,8 @@
 import { ensureDir, writeJson } from 'fs-extra'
-import { readdir } from 'fs/promises'
-import { basename, join, resolve } from 'path'
+import { basename, join } from 'path'
 import Bottleneck from 'bottleneck'
 import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse, VideoCacheRecord } from './vcrs.d'
-import { readJsonCatchMissing } from './utils'
+import { getFiles, readJsonCatchMissing } from './utils'
 
 const composeVideoCacheRecordFilename = (_id: string): {
     project: string,
@@ -64,16 +63,6 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
     batcher.add({ fullPath, videoId, videoCacheRecord })
 
     return { fullPath }
-}
-
-// from https://stackoverflow.com/a/45130990/24056785
-async function getFiles(dir): Promise<string[]> {
-    const dirents = await readdir(dir, { withFileTypes: true })
-    const files = await Promise.all(dirents.map((dirent) => {
-        const res = resolve(dir, dirent.name)
-        return dirent.isDirectory() ? getFiles(res) : res
-    }))
-    return Array.prototype.concat(...files)
 }
 
 export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, project }: ListVcrFilesArgs ): Promise<ListVcrFilesResponse> {

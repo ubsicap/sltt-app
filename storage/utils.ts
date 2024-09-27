@@ -1,6 +1,17 @@
-import { readJson, read, Stats, ensureFile } from 'fs-extra'
+import { readJson, read, Stats, ensureFile, readdir } from 'fs-extra'
 import { promisify } from 'util'
 import { stat, open } from 'fs/promises'
+import { resolve } from 'path'
+
+// from https://stackoverflow.com/a/45130990/24056785
+export async function getFiles(dir): Promise<string[]> {
+    const dirents = await readdir(dir, { withFileTypes: true })
+    const files = await Promise.all(dirents.map((dirent) => {
+        const res = resolve(dir, dirent.name)
+        return dirent.isDirectory() ? getFiles(res) : res
+    }))
+    return Array.prototype.concat(...files)
+}
 
 export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault | undefined): Promise<T|TDefault> {
     try {
