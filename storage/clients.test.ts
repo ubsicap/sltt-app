@@ -24,7 +24,7 @@ describe('handleRegisterClientUser', () => {
     
   it('should register a new client user correctly', async () => {
     const clientsFolder = tempDir
-    const clientId = '1234'
+    const clientId = 'f2a4'
     const username = 'test@example.com'
 
     const args: RegisterClientUserArgs = { clientId, username }
@@ -41,7 +41,7 @@ describe('handleRegisterClientUser', () => {
 
   it('should add a user to an existing client user file', async () => {
     const clientsFolder = tempDir
-    const clientId = '1234'
+    const clientId = 'f2a4'
     const existingUsername = 'existing@example.com'
     const newUsername = 'new@example.com'
 
@@ -66,7 +66,7 @@ describe('handleRegisterClientUser', () => {
 
   it('should create the necessary directories if they do not exist', async () => {
     const clientsFolder = join(tempDir, 'nonexistentDir')
-    const clientId = '1234'
+    const clientId = 'f2a4'
     const username = 'test@example.com'
 
     const args: RegisterClientUserArgs = { clientId, username }
@@ -81,19 +81,19 @@ describe('handleRegisterClientUser', () => {
     expect(response).toBe(fileContent[username])
   })
 
-  it('should throw an error if clientId is not a 4-digit string', async () => {
+  it('should throw an error if clientId is not a 4-digit hex string', async () => {
     const clientsFolder = tempDir
     const clientId = '123'
     const username = 'test@example.com'
 
     const args: RegisterClientUserArgs = { clientId, username }
 
-    await expect(handleRegisterClientUser(clientsFolder, args)).rejects.toThrow('clientId must be a 4-digit string, received: 123')
+    await expect(handleRegisterClientUser(clientsFolder, args)).rejects.toThrow('clientId must be a (4 character) alphanumeric string, received: 123')
   })
 
   it('should throw an error if username is not a valid email address', async () => {
     const clientsFolder = tempDir
-    const clientId = '1234'
+    const clientId = 'f2a4'
     const username = 'invalid-email'
 
     const args: RegisterClientUserArgs = { clientId, username }

@@ -3,8 +3,8 @@ import { RegisterClientUserArgs, RegisterClientUserResponse } from './clients.d'
 import { readJsonCatchMissing } from './utils'
 
 export const handleRegisterClientUser = async (clientsFolder: string, { clientId, username }: RegisterClientUserArgs): Promise<RegisterClientUserResponse> => {
-    if (!/^\d{4}$/.test(clientId)) {
-        throw new Error(`clientId must be a 4-digit string, received: ${clientId}`)
+    if (!/^[0-9a-z]{4}$/.test(clientId)) {
+        throw new Error(`clientId must be a (4 character) alphanumeric string, received: ${clientId}`)
     }
     if (!/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(username)) {
         throw new Error(`username must be a valid email address, received: ${username}`)
