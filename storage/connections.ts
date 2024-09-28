@@ -1,10 +1,11 @@
 import { access } from 'fs/promises'
-import { constants } from 'fs-extra'
+import { constants, ensureDir } from 'fs-extra'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { ConnectToUrlArgs, ConnectToUrlResponse, ProbeConnectionsArgs, ProbeConnectionsResponse } from './connections.d'
 
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
 
+    await ensureDir(defaultStoragePath)
     const connections = await Promise.all(
         [pathToFileURL(defaultStoragePath).href, ...(urls || [])].map(
             async (url) => {
