@@ -185,12 +185,17 @@ ipcMain.handle(DOCS_API_SAVE_REMOTE_SPOTS, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'spots' in args && typeof args.spots === 'object' && Object.keys(args.spots).length > 0
-        && Object.values(args.spots).every(spot => typeof spot === 'object' && 'seq' in spot && 'bytePosition' in spot)
+        && Object.values(args.spots).every(
+            spot => typeof spot === 'object'
+                && 'seq' in spot && typeof spot.seq === 'number'
+                && 'bytePosition' in spot && typeof spot.bytePosition === 'number'
+                && 'modDate' in spot && typeof spot.modDate === 'string'
+            )
     ) {
         const { clientId, project, spots }: SaveRemoteSpotsArgs = args
         return await handleSaveRemoteSpots(getDocsPath(), { clientId, project, spots })
     } else {
-        throw Error(`invalid args for ${DOCS_API_SAVE_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { seq: number, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${DOCS_API_SAVE_REMOTE_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { seq: number, bytePosition: number, modDate: string }} }' Got: ${JSON.stringify(args)}`)
     }
 })
 
@@ -257,12 +262,19 @@ ipcMain.handle(DOCS_API_SAVE_LOCAL_SPOTS, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'project' in args && typeof args.project === 'string'
         && 'spots' in args && typeof args.spots === 'object' && Object.keys(args.spots).length > 0
-        && Object.values(args.spots).every(spot => typeof spot === 'object' && 'clientId' in spot && 'bytePosition' in spot)
+        && Object.values(args.spots).every(
+            spots => Array.isArray(spots) && 
+            spots.every(spot => typeof spot === 'object'
+                && 'clientId' in spot && typeof spot.clientId === 'string'
+                && 'bytePosition' in spot && typeof spot.bytePosition === 'number'
+                && 'modDate' in spot && typeof spot.modDate === 'string'
+            )
+        )
     ) {
         const { clientId, project, spots } = args
         return await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
     } else {
-        throw Error(`invalid args for ${DOCS_API_SAVE_LOCAL_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { clientId: string, bytePosition: number }} }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${DOCS_API_SAVE_LOCAL_SPOTS}. Expected: '{ project: string, clientId: string, spots: { [spotKey: string]: { clientId: string, bytePosition: number, modDate: string }[] } }' Got: ${JSON.stringify(args)}`)
     }
 })
 
