@@ -34,7 +34,7 @@ ipcMain.handle(CONNECTIONS_API_PROBE, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && ('urls' in args && Array.isArray(args.urls) || args.urls === undefined)) {
         const { clientId, urls }: ProbeConnectionsArgs = args
-        return await handleProbeConnections(lanStoragePath, { clientId, urls })
+        return await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, urls })
     } else {
         throw Error(`invalid args for ${CONNECTIONS_API_PROBE}. Expected: '{ urls: string[] }' Got: ${JSON.stringify(args)}`)
     }
