@@ -162,7 +162,7 @@ export const handleStoreLocalDocs = async (docsFolder: string, { clientId, proje
         }
     }
     await ensureDir(fullFromPath)
-    const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
+    const clientDocsPath = join(fullFromPath, `${clientId}.sltt-docs`)
     await ensureFile(clientDocsPath)
 
     let counts = 0

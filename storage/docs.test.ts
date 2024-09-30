@@ -346,7 +346,8 @@ describe('handleStoreLocalDocs', () => {
     expect(storedCount).toBe(1)
 
     // Verify that the file was created and contains the new line
-    const clientDocsPath = join(docsFolder, `${clientId}.sltt-docs`)
+    const fullFromPath = join(docsFolder, project, 'local')
+    const clientDocsPath = join(fullFromPath, `${clientId}.sltt-docs`)
     const fileContent = await readFile(clientDocsPath, 'utf-8')
     const fileLines = fileContent.split('\n')
     expect(fileLines[0]).toEqual(expect.stringMatching(/^ {2}\t\d{13}\t{"_id":"20240917","modDate":"2024\/09\/17 12:30:33","creator":"bob@example.com","modBy":"alice@example.com"}$/))
