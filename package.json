@@ -15,6 +15,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "typecheck:watch": "tsc -p tsconfig.json --watch",
     "start": "electron-vite preview",
     "test": "vitest",
     "dev": "electron-vite dev",
@@ -67,17 +68,20 @@
   "dependencies": {
     "@electron-toolkit/preload": "^1.0.3",
     "@electron-toolkit/utils": "^1.0.2",
+    "bottleneck": "^2.19.5",
     "check-disk-space": "^2.1.0",
     "cors": "^2.8.5",
     "electron-updater": "^5.3.0",
     "express": "^4.17.1",
     "ffmpeg-static": "^5.1.0",
     "fluent-ffmpeg": "^2.1.2",
-    "formidable": "^1.2.2"
+    "formidable": "^1.2.2",
+    "fs-extra": "^11.2.0"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron/notarize": "^1.2.3",
+    "@types/lodash": "^4.17.7",
     "@types/node": "18.0.0",
     "@types/react": "18.0.30",
     "@types/react-dom": "18.0.11",
