@@ -114,7 +114,7 @@ app.get('/metadata', async (req, res, next) => {
     }
 })
 
-app.get('/freeSpace', async (req, res, next) => {
+app.get('/freeSpace', async (_req, res, /* next */) => {
     let space = await checkDiskSpace(_config.videosPath)
     res.send({ free: space.free })
 })

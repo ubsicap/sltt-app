@@ -1,7 +1,7 @@
 import { readJson, read, Stats, ensureFile, readdir } from 'fs-extra'
 import { promisify } from 'util'
 import { stat, open } from 'fs/promises'
-import { posix, resolve } from 'path'
+import { resolve } from 'path'
 
 /**
  * from https://stackoverflow.com/a/45130990/24056785
