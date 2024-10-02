@@ -3,65 +3,55 @@
 This server compresses video files and concatenates them.
 It runs on the user's local machine.
 
+The npm module 'pkg' is used to build installable compressor files.
+
+If you fiddle with the build process
+check to make sure the resulting win and mac files are still around 125mb. If it becomes &lt; 100mb
+you have probably broken the build process.
+
+Even if VSC does not think there is a syntax error ... the pkg module may 
+think there is. For example, pkg did not like "x?.y", had to use "x && x.y".
+
+It is necessary to include the --debug flag in the pkg command line if you want to see
+specifically why the pkg command is failing.
+
+All package files referenced by the pkg command must either be 'package.json' or end with '.config.json' ...
+so don't rename 'win_package.config.json' to end with something other than 'config.json'.
+AFAIK this requirement is not mentioned in the documentation ... I learned it by tracing into the code.
+
 ## Build and deploy for Windows (.exe)
 
-### SLTT
-
-    yarn build-win
-    yarn deploy-win-dev
-
-User downloads from:
-
-    https://s3.amazonaws.com/sltt-hosting-dev/win/sltt_video_compressor.exe
-
-### AVTT
-
-    yarn build-win-avtt
-    yarn deploy-win-avtt-prd
+    yarn pkg-win
+    yarn deploy-win-dev     # dev
+    yarn deploy-win-prd     # prd
 
 User downloads from:
 
-    https://s3.amazonaws.com/avtt.bible/win/sltt_video_compressor_zip.zip
+Sigh, we currently place the production version in sltt-hosting-dev.
+To change this we need to update the Help files which we have not done in sometime and
+may (or may not) be challenging.
 
-### Note
+    https://s3.amazonaws.com/sltt-hosting-dev/win/sltt_video_compressor.exe     # prd
+    https://s3.amazonaws.com/sltt-hosting-dev/win/sltt_video_compressor_dev.exe     # dev
 
-If you are building for Windows on Windows or Linux, you have to change the build-win
-and build-win-avtt scripts. Instead of
-
-    sed -i '' 's_/macos\/_/win32\/_g'
-
-do
-
-    sed -i 's_/macos\/_/win32\/_g'
-
-If you are building for Windows on Mac, use the first version. Mac uses a different version of
-sed than other operating systems do.
-
-I had to go thru a lot of gyrations to find options to build the win version
-and include the correct version of ffmpeg. If you fiddle with the build process
-check to make sure the resulting .exe is still around 200mb. If it becomes &lt; 180mb
-you have probably broken the build process. The zip should be around 65mb.
-
+Download the compressor by pasting the link into the url input field in the browser.
+Since the compressor is not signed, the first time you launch the .exe you must
+click "more info" and "run anyway" to get the compressor to run.
 
 ## Build and deploy Mac compressor
 
-### SLTT
+The npm module 'pkg' is used to build installable compressor files for Mac. 
+We currently run it via "yarn pkg-mac". 
+If you have any kind of syntax error you will only get a very generic message 
 
     yarn pkg-mac
-    yarn deploy-mac-prd
+    yarn deploy-mac-dev    # dev
+    yarn deploy-mac-prd    # prd
 
 User installs by running this command:
 
-    curl s3.amazonaws.com/sltt-hosting-prd/mac/compress | bash
-
-### AVTT
-
-    yarn build-mac-avtt
-    yarn deploy-mac-avtt-prd
-
-User installs by running this command:
-
-    curl s3.amazonaws.com/avtt.bible/mac/compress | bash
+    curl s3.amazonaws.com/sltt-hosting-prd/mac/compress | bash    # prd, creates sltt_video_compressor
+    curl s3.amazonaws.com/sltt-hosting-dev/mac/compress | bash    # dev, creates sltt_video_compressor_dev
 
 ### Note
 
@@ -231,9 +221,3 @@ We are using the following versions of ffmpeg/ffprobe:
 
 - Windows: 2021-03-31-git-61ea0e3191
 - macOS: 101778-g84ac35ecb8
-
-For linux (dev builds) 
-[use sudo apt install ffmpeg]
-Then the following will be copied to resources
-- /usr/bin/ffmpeg
-- /usr/bin/ffprobe

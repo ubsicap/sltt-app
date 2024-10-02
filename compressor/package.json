@@ -5,12 +5,14 @@
   "bin": "index.js",
   "license": "MIT",
   "scripts": {
-    "pkg-mac": "pkg . --targets node12-macos-x64 --out-path ./install_mac",
+    "pkg-mac": "pkg . --debug --targets node12-macos-x64 --out-path ./install_mac",
     "deploy-mac-prd": "aws s3 cp install_mac/compress s3://sltt-hosting-prd/mac/compress; aws s3 cp install_mac/sltt_video_compressor s3://sltt-hosting-prd/mac/sltt_video_compressor",
+    "deploy-mac-dev": "aws s3 cp install_mac/compress_dev s3://sltt-hosting-prd/dev/compress; aws s3 cp install_mac/sltt_video_compressor s3://sltt-hosting-dev/mac/sltt_video_compressor",
 
-    "build-win": "pkg . --targets node12-win-x64 --out-path ./install_win",
-    "deploy-win-dev": "aws s3 cp install_win/sltt_video_compressor.exe s3://sltt-hosting-dev/win/sltt_video_compressor.exe"
-    },
+    "pkg-win": "pkg win_package.config.json --debug --targets node12-win-x64 --out-path ./install_win",
+    "deploy-win-prd": "aws s3 cp install_win/sltt_video_compressor.exe s3://sltt-hosting-dev/win/sltt_video_compressor.exe",
+    "deploy-win-dev": "aws s3 cp install_win/sltt_video_compressor.exe s3://sltt-hosting-dev/win/sltt_video_compressor_dev.exe"
+  },
   "pkg": {
     "assets": [
       "src/extraResources/macos/**/*"

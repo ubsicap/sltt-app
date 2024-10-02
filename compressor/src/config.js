@@ -35,6 +35,7 @@ console.log(`srcFfmpegPath: ${srcFfmpegPath}`)
 
 const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
 
-const version = '1.1'
+const version = '1.1.0'
+console.log(`Compressor Version: ${version}`)
 
 module.exports = { resourcesPath, videosPath, srcFfmpegPath, ffmpegPath, version, platform }

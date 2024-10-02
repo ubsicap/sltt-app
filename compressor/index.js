@@ -11,6 +11,16 @@ const _config = require('./src/config')
 
 const port = 29678
 
+const debug = false
+
+// Log request/response
+debug && app.use((req, res, next) => {
+    res.on('finish', () => {
+        console.log(`***${req.method} ${req.originalUrl} ${res.statusCode}`)
+    })
+    next()
+})
+
 const app = express()
 app.use(cors({
     origin: '*',
@@ -40,13 +50,17 @@ app.get('/ffmpeg/stats', async (req, res, next) => {
 })
 
 // Upload file
-app.put('/', (req, res, next) => {
+app.put('/', async (req, res, next) => {
+    await copyResources()
+
     const KB_PER_GIGABYTE = 1024 * 1024 * 1024
     let maxFileSize = 50 * KB_PER_GIGABYTE
     let { videosPath } = _config
     let uploadDir = videosPath
     const form = formidable({ multiples: true, maxFileSize, uploadDir })
     form.parse(req, async (err, fields, files) => {
+        debug && console.log('put file', files.file && files.file.path, err)
+
         if (err) {
             if (err.message.startsWith('maxFileSize exceeded')) {
                 err.statusCode = 413    // Payload too large
@@ -135,9 +149,8 @@ app.get('/progress', (req, res, next) => {
 
     let entry = progressMap.get(filePath)
     if (!entry) {
-        let error = new Error('Does not exist')
-        error.statusCode = 404
-        return next(error)
+       // If the entry is not found yet, we assume it is because the compression hasn't started yet.
+        entry = { percent: 0, finished: false, error: '' }
     }
 
     let { percent, finished, error } = entry
@@ -162,6 +175,7 @@ app.put('/compress', async (req, res, next) => {
     res.send({ filePath: outputPath })
 
     let compressor = new VideoCompressor()
+    await copyResources()
     await compressor.compress(filePath, outputPath, ffmpegParameters)
 })
 
@@ -190,7 +204,7 @@ function validateCompressionFields(req) {
 }
 
 // Concatenate a list of files.
-// They must all have the same video diminensions and codec.
+// They must all have the same video dimensions and codec.
 app.put('/concatenate', async (req, res, next) => {
     let { filePaths } = req.body
 
@@ -205,6 +219,7 @@ app.put('/concatenate', async (req, res, next) => {
     res.send({ filePath: outputPath })
 
     let compressor = new VideoCompressor()
+    await copyResources()
     await compressor.concatenate(filePaths, outputPath)
 })
 
@@ -229,40 +244,49 @@ async function startServer() {
 
 async function initialize() {
     try {
-        let { resourcesPath, videosPath } = _config
-        let mkdir = util.promisify(fs.mkdir)
-        let rmdir = util.promisify(fs.rm)
-        await mkdir(resourcesPath, { recursive: true })
+        const { videosPath } = _config
         if (fs.existsSync(videosPath)) {
-            await rmdir(videosPath, { recursive: true })   // Remove any old videos
+            // If rmSync is available it is the preferred method ... otherwise use the older rmdirSync
+            if (fs.rmSync) {
+                fs.rmSync(videosPath, { recursive: true, force: true })
+            } else {
+                fs.rmdirSync(videosPath, { recursive: true })
+            }
         }
-        await mkdir(videosPath, { recursive: true })
-        console.log('Directory created successfully.')
+        fs.mkdirSync(videosPath, { recursive: true })
         await copyResources()
     } catch (err) {
         return console.error(err)
     }
 }
 
-// Copy ffmpeg to TEMP directory on local filesystem
+// Copy ffmpeg to TEMP directory on local filesystem.
+// Not sure why this is necessary ... couldn't we just run the binaries from the resources directory?
+// Maybe it is the only way to ensure that the files are executable (chMod)
 async function copyResources() {
-    let { srcFfmpegPath, ffmpegPath, platform } = _config
+    let { srcFfmpegPath, ffmpegPath, videosPath } = _config
 
-    let shouldCopyResources = await versionFileIsOlderThanServer()
-    const ffmpegExists = fs.existsSync(ffmpegPath)
-    if (shouldCopyResources || !ffmpegExists) {
-        console.log(`Copying ffmpeg resource to ${ffmpegPath}`)
-        if (platform === 'linux') {
-            await copyFile('/usr/bin/ffmpeg', ffmpegPath)
-        } else {
-            await copyFile(srcFfmpegPath, ffmpegPath)
-            await chMod(ffmpegPath, 0o777)
+    if (await needToCopyFFFiles()) {
+        console.log('Copy resources')
+
+        let { resourcesPath } = _config
+        if (!fs.existsSync(resourcesPath)) {
+            fs.mkdirSync(resourcesPath, { recursive: true })
         }
+
+        if (!fs.existsSync(videosPath)) {
+            fs.mkdirSync(videosPath, { recursive: true })
+        }
+
+        await copyFile(srcFfmpegPath, ffmpegPath)
+        await chMod(ffmpegPath, 0o777)
+
+        // await copyFile(oldFfprobePath, ffprobePath)
+        // await chMod(ffprobePath, 0o777)
+
         await createVersionFile()
-    } else {
-        const { resourcesPath } = _config
-        const versionTxtPath = path.join(resourcesPath, '/version.txt')
-        console.log(`No need to copy ffmpeg.exe: version.txt is up to date at ${versionTxtPath}`)
+
+        console.log('Copy resources done')
     }
 }
 
@@ -292,18 +316,28 @@ async function copyFile(inputPath, outputPath) {
     })
 }
 
-async function versionFileIsOlderThanServer() {
-    return new Promise((resolve, reject) => {
-        let { resourcesPath, version } = _config
-        let versionFilePath = path.join(resourcesPath, '/version.txt')
-        fs.readFile(versionFilePath, 'utf8', (err, data) => {
-            if (err) {
-                return resolve(true)
-            }
+async function needToCopyFFFiles() {
+    const { resourcesPath, version, ffmpegPath, videosPath /*, ffprobePath */ } = _config
+    
+    try {
+        const versionFilePath = path.join(resourcesPath, '/version.txt')
 
-            return resolve(data !== version)
-        })
-    })
+        if (!fs.existsSync(versionFilePath)) return true
+        if (!fs.existsSync(videosPath)) return true
+        if (!fs.existsSync(ffmpegPath)) return true
+        // if (!fs.existsSync(ffprobePath)) return true
+
+        const data = fs.readFileSync(versionFilePath, 'utf8')
+        if (data !== version) {
+            console.log('Copy new version ffmpeg resources')
+            return true
+        }
+    } catch (error) {
+        console.log('Copy resources needed, error:', error)
+        return true // if anything goes wrong, copy the files
+    }
+
+    return false
 }
 
 async function createVersionFile() {
