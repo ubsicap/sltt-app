@@ -19,6 +19,7 @@ let lanStoragePath = buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH)
 
 const getLANStoragePath = (): string => lanStoragePath
 const setLANStoragePath = (path: string): void => {
+    if (path === lanStoragePath) return
     lanStoragePath = path
     console.log('lanStoragePath:', lanStoragePath)
 }
