@@ -49,17 +49,17 @@ export const filterBlobFiles = (allPosixFilePaths: string[]): string[] => {
     return allPosixFilePaths.filter((file) => blobPattern.test(basename(file)))
 }
 
-export const transformBlobFilePathsToBlobIds = (fullClientPath: string, blobFilePaths: string[]): string[] => {
+export const transformBlobFilePathsToBlobIds = (blobsPath: string, blobFilePaths: string[]): string[] => {
     // now normalize the blob file paths to remove fullClientPath and ensure forward slashes
-    return blobFilePaths.map((file) => posix.relative(fullClientPath, file))
+    return blobFilePaths.map((file) => posix.relative(blobsPath.replace(/\\/g, '/'), file.replace(/\\/g, '/')))
 }
 
 export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: { clientId: string }): Promise<string[]> => {
-    const fullClientPath = join(blobsPath, clientId)
     try {
-        const allPosixFilePaths = await getFiles(fullClientPath, true)
+        console.log('handleRetrieveAllBlobIds for client', clientId)
+        const allPosixFilePaths = await getFiles(blobsPath, true)
         const blobFilePaths = filterBlobFiles(allPosixFilePaths)
-        const blobIds = transformBlobFilePathsToBlobIds(fullClientPath, blobFilePaths)
+        const blobIds = transformBlobFilePathsToBlobIds(blobsPath, blobFilePaths)
         return blobIds
     } catch (error) {
         if (error.code === 'ENOENT') {

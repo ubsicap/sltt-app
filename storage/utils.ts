@@ -6,16 +6,16 @@ import { posix, resolve } from 'path'
 /**
  * from https://stackoverflow.com/a/45130990/24056785
  * @param dir parent directory to search for files
- * @param normalizePosix whether to normalize the file paths to posix format
+ * @param useForwardSlashes whether to convert path separators to forward slash format
  * @returns all file paths (recursively) under given `dir`
  */
-export async function getFiles(dir: string, normalizePosix = false): Promise<string[]> {
+export async function getFiles(dir: string, useForwardSlashes = false): Promise<string[]> {
     const dirents = await readdir(dir, { withFileTypes: true })
     const files = await Promise.all(dirents.map((dirent) => {
         const res = resolve(dir, dirent.name)
         return dirent.isDirectory() ? getFiles(res) : res
     }))
-    return Array.prototype.concat(...files).map(file => normalizePosix ? posix.normalize(file): file)
+    return Array.prototype.concat(...files).map(file => useForwardSlashes ? file.replace(/\\/g, '/'): file)
 }
 
 export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault | undefined): Promise<T|TDefault> {

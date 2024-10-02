@@ -11,12 +11,12 @@ import { handleRegisterClientUser } from './clients'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_PROBE, ConnectToUrlArgs, ProbeConnectionsArgs } from './connections.d'
 import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
-import { handleRetrieveBlob, handleStoreBlob } from './blobs'
+import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
 import { handleConnectToUrl, handleProbeConnections } from './connections'
 
 const DEFAULT_STORAGE_BASE_PATH = app.getPath('userData')
 let lanStoragePath = buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH)
-console.log('lanStoragePath:', lanStoragePath)
+
 const getLANStoragePath = (): string => lanStoragePath
 const setLANStoragePath = (path: string): void => {
     lanStoragePath = path
@@ -103,7 +103,8 @@ ipcMain.handle(BLOBS_API_RETRIEVE_ALL_BLOB_IDS, async (_, args) => {
         return `${BLOBS_API_RETRIEVE_ALL_BLOB_IDS} api test worked!`
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string') {
-        return await Promise.resolve([])
+        const { clientId } = args
+        return await handleRetrieveAllBlobIds(getBlobsPath(), { clientId })
     } else {
         throw Error(`invalid args for ${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}. Expected: 'test' Got: ${JSON.stringify(args)}`)
     }
