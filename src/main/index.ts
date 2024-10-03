@@ -9,7 +9,7 @@ import icon from '../../resources/icon.png?asset'
 const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
 
 function createWindow(partition?: string): BrowserWindow {
-  const mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1400,
     height: 670,
     show: false,
@@ -23,13 +23,13 @@ function createWindow(partition?: string): BrowserWindow {
   })
 
   // Maximize the window
-  mainWindow.maximize()
+  win.maximize()
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+  win.on('ready-to-show', () => {
+    win.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -37,8 +37,8 @@ function createWindow(partition?: string): BrowserWindow {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
-  loadUrlOrFile(mainWindow)
-  return mainWindow
+  loadUrlOrFile(win)
+  return win
 }
 
 // This method will be called when Electron has finished
@@ -184,15 +184,13 @@ function createMenu(mainWindow: BrowserWindow): void {
   const menuTemplate = [
     {
       label: '🪟',
-      tooltip: 'Configure windows',
       submenu: [
         ...configNames.map((name) => ({
           label: name,
           click: (): ReturnType<typeof createWindow> => createWindow(name)
         })),
         {
-          label: '➕🪟🕶️',
-          tooltip: 'Add new private window',
+          label: '➕🕶️',
           click: async (): Promise<void> => {
             const newConfigName = await launchNewWindowConfig(configs)
             if (newConfigName) {
