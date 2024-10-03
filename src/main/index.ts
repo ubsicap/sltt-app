@@ -1,12 +1,14 @@
-import { app, shell, BrowserWindow, LoadFileOptions } from 'electron'
+import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { parse } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
 
-function createWindow(): BrowserWindow {
-  // Create the browser window.
+const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
+
+function createWindow(partition?: string): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 1400,
     height: 670,
@@ -15,7 +17,8 @@ function createWindow(): BrowserWindow {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      partition: partition && `persist:${partition}`
     }
   })
 
@@ -58,15 +61,25 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  const win = createWindow()
-  const { session: { webRequest } } = win.webContents
+  const mainWindow = createWindow()
+  const { session: { webRequest } } = mainWindow.webContents
 
   webRequest.onBeforeRequest({
     urls: ['http://localhost/callback*']
   }, async ({ url: callbackURL }) => {
     const urlParts = parse(callbackURL, true)
     const { search } = urlParts
-    loadUrlOrFile(win, search ? { search } : undefined)
+    loadUrlOrFile(mainWindow, search ? { search } : undefined)
+  })
+
+  createMenu(mainWindow)
+
+  // Register a global shortcut for Alt+W
+  globalShortcut.register('Alt+W', () => {
+    const menu = Menu.getApplicationMenu()
+    if (menu) {
+      menu.popup({ window: mainWindow })
+    }
   })
 
   app.on('activate', function () {
@@ -115,6 +128,100 @@ function loadUrlOrFile(mainWindow: BrowserWindow, options: LoadFileOptions | und
     mainWindow.loadFile(join(__dirname, '../client/index.html'), options)
   }
 }
+
+async function launchNewWindowConfig(configs: ReturnType<typeof loadWindowConfigs>): Promise<string> {
+  const inputWindow = new BrowserWindow({
+    width: 620,
+    height: 320,
+    modal: true,
+    parent: BrowserWindow.getFocusedWindow() || undefined,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  const emptyMenu = Menu.buildFromTemplate([])
+  inputWindow.setMenu(emptyMenu)
+  inputWindow.loadFile(join(__dirname, '../renderer/dialogs/newPrivateWindow.html'))
+  // inputWindow.webContents.openDevTools()
+
+  const [newConfigName] = await promisifyIpcEvent<string>('new-config-name')
+  if (newConfigName) {
+    configs[newConfigName] = { partition: newConfigName }
+    saveWindowConfigs(configs)
+    inputWindow.close()
+    return newConfigName
+  } else {
+    inputWindow.close()
+    return ''
+  }
+}
+
+async function promisifyIpcEvent<TResponse>(event: string): Promise<TResponse[]> {
+  return new Promise((resolve) => {
+    ipcMain.once(event, (_event, ...args) => {
+      resolve(args)
+    })
+  })
+}
+
+function loadWindowConfigs(): Record<string, { partition: string }> {
+  if (existsSync(CONFIG_FILE)) {
+    return JSON.parse(readFileSync(CONFIG_FILE, 'utf-8'))
+  }
+  return {}
+}
+
+function saveWindowConfigs(configs: Record<string, { partition: string }>): void {
+  writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2))
+}
+
+function createMenu(mainWindow: BrowserWindow): void {
+  const configs = loadWindowConfigs()
+  const configNames = Object.keys(configs)
+
+  const menuTemplate = [
+    {
+      label: '🪟',
+      tooltip: 'Configure windows',
+      submenu: [
+        ...configNames.map((name) => ({
+          label: name,
+          click: (): ReturnType<typeof createWindow> => createWindow(name)
+        })),
+        {
+          label: '➕🪟🕶️',
+          tooltip: 'Add new private window',
+          click: async (): Promise<void> => {
+            const newConfigName = await launchNewWindowConfig(configs)
+            if (newConfigName) {
+              createWindow(newConfigName)
+            }
+          }
+        },
+        {
+          label: '🔧',
+          tooltip: 'DevTools',
+          click: (): void => {
+            mainWindow.webContents.openDevTools()
+          }
+        },
+      ]
+    }
+  ]
+
+  const menu = Menu.buildFromTemplate(menuTemplate)
+  Menu.setApplicationMenu(menu)
+
+  // Open DevTools when the menu is shown
+  mainWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.key === 'Alt' && input.code === 'KeyW') {
+      mainWindow.webContents.openDevTools()
+    }
+  })
+}
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
 require('./storage.js')

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Window Configuration</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    label, input {
+      display: block;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>New Window Configuration</h1>
+  <form id="configForm">
+    <label for="configName">Enter a unique name for the new window configuration:</label>
+    <input type="text" id="configName" name="configName" required autofocus>
+    <button type="submit">Submit</button>
+  </form>
+  <script>
+
+    // window.onload = () => {
+    //   const input = document.getElementById('configName')
+    //   if (input) {
+    //     input.focus()
+    //   } else {
+    //     console.error('Input element not found')
+    //   }
+    // }
+
+    const { ipcRenderer } = window.electron
+    document.getElementById('configForm').addEventListener('submit', (event) => {
+      event.preventDefault()
+      const configName = document.getElementById('configName').value
+      ipcRenderer.send('new-config-name', configName)
+    })
+  </script>
+</body>
+</html>
