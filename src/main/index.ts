@@ -210,13 +210,6 @@ function createMenu(mainWindow: BrowserWindow): void {
 
   const menu = Menu.buildFromTemplate(menuTemplate)
   Menu.setApplicationMenu(menu)
-
-  // Open DevTools when the menu is shown
-  mainWindow.webContents.on('before-input-event', (_event, input) => {
-    if (input.key === 'Alt' && input.code === 'KeyW') {
-      mainWindow.webContents.openDevTools()
-    }
-  })
 }
 
 // In this file you can include the rest of your app's specific main process
