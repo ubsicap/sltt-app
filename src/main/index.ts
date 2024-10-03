@@ -5,8 +5,11 @@ import { parse } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
+import { create } from 'domain'
 
 const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
+
+const windowsCreated: BrowserWindow[] = []
 
 function createWindow(partition?: string): BrowserWindow {
   const win = new BrowserWindow({
@@ -38,7 +41,7 @@ function createWindow(partition?: string): BrowserWindow {
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
   loadUrlOrFile(win)
-  createMenu(win)
+  windowsCreated.push(win)
   return win
 }
 
@@ -73,12 +76,27 @@ app.whenReady().then(() => {
     loadUrlOrFile(mainWindow, search ? { search } : undefined)
   })
 
+  // Disable the default Alt key behavior
+  Menu.setApplicationMenu(null)
+
   // Register a global shortcut for Alt+W
   globalShortcut.register('Alt+W', () => {
-    const menu = Menu.getApplicationMenu()
-    if (menu) {
-      menu.popup({ window: mainWindow })
+    // only create menus when Alt+W is pressed
+    for (const win of windowsCreated) {
+      createMenu(win)
+      // only show the menu if the window is focused
+      if (win.isFocused()) {
+        const menu = Menu.getApplicationMenu()
+        if (menu) {
+          menu.popup({ window: win })
+        }
+      }
     }
+  })
+
+  // Unregister the shortcut when the app is about to quit
+  app.on('will-quit', () => {
+    globalShortcut.unregister('Alt+W')
   })
 
   app.on('activate', function () {
@@ -96,7 +114,6 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
-
 
 // if someone launches a second version of the app, quit it and focus on the first one
 function ensureOneInstanceOfSlttAppAndCompressor(): void {
