@@ -13,8 +13,8 @@ let path = require('path')
 // To make sure ffmpeg files got installed as expected:
 // http://localhost:29678/ffmpeg/stats
 
-const tmpDirectory = path.join(os.tmpdir(), '/compression-server')
-console.log(`Temporary directory: ${tmpDirectory}`)
+const tmpDirectory = path.join(os.tmpdir(), '/sltt-app/server-29678')
+console.log(`sltt-app server temp directory: ${tmpDirectory}`)
 
 const resourcesPath = path.join(tmpDirectory, '/resources')
 const videosPath = path.join(tmpDirectory, '/videos')
@@ -35,7 +35,7 @@ console.log(`srcFfmpegPath: ${srcFfmpegPath}`)
 
 const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
 
-const version = '1.1.0'
-console.log(`Compressor Version: ${version}`)
+const version = '2.0.0'
+console.log(`sltt-app server version: ${version}`)
 
 module.exports = { resourcesPath, videosPath, srcFfmpegPath, ffmpegPath, version, platform }

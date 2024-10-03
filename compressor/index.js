@@ -56,8 +56,26 @@ app.put('/', async (req, res, next) => {
     const KB_PER_GIGABYTE = 1024 * 1024 * 1024
     let maxFileSize = 50 * KB_PER_GIGABYTE
     let { videosPath } = _config
-    let uploadDir = videosPath
-    const form = formidable({ multiples: true, maxFileSize, uploadDir })
+    const form = formidable({ multiples: true, maxFileSize })
+    // use on fileBegin to customize uploadDir based on clientId
+    // this should help ensure that multiple client requests don't interfere with each other.
+    // (NOTE: this might not be necessary since most operations are based on explicit filePath)
+    form.on('fileBegin', (_name, file) => {
+        const clientId = req.headers['client-id'] // Assuming clientId is sent in headers
+        if (!clientId) {
+            const error = new Error("Missing 'client-id' header.")
+            error.statusCode = 400
+            return next(error)
+        }
+
+        const clientDir = path.join(videosPath, clientId)
+        if (!fs.existsSync(clientDir)) {
+            fs.mkdirSync(clientDir, { recursive: true })
+        }
+
+        file.path = path.join(clientDir, path.basename(file.path))
+    })
+
     form.parse(req, async (err, fields, files) => {
         debug && console.log('put file', files.file && files.file.path, err)
 
@@ -170,8 +188,8 @@ app.put('/compress', async (req, res, next) => {
         return next(error)
     }
 
-    let { videosPath } = _config
-    let outputPath = path.join(videosPath, `${new Date().getTime()}.mp4`)
+    const clientDir = path.dirname(filePath)
+    let outputPath = path.join(clientDir, `${new Date().getTime()}.mp4`)
     res.send({ filePath: outputPath })
 
     let compressor = new VideoCompressor()
@@ -214,8 +232,8 @@ app.put('/concatenate', async (req, res, next) => {
         return next(error)
     }
 
-    let { videosPath } = _config
-    let outputPath = path.join(videosPath, `${new Date().getTime()}.mp4`)
+    const clientDir = path.dirname(filePaths[0])
+    let outputPath = path.join(clientDir, `${new Date().getTime()}.mp4`)
     res.send({ filePath: outputPath })
 
     let compressor = new VideoCompressor()
