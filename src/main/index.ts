@@ -176,7 +176,7 @@ function saveWindowConfigs(configs: Record<string, { partition: string }>): void
   writeFileSync(CONFIG_FILE, JSON.stringify(configs, null, 2))
 }
 
-function createMenu(mainWindow: BrowserWindow): void {
+function createMenu(win: BrowserWindow): void {
   const configs = loadWindowConfigs()
   const configNames = Object.keys(configs)
 
@@ -201,7 +201,7 @@ function createMenu(mainWindow: BrowserWindow): void {
           label: '🔧',
           tooltip: 'DevTools',
           click: (): void => {
-            mainWindow.webContents.openDevTools()
+            win.webContents.openDevTools()
           }
         },
       ]
