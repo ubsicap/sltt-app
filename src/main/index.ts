@@ -38,6 +38,7 @@ function createWindow(partition?: string): BrowserWindow {
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
   loadUrlOrFile(win)
+  createMenu(win)
   return win
 }
 
@@ -71,8 +72,6 @@ app.whenReady().then(() => {
     const { search } = urlParts
     loadUrlOrFile(mainWindow, search ? { search } : undefined)
   })
-
-  createMenu(mainWindow)
 
   // Register a global shortcut for Alt+W
   globalShortcut.register('Alt+W', () => {
