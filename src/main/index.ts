@@ -5,7 +5,6 @@ import { parse } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
-import { create } from 'domain'
 
 const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
 
