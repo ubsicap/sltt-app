@@ -31,6 +31,10 @@ function createWindow(partition?: string): BrowserWindow {
     win.show()
   })
 
+  win.on('close', () => {
+    windowsCreated.splice(windowsCreated.indexOf(win), 1)
+  })
+
   win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -40,6 +44,15 @@ function createWindow(partition?: string): BrowserWindow {
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
   loadUrlOrFile(win)
+
+  const { session: { webRequest } } = win.webContents
+  webRequest.onBeforeRequest({
+    urls: ['http://localhost/callback*']
+  }, async ({ url: callbackURL }) => {
+    const urlParts = parse(callbackURL, true)
+    const { search } = urlParts
+    loadUrlOrFile(win, search ? { search } : undefined)
+  })
   windowsCreated.push(win)
   return win
 }
@@ -64,16 +77,7 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  const mainWindow = createWindow()
-  const { session: { webRequest } } = mainWindow.webContents
-
-  webRequest.onBeforeRequest({
-    urls: ['http://localhost/callback*']
-  }, async ({ url: callbackURL }) => {
-    const urlParts = parse(callbackURL, true)
-    const { search } = urlParts
-    loadUrlOrFile(mainWindow, search ? { search } : undefined)
-  })
+  createWindow()
 
   // Disable the default Alt key behavior
   Menu.setApplicationMenu(null)
@@ -81,7 +85,7 @@ app.whenReady().then(() => {
   // Register a global shortcut for Alt+W
   globalShortcut.register('Alt+W', () => {
     // only create menus when Alt+W is pressed
-    for (const win of windowsCreated) {
+    for (const win of windowsCreated.filter((win) => !win.isDestroyed())) {
       createMenu(win)
       // only show the menu if the window is focused
       if (win.isFocused()) {
