@@ -10,7 +10,6 @@ let { ffmpegPath } = _config
 ffmpeg.setFfmpegPath(ffmpegPath)
 
 const bytesToMB = bytes => (bytes / (1024 * 1024)).toFixed(1)
-const { basename } = path
 
 class VideoCompressor {
     compress = async (inputFilePath, outputFilePath, ffmpegParameters) => {
@@ -18,7 +17,8 @@ class VideoCompressor {
         let progressTracker = new ProgressNotifier(outputFilePath)
         try {
             let s = fs.statSync(inputFilePath)
-            console.log(`Compress starting: ${basename(inputFilePath)} (${bytesToMB(s.size)}MB)`)
+            const filePathWithParentFolder = `${inputFilePath.split(path.sep).slice(-2).join(path.sep)}`
+            console.log(`Compress starting: ${filePathWithParentFolder} (${bytesToMB(s.size)}MB)`)
             
             let stats = await FfmpegWrapper.compress(inputFilePath, outputFilePath, ffmpegParameters, progressTracker)
             
@@ -34,10 +34,11 @@ class VideoCompressor {
         progressMap.set(outputFilePath, new ProgressEntry())
         let progressTracker = new ProgressNotifier(outputFilePath)
         try {
-            console.log(`Join segments [${filePaths.length}, ${basename(outputFilePath)}`)
-            let { videosPath } = _config
+            const filePathWithParentFolder = `${outputFilePath.split(path.sep).slice(-2).join(path.sep)}`
+            console.log(`Join segments [${filePaths.length}, ${filePathWithParentFolder}]`)
             
-            let concatTextFilePath = path.join(videosPath, `${new Date().getTime()}-concat.txt`)
+            const clientDir = path.dirname(filePaths[0])
+            let concatTextFilePath = path.join(clientDir, `${new Date().getTime()}-concat.txt`)
             await FfmpegWrapper.createConcatFile(filePaths, concatTextFilePath)
             let stats = await FfmpegWrapper.concatenate(concatTextFilePath, outputFilePath)
             
