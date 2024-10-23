@@ -97,9 +97,18 @@ app.whenReady().then(() => {
     }
   })
 
+  // Register a global shortcut for Ctrl+Shift+I to open DevTools
+  globalShortcut.register('Ctrl+Shift+I', () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow()
+    if (focusedWindow) {
+      focusedWindow.webContents.openDevTools()
+    }
+  })
+
   // Unregister the shortcut when the app is about to quit
   app.on('will-quit', () => {
     globalShortcut.unregister('Alt+W')
+    globalShortcut.unregister('Ctrl+Shift+I')
   })
 
   app.on('activate', function () {
@@ -220,6 +229,7 @@ function createMenu(win: BrowserWindow): void {
         {
           label: '🔧',
           tooltip: 'DevTools',
+          accelerator: 'Ctrl+Shift+I',
           click: (): void => {
             win.webContents.openDevTools()
           }
