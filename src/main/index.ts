@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMa
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { parse } from 'url'
-import { optimizer, is } from '@electron-toolkit/utils'
+import { is } from '@electron-toolkit/utils'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
 
@@ -73,42 +73,47 @@ app.whenReady().then(() => {
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+  app.on('browser-window-created', (_, win) => {
+    // optimizer.watchWindowShortcuts(window)
+    win.webContents.on('before-input-event', (_event, input) => {
+      if (input.type === 'keyDown') {
+          // Toggle devtools with <F12> or <Ctrl+Shift+I>
+          if (input.code === 'F12' || (input.key === 'I' && input.control && input.shift)) {
+            if (win.webContents.isDevToolsOpened()) {
+              win.webContents.closeDevTools()
+            } else {
+              win.webContents.openDevTools({ mode: 'right' })
+              console.log('Open dev tool...')
+            }
+        }
+        // Handle Alt+W
+        if (input.key === 'w' && input.alt) {
+          console.log('Alt+w was pressed')
+          // only create menus when Alt+W is pressed
+          for (const win of windowsCreated.filter((win) => !win.isDestroyed())) {
+            createMenu(win)
+            // only show the menu if the window is focused
+            if (win.isFocused()) {
+              const menu = Menu.getApplicationMenu()
+              if (menu) {
+                menu.popup({ window: win })
+              }
+            }
+          }
+        }
+      }
+    })
   })
+
+  // Disable any globalShortcuts
+  globalShortcut.unregisterAll()
 
   createWindow()
 
-  // Disable the default Alt key behavior
   Menu.setApplicationMenu(null)
-
-  // Register a global shortcut for Alt+W
-  globalShortcut.register('Alt+W', () => {
-    // only create menus when Alt+W is pressed
-    for (const win of windowsCreated.filter((win) => !win.isDestroyed())) {
-      createMenu(win)
-      // only show the menu if the window is focused
-      if (win.isFocused()) {
-        const menu = Menu.getApplicationMenu()
-        if (menu) {
-          menu.popup({ window: win })
-        }
-      }
-    }
-  })
-
-  // Register a global shortcut for Ctrl+Shift+I to open DevTools
-  globalShortcut.register('Ctrl+Shift+I', () => {
-    const focusedWindow = BrowserWindow.getFocusedWindow()
-    if (focusedWindow) {
-      focusedWindow.webContents.openDevTools()
-    }
-  })
 
   // Unregister the shortcut when the app is about to quit
   app.on('will-quit', () => {
-    globalShortcut.unregister('Alt+W')
-    globalShortcut.unregister('Ctrl+Shift+I')
   })
 
   app.on('activate', function () {
