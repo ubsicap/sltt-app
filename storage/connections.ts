@@ -9,7 +9,13 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     const connections = await Promise.all(
         [pathToFileURL(defaultStoragePath).href, ...(urls || [])].map(
             async (url) => {
-                const filePath = fileURLToPath(url)
+                let filePath = ''
+                try {
+                    filePath = fileURLToPath(url)
+                } catch (e) {
+                    console.error(`fileURLToPath(${url}) error`, e)
+                    return { url, accessible: false, error: e.message }
+                }
                 return { url, accessible: await canAccess(filePath) }
             }
         )
@@ -30,7 +36,14 @@ const canAccess = async (filePath: string, throwError = false): Promise<boolean>
 }
 
 export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<ConnectToUrlResponse> => {
-    const filePath = fileURLToPath(url)
+    let filePath = ''
+    try {
+        filePath = fileURLToPath(url)
+    }
+    catch (e) {
+        console.error(`fileURLToPath(${url}) error`, e)
+        throw new Error(`Connection path '${url}' is invalid due to error: ` + e.message)
+    }
     await canAccess(filePath, true).catch((e) => {
         console.error(`access(${filePath}) error`, e)
         throw new Error(`Connection path '${filePath}' is inaccessible due to error: ` + e.message)
