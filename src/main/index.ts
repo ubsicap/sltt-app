@@ -79,26 +79,17 @@ app.whenReady().then(() => {
       if (input.type === 'keyDown') {
           // Toggle devtools with <F12> or <Ctrl+Shift+I>
           if (input.code === 'F12' || (input.key === 'I' && input.control && input.shift)) {
-            if (win.webContents.isDevToolsOpened()) {
-              win.webContents.closeDevTools()
-            } else {
-              win.webContents.openDevTools({ mode: 'right' })
-              console.log('Open dev tool...')
-            }
+            toggleDevTools(win)
         }
         // Handle Alt+W
         if (input.key === 'w' && input.alt) {
           console.log('Alt+w was pressed')
           // only create menus when Alt+W is pressed
-          for (const win of windowsCreated.filter((win) => !win.isDestroyed())) {
-            createMenu(win)
-            // only show the menu if the window is focused
-            if (win.isFocused()) {
-              const menu = Menu.getApplicationMenu()
-              if (menu) {
-                menu.popup({ window: win })
-              }
-            }
+          createMenu(win)
+          // only show the menu if the window is focused
+          const menu = Menu.getApplicationMenu()
+          if (menu) {
+            menu.popup({ window: win })
           }
         }
       }
@@ -131,6 +122,15 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+function toggleDevTools(win: Electron.BrowserWindow): void {
+  if (win.webContents.isDevToolsOpened()) {
+    win.webContents.closeDevTools()
+  } else {
+    win.webContents.openDevTools({ mode: 'right' })
+    console.log('Open dev tool...')
+  }
+}
 
 // if someone launches a second version of the app, quit it and focus on the first one
 function ensureOneInstanceOfSlttAppAndCompressor(): void {
@@ -234,9 +234,8 @@ function createMenu(win: BrowserWindow): void {
         {
           label: '🔧',
           tooltip: 'DevTools',
-          accelerator: 'Ctrl+Shift+I',
           click: (): void => {
-            win.webContents.openDevTools()
+            toggleDevTools(win)
           }
         },
       ]
