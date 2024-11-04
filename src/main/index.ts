@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain, nativeTheme } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { parse } from 'url'
@@ -14,6 +14,7 @@ function createWindow(partition?: string): BrowserWindow {
   const win = new BrowserWindow({
     width: 1400,
     height: 670,
+    backgroundColor: '#000',
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -38,6 +39,12 @@ function createWindow(partition?: string): BrowserWindow {
   win.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
+  })
+
+  // Set DevTools theme based on system preferences
+  win.webContents.on('devtools-opened', () => {
+    const devToolsTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'default'
+    win.webContents.executeJavaScript(`DevToolsAPI.setTheme('${devToolsTheme}')`)
   })
 
   // HMR for renderer base on electron-vite cli.
@@ -166,6 +173,7 @@ async function launchNewWindowConfig(configs: ReturnType<typeof loadWindowConfig
   const inputWindow = new BrowserWindow({
     width: 620,
     height: 320,
+    backgroundColor: '#333',
     modal: true,
     parent: BrowserWindow.getFocusedWindow() || undefined,
     webPreferences: {
