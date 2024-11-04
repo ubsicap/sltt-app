@@ -9,10 +9,10 @@ import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORE
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 import { handleRegisterClientUser } from './clients'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
-import { CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_PROBE, ConnectToUrlArgs, ProbeConnectionsArgs } from './connections.d'
+import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
 import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
-import { handleConnectToUrl, handleProbeConnections } from './connections'
+import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
 
 const DEFAULT_STORAGE_BASE_PATH = app.getPath('userData')
 let lanStoragePath = buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH)
@@ -28,6 +28,49 @@ const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
 
+ipcMain.handle(CONNECTIONS_API_GET_STORAGE_PROJECTS, async (_, args) => {
+    if (args === 'test') {
+        return `${CONNECTIONS_API_GET_STORAGE_PROJECTS} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'url' in args && typeof args.url === 'string') {
+            const { clientId, url }: GetStorageProjectsArgs = args
+        return await handleGetStorageProjects(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, url })
+    } else {
+        throw Error(`invalid args for ${CONNECTIONS_API_GET_STORAGE_PROJECTS}. Expected: '{ clientId: string, url: string, project: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(CONNECTIONS_API_ADD_STORAGE_PROJECT, async (_, args) => {
+    if (args === 'test') {
+        return `${CONNECTIONS_API_ADD_STORAGE_PROJECT} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'url' in args && typeof args.url === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && 'adminEmail' in args && typeof args.adminEmail === 'string') {
+            const { clientId, url, project, adminEmail }: AddStorageProjectArgs = args
+        return await handleAddStorageProject(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, url, project, adminEmail })
+    } else {
+        throw Error(`invalid args for ${CONNECTIONS_API_ADD_STORAGE_PROJECT}. Expected: '{ clientId: string, url: string, project: string, adminEmail: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
+ipcMain.handle(CONNECTIONS_API_REMOVE_STORAGE_PROJECT, async (_, args) => {
+    if (args === 'test') {
+        return `${CONNECTIONS_API_REMOVE_STORAGE_PROJECT} api test worked!`
+    } else if (typeof args === 'object'
+        && 'clientId' in args && typeof args.clientId === 'string'
+        && 'url' in args && typeof args.url === 'string'
+        && 'project' in args && typeof args.project === 'string'
+        && 'adminEmail' in args && typeof args.adminEmail === 'string') {
+            const { clientId, url, project, adminEmail }: RemoveStorageProjectArgs = args
+        return await handleRemoveStorageProject(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, url, project, adminEmail })
+    } else {
+        throw Error(`invalid args for ${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}. Expected: '{ clientId: string, url: string, project: string, adminEmail: string }' Got: ${JSON.stringify(args)}`)
+    }
+})
+
 ipcMain.handle(CONNECTIONS_API_PROBE, async (_, args) => {
     if (args === 'test') {
         return `${CONNECTIONS_API_PROBE} api test worked!`
@@ -37,7 +80,7 @@ ipcMain.handle(CONNECTIONS_API_PROBE, async (_, args) => {
         const { clientId, urls }: ProbeConnectionsArgs = args
         return await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, urls })
     } else {
-        throw Error(`invalid args for ${CONNECTIONS_API_PROBE}. Expected: '{ urls: string[] }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${CONNECTIONS_API_PROBE}. Expected: '{ clientId: string, urls: string[] }' Got: ${JSON.stringify(args)}`)
     }
 })
 
@@ -46,13 +89,14 @@ ipcMain.handle(CONNECTIONS_API_CONNECT_TO_URL, async (_, args) => {
         return `${CONNECTIONS_API_CONNECT_TO_URL} api test worked!`
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
-        && 'url' in args && typeof args.url === 'string') {
-        const { clientId, url }: ConnectToUrlArgs = args
-        const newStoragePath = await handleConnectToUrl({ url, clientId })
+        && 'url' in args && typeof args.url === 'string'
+        && ('project' in args && typeof args.project === 'string') || args.project === undefined) {
+        const { clientId, url, project }: ConnectToUrlArgs = args
+        const newStoragePath = await handleConnectToUrl({ clientId, url, project })
         setLANStoragePath(newStoragePath)
         return newStoragePath
     } else {
-        throw Error(`invalid args for ${CONNECTIONS_API_CONNECT_TO_URL}. Expected: '{ url: string }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${CONNECTIONS_API_CONNECT_TO_URL}. Expected: '{ clientId: string, url: string, project?: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 
