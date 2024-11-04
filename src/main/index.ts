@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { parse } from 'url'
