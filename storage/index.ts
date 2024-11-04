@@ -90,13 +90,13 @@ ipcMain.handle(CONNECTIONS_API_CONNECT_TO_URL, async (_, args) => {
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'url' in args && typeof args.url === 'string'
-        && 'project' in args && typeof args.project === 'string') {
+        && ('project' in args && typeof args.project === 'string') || args.project === undefined) {
         const { clientId, url, project }: ConnectToUrlArgs = args
         const newStoragePath = await handleConnectToUrl({ clientId, url, project })
         setLANStoragePath(newStoragePath)
         return newStoragePath
     } else {
-        throw Error(`invalid args for ${CONNECTIONS_API_CONNECT_TO_URL}. Expected: '{ clientId: string, url: string, project: string }' Got: ${JSON.stringify(args)}`)
+        throw Error(`invalid args for ${CONNECTIONS_API_CONNECT_TO_URL}. Expected: '{ clientId: string, url: string, project?: string }' Got: ${JSON.stringify(args)}`)
     }
 })
 
