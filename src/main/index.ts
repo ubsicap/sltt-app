@@ -41,12 +41,6 @@ function createWindow(partition?: string): BrowserWindow {
     return { action: 'deny' }
   })
 
-  // Set DevTools theme based on system preferences
-  win.webContents.on('devtools-opened', () => {
-    const devToolsTheme = nativeTheme.shouldUseDarkColors ? 'dark' : 'default'
-    win.webContents.executeJavaScript(`DevToolsAPI.setTheme('${devToolsTheme}')`)
-  })
-
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
