@@ -167,7 +167,7 @@ async function launchNewWindowConfig(configs: ReturnType<typeof loadWindowConfig
   const inputWindow = new BrowserWindow({
     width: 620,
     height: 320,
-    backgroundColor: '#333',
+    backgroundColor: '#666',
     modal: true,
     parent: BrowserWindow.getFocusedWindow() || undefined,
     webPreferences: {
