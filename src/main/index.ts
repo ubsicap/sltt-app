@@ -44,7 +44,7 @@ function createWindow(partition?: string): BrowserWindow {
   win.webContents.on('will-prevent-unload', async () => {
     console.log('will-prevent-unload triggered')
 
-    // Show an asynchronous dialog 
+    // Show an asynchronous dialog so we don't block the browser thread (focus)
     await dialog.showMessageBox(win, {
       type: 'warning',
       buttons: ['Save'],
