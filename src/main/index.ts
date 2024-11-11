@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, LoadFileOptions, Menu, globalShortcut, ipcMain, dialog } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { parse } from 'url'
@@ -41,6 +41,19 @@ function createWindow(partition?: string): BrowserWindow {
     return { action: 'deny' }
   })
 
+  win.webContents.on('will-prevent-unload', async () => {
+    console.log('will-prevent-unload triggered')
+
+    // Show an asynchronous dialog so we don't block the browser thread (focus)
+    await dialog.showMessageBox(win, {
+      type: 'warning',
+      buttons: ['Save'],
+      title: 'Unsaved Changes',
+      message: 'You have unsaved changes. Please save before leaving.',
+      defaultId: 0,
+    })
+  })
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
@@ -78,9 +91,9 @@ app.whenReady().then(() => {
     // optimizer.watchWindowShortcuts(window)
     win.webContents.on('before-input-event', (_event, input) => {
       if (input.type === 'keyDown') {
-          // Toggle devtools with <F12> or <Ctrl+Shift+I>
-          if (input.code === 'F12' || (input.key === 'I' && input.control && input.shift)) {
-            toggleDevTools(win)
+        // Toggle devtools with <F12> or <Ctrl+Shift+I>
+        if (input.code === 'F12' || (input.key === 'I' && input.control && input.shift)) {
+          toggleDevTools(win)
         }
         // Handle Alt+W
         if (input.key === 'w' && input.alt) {
