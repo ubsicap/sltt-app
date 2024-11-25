@@ -3,6 +3,44 @@ import { constants, ensureDir } from 'fs-extra'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 
+const { exec } = require('child_process');
+
+function connectToSambaWindows(): void {
+    const command = `net use \\\\192.168.8.1\\sltt-app /user:guest ""`
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error connecting to Samba drive: ${error.message}`)
+            return
+        }
+        console.log('Successfully connected to Samba drive.')
+        console.log(stdout)
+    })
+}
+
+function connectToSambaMac(): void {
+    const command = `mount_smbfs //guest:@192.168.8.1/sltt-app /Volumes/sltt-app`
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error connecting to Samba drive: ${error.message}`)
+            return
+        }
+        console.log('Successfully connected to Samba drive.')
+        console.log(stdout)
+    })
+}
+
+function connectToSamba(): void {
+    if (process.platform === 'win32') {
+        connectToSambaWindows()
+    } else if (process.platform === 'darwin') {
+        connectToSambaMac()
+    } else {
+        console.error('Unsupported platform')
+    }
+}
+
 export const handleGetStorageProjects = async (defaultStoragePath: string, { clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
     await ensureDir(defaultStoragePath)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
@@ -58,6 +96,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                 let filePath = ''
                 try {
                     filePath = fileURLToPath(url)
+                    connectToSamba()
                 } catch (e) {
                     console.error(`fileURLToPath(${url}) error`, e)
                     return { url, accessible: false, error: e.message }
