@@ -1,43 +1,48 @@
 import { access, appendFile, readFile } from 'fs/promises'
 import { constants, ensureDir } from 'fs-extra'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 
-const { exec } = require('child_process');
+const execPromise = promisify(exec)
 
-function connectToSambaWindows(): void {
+async function connectToSambaWindows(): Promise<boolean> {
     const command = `net use \\\\192.168.8.1\\sltt-app /user:guest ""`
 
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error connecting to Samba drive: ${error.message}`)
-            return
-        }
+    try {
+        const { stdout, stderr } = await execPromise(command)
         console.log('Successfully connected to Samba drive.')
         console.log(stdout)
-    })
+        return true
+    } catch (error) {
+        console.error(`Error connecting to Samba drive: ${error.message}`)
+        return false
+    }
 }
 
-function connectToSambaMac(): void {
+async function connectToSambaMac(): Promise<booean> {
     const command = `mount_smbfs //guest:@192.168.8.1/sltt-app /Volumes/sltt-app`
 
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            console.error(`Error connecting to Samba drive: ${error.message}`)
-            return
-        }
+    try {
+        const { stdout, stderr } = await execPromise(command)
         console.log('Successfully connected to Samba drive.')
         console.log(stdout)
-    })
+        return true
+    } catch (error) {
+        console.error(`Error connecting to Samba drive: ${error.message}`)
+        return false
+    }
 }
 
-function connectToSamba(): void {
+async function connectToSamba(): Promise<boolean> {
     if (process.platform === 'win32') {
-        connectToSambaWindows()
+        return await connectToSambaWindows()
     } else if (process.platform === 'darwin') {
-        connectToSambaMac()
+        return await connectToSambaMac()
     } else {
         console.error('Unsupported platform')
+        return false
     }
 }
 
@@ -87,6 +92,8 @@ export const handleRemoveStorageProject = async (defaultStoragePath: string, { u
     }
 }
 
+let hasConnectedToSamba = false
+
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
 
     await ensureDir(defaultStoragePath)
@@ -95,8 +102,10 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
             async (url) => {
                 let filePath = ''
                 try {
+                    if (!hasConnectedToSamba) {
+                        hasConnectedToSamba = await connectToSamba()
+                    }
                     filePath = fileURLToPath(url)
-                    connectToSamba()
                 } catch (e) {
                     console.error(`fileURLToPath(${url}) error`, e)
                     return { url, accessible: false, error: e.message }
