@@ -94,7 +94,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         const ipAddress = urlObj.hostname
                         if (ipAddress && ipAddress !== lastSambaIP) {
                             lastSambaIP = ipAddress
-                            connectToSamba(ipAddress)
+                            await connectToSamba(ipAddress)
                         }
                         filePath = fileURLToPath(url)
                     } catch (e) {
