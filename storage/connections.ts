@@ -7,39 +7,25 @@ import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStora
 
 const execPromise = promisify(exec)
 
-async function connectToSambaWindows(): Promise<boolean> {
-    const command = `net use \\\\192.168.8.1\\sltt-app /user:guest ""`
-
+async function connectToSambaWithCommand(command: string): Promise<boolean> {
     try {
         const { stdout, stderr } = await execPromise(command)
-        console.log('Successfully connected to Samba drive.')
+        console.log(`Successfully connected to Samba drive (${command})`)
         console.log(stdout)
         return true
     } catch (error) {
-        console.error(`Error connecting to Samba drive: ${error.message}`)
+        console.error(`Error connecting to Samba drive (${command}): ${error.message}`)
         return false
     }
 }
 
-async function connectToSambaMac(): Promise<booean> {
-    const command = `mount_smbfs //guest:@192.168.8.1/sltt-app /Volumes/sltt-app`
-
-    try {
-        const { stdout, stderr } = await execPromise(command)
-        console.log('Successfully connected to Samba drive.')
-        console.log(stdout)
-        return true
-    } catch (error) {
-        console.error(`Error connecting to Samba drive: ${error.message}`)
-        return false
-    }
-}
-
-async function connectToSamba(): Promise<boolean> {
+async function connectToSamba(sambaIP: string): Promise<boolean> {
     if (process.platform === 'win32') {
-        return await connectToSambaWindows()
+        const command = `net use \\\\${sambaIP}\\sltt-app /user:guest ""`
+        return await connectToSambaWithCommand(command)
     } else if (process.platform === 'darwin') {
-        return await connectToSambaMac()
+        const command = `mount_smbfs //guest:@${sambaIP}/sltt-app /Volumes/sltt-app`
+        return await connectToSambaWithCommand(command)
     } else {
         console.error('Unsupported platform')
         return false
@@ -92,26 +78,31 @@ export const handleRemoveStorageProject = async (defaultStoragePath: string, { u
     }
 }
 
-let hasConnectedToSamba = false
+let lastSambaIP = ''
 
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
 
     await ensureDir(defaultStoragePath)
     const connections = await Promise.all(
-        [pathToFileURL(defaultStoragePath).href, ...(urls || [])].map(
-            async (url) => {
-                let filePath = ''
-                try {
-                    if (!hasConnectedToSamba) {
-                        hasConnectedToSamba = await connectToSamba()
+        [pathToFileURL(defaultStoragePath).href, ...(urls || [])]
+            .filter((url) => url && new URL(url).protocol === 'file:')
+            .map(
+                async (url) => {
+                    let filePath = ''
+                    try {
+                        const urlObj = new URL(url)
+                        const ipAddress = urlObj.hostname
+                        if (ipAddress && ipAddress !== lastSambaIP) {
+                            lastSambaIP = ipAddress
+                            connectToSamba(ipAddress)
+                        }
+                        filePath = fileURLToPath(url)
+                    } catch (e) {
+                        console.error(`fileURLToPath(${url}) error`, e)
+                        return { url, accessible: false, error: e.message }
                     }
-                    filePath = fileURLToPath(url)
-                } catch (e) {
-                    console.error(`fileURLToPath(${url}) error`, e)
-                    return { url, accessible: false, error: e.message }
+                    return { url, accessible: await canAccess(filePath) }
                 }
-                return { url, accessible: await canAccess(filePath) }
-            }
         )
     )
     return connections
