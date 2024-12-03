@@ -1,7 +1,36 @@
 import { access, appendFile, readFile } from 'fs/promises'
 import { constants, ensureDir } from 'fs-extra'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
+
+const execPromise = promisify(exec)
+
+async function connectToSambaWithCommand(command: string): Promise<boolean> {
+    try {
+        const { stdout, stderr } = await execPromise(command)
+        console.log(`Successfully connected to Samba drive (${command})`)
+        console.log(stdout)
+        return true
+    } catch (error) {
+        console.error(`Error connecting to Samba drive (${command}): ${error.message}`)
+        return false
+    }
+}
+
+async function connectToSamba(sambaIP: string): Promise<boolean> {
+    if (process.platform === 'win32') {
+        const command = `net use \\\\${sambaIP}\\sltt-app /user:guest ""`
+        return await connectToSambaWithCommand(command)
+    } else if (process.platform === 'darwin') {
+        const command = `mount_smbfs //guest:@${sambaIP}/sltt-app /Volumes/sltt-app`
+        return await connectToSambaWithCommand(command)
+    } else {
+        console.error('Unsupported platform')
+        return false
+    }
+}
 
 export const handleGetStorageProjects = async (defaultStoragePath: string, { clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
     await ensureDir(defaultStoragePath)
@@ -49,21 +78,31 @@ export const handleRemoveStorageProject = async (defaultStoragePath: string, { u
     }
 }
 
+let lastSambaIP = ''
+
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
 
     await ensureDir(defaultStoragePath)
     const connections = await Promise.all(
-        [pathToFileURL(defaultStoragePath).href, ...(urls || [])].map(
-            async (url) => {
-                let filePath = ''
-                try {
-                    filePath = fileURLToPath(url)
-                } catch (e) {
-                    console.error(`fileURLToPath(${url}) error`, e)
-                    return { url, accessible: false, error: e.message }
+        [pathToFileURL(defaultStoragePath).href, ...(urls || [])]
+            .map(
+                async (url) => {
+                    let filePath = ''
+                    try {
+                        const urlObj = new URL(url)
+                        const ipAddress = urlObj.hostname
+                        if (urlObj.protocol === 'file:'
+                            && ipAddress && ipAddress !== lastSambaIP) {
+                            lastSambaIP = ipAddress
+                            await connectToSamba(ipAddress)
+                        }
+                        filePath = fileURLToPath(url)
+                    } catch (e) {
+                        console.error(`fileURLToPath(${url}) error`, e)
+                        return { url, accessible: false, error: e.message }
+                    }
+                    return { url, accessible: await canAccess(filePath) }
                 }
-                return { url, accessible: await canAccess(filePath) }
-            }
         )
     )
     return connections
