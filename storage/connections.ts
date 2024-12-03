@@ -85,14 +85,14 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     await ensureDir(defaultStoragePath)
     const connections = await Promise.all(
         [pathToFileURL(defaultStoragePath).href, ...(urls || [])]
-            .filter((url) => url && new URL(url).protocol === 'file:')
             .map(
                 async (url) => {
                     let filePath = ''
                     try {
                         const urlObj = new URL(url)
                         const ipAddress = urlObj.hostname
-                        if (ipAddress && ipAddress !== lastSambaIP) {
+                        if (urlObj.protocol === 'file:'
+                            && ipAddress && ipAddress !== lastSambaIP) {
                             lastSambaIP = ipAddress
                             await connectToSamba(ipAddress)
                         }
