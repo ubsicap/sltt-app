@@ -108,11 +108,26 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     return connections
 }
 
-const canAccess = async (filePath: string, throwError = false): Promise<boolean> => {
+const canAccess = async (filePath: string, throwError = false, timeout = 5000): Promise<boolean> => {
+    const MSG_OPERATION_TIMED_OUT = 'Operation timed out'
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(new Error(MSG_OPERATION_TIMED_OUT))
+        }, timeout)
+    })
+
     try {
-        await access(filePath, constants.F_OK)
+        await Promise.race([
+            access(filePath, constants.F_OK),
+            timeoutPromise
+        ])
         return true
     } catch (error) {
+        if (error.message === MSG_OPERATION_TIMED_OUT) {
+            console.error(`access(${filePath}) timed out`)
+        } else {
+            console.error(`access(${filePath}) error`, error)
+        }
         if (throwError) {
             throw error
         }
