@@ -21,7 +21,7 @@ async function connectToSambaWithCommand(command: string): Promise<boolean> {
 
 async function connectToSamba(sambaIP: string): Promise<boolean> {
     if (process.platform === 'win32') {
-        const command = `net use \\\\${sambaIP}\\sltt-app /user:guest ""`
+        const command = `net use \\\\${sambaIP}\\sltt-app /user:guest ""` /* TODO? /persistent:yes */
         return await connectToSambaWithCommand(command)
     } else if (process.platform === 'darwin') {
         const command = `mount_smbfs //guest:@${sambaIP}/sltt-app /Volumes/sltt-app`
@@ -93,8 +93,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         const ipAddress = urlObj.hostname
                         if (urlObj.protocol === 'file:'
                             && ipAddress && ipAddress !== lastSambaIP) {
-                            lastSambaIP = ipAddress
-                            await connectToSamba(ipAddress)
+                            // keep trying until we connect once (per reboot)
+                            const isConnected = await connectToSamba(ipAddress)
+                            if (isConnected) {
+                                lastSambaIP = ipAddress
+                            }
                         }
                         filePath = fileURLToPath(url)
                     } catch (e) {
