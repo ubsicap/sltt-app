@@ -21,7 +21,7 @@ async function connectToSambaWithCommand(command: string): Promise<boolean> {
 }
 
 const SHARE_NAME = 'sltt-local-team-storage'
-const SLTT_APP_LAN_FOLDER = `sltt-app/lan`
+export const SLTT_APP_LAN_FOLDER = `sltt-app/lan`
 
 async function connectToSamba(sambaIP: string): Promise<boolean> {
     if (process.platform === 'win32') {
@@ -36,7 +36,7 @@ async function connectToSamba(sambaIP: string): Promise<boolean> {
     }
 }
 
-const checkLanStoragePath = async (lanStoragePath: string): Promise<void> => {
+const checkLanStoragePath = (lanStoragePath: string): void => {
     if (!lanStoragePath) {
         throw new Error('LAN storage path is not set')
     }

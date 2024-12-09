@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { appendFile, mkdtemp, readFile } from 'fs/promises'
-import { remove } from 'fs-extra'
-import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections, handleConnectToUrl } from './connections'
+import { ensureDir, remove } from 'fs-extra'
+import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections, handleConnectToUrl, SLTT_APP_LAN_FOLDER } from './connections'
 import { AddStorageProjectArgs, GetStorageProjectsArgs, RemoveStorageProjectArgs, ProbeConnectionsArgs, ConnectToUrlArgs } from './connections.d'
 import { fileURLToPath, pathToFileURL } from 'url'
 
@@ -11,7 +11,8 @@ let tempDir: string
 
 beforeEach(async () => {
     // Create a temporary directory for each test
-    tempDir = await mkdtemp(join(tmpdir(), 'connections-'))
+    tempDir = join(await mkdtemp(join(tmpdir(), 'connections-')), SLTT_APP_LAN_FOLDER)
+    await ensureDir(tempDir)
 })
 
 afterEach(async () => {
@@ -20,6 +21,18 @@ afterEach(async () => {
 })
 
 describe('handleGetStorageProjects', () => {
+    it('should throw an error if the LAN storage path is not set', async () => {
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
+        await expect(handleGetStorageProjects('', args)).rejects.toThrow('LAN storage path is not set')
+    })
+
+    it('should throw an error if the LAN storage path is invalid', async () => {
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
+        const invalidPath = join(tempDir, 'invalid-path')
+        await ensureDir(invalidPath)
+        await expect(handleGetStorageProjects(invalidPath, args)).rejects.toThrow(`LAN storage path is invalid: ${tempDir}`)
+    })
+
     it('should return an empty array if no projects are added', async () => {
         const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
         const response = await handleGetStorageProjects(tempDir, args)
