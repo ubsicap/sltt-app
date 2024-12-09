@@ -4,6 +4,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
+import { normalize } from 'path'
 
 const execPromise = promisify(exec)
 
@@ -19,12 +20,15 @@ async function connectToSambaWithCommand(command: string): Promise<boolean> {
     }
 }
 
+const SHARE_NAME = 'sltt-local-team-storage'
+const SLTT_APP_LAN_FOLDER = `sltt-app/lan`
+
 async function connectToSamba(sambaIP: string): Promise<boolean> {
     if (process.platform === 'win32') {
-        const command = `net use \\\\${sambaIP}\\sltt-app /user:guest ""` /* TODO? /persistent:yes */
+        const command = `net use \\\\${sambaIP}\\${SHARE_NAME} /user:guest ""` /* TODO? /persistent:yes */
         return await connectToSambaWithCommand(command)
     } else if (process.platform === 'darwin') {
-        const command = `mount_smbfs //guest:@${sambaIP}/sltt-app /Volumes/sltt-app`
+        const command = `mount_smbfs //guest:@${sambaIP}/${SHARE_NAME} /Volumes/${SHARE_NAME}`
         return await connectToSambaWithCommand(command)
     } else {
         console.error('Unsupported platform')
@@ -32,10 +36,19 @@ async function connectToSamba(sambaIP: string): Promise<boolean> {
     }
 }
 
-export const handleGetStorageProjects = async (defaultStoragePath: string, { clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
-    await ensureDir(defaultStoragePath)
+const checkLanStoragePath = async (lanStoragePath: string): Promise<void> => {
+    if (!lanStoragePath) {
+        throw new Error('LAN storage path is not set')
+    }
+    if (!normalize(lanStoragePath).endsWith(`${normalize(SLTT_APP_LAN_FOLDER)}`)) {
+        throw new Error(`LAN storage path is invalid: ${lanStoragePath}`)
+    }
+}
+
+export const handleGetStorageProjects = async (lanStoragePath: string, { clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
+    checkLanStoragePath(lanStoragePath)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
-    const whitelistPath = `${defaultStoragePath}/whitelist.sltt-projects`
+    const whitelistPath = `${lanStoragePath}/whitelist.sltt-projects`
     const projectsRemoved = new Set<string>()
     const projectsAdded = new Set<string>()
     // `whitelist.sltt-projects` file has the following tsv format {timestamp}\t{-|+}\t{project}\t{adminEmail}
@@ -56,24 +69,24 @@ export const handleGetStorageProjects = async (defaultStoragePath: string, { cli
     return [...projectsAdded]
 }
 
-export const handleAddStorageProject = async (defaultStoragePath: string, { clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
-    await ensureDir(defaultStoragePath)
+export const handleAddStorageProject = async (lanStoragePath: string, { clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
+    checkLanStoragePath(lanStoragePath)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
     try {
-        await appendFile(`${defaultStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
+        await appendFile(`${lanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
     } catch (error) {
-        console.error(`appendFile(${defaultStoragePath}/whitelist.sltt-projects) error`, error)
+        console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
 }
 
-export const handleRemoveStorageProject = async (defaultStoragePath: string, { url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
-    await ensureDir(defaultStoragePath)
+export const handleRemoveStorageProject = async (lanStoragePath: string, { url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
+    checkLanStoragePath(lanStoragePath)
     console.log(`handleRemoveStorageProject[${url}]: project ${project} removed by ${adminEmail}`)
     try {
-        await appendFile(`${defaultStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
+        await appendFile(`${lanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
     } catch (error) {
-        console.error(`appendFile(${defaultStoragePath}/whitelist.sltt-projects) error`, error)
+        console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
 }
@@ -91,12 +104,18 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                     try {
                         const urlObj = new URL(url)
                         const ipAddress = urlObj.hostname
+                        console.log(`Probing access to '${url}'...`)
                         if (urlObj.protocol === 'file:'
                             && ipAddress && ipAddress !== lastSambaIP) {
                             // keep trying until we connect once (per reboot)
                             const isConnected = await connectToSamba(ipAddress)
                             if (isConnected) {
                                 lastSambaIP = ipAddress
+                                // create the full path, if it doesn't exist
+                                if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
+                                    console.log(`Creating full folder path '(${ipAddress}:)${urlObj.pathname}' if needed...`)
+                                    await ensureDir(fileURLToPath(url))
+                                }
                             }
                         }
                         filePath = fileURLToPath(url)

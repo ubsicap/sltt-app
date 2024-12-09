@@ -35,7 +35,7 @@ ipcMain.handle(CONNECTIONS_API_GET_STORAGE_PROJECTS, async (_, args) => {
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'url' in args && typeof args.url === 'string') {
             const { clientId, url }: GetStorageProjectsArgs = args
-        return await handleGetStorageProjects(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, url })
+        return await handleGetStorageProjects(getLANStoragePath(), { clientId, url })
     } else {
         throw Error(`invalid args for ${CONNECTIONS_API_GET_STORAGE_PROJECTS}. Expected: '{ clientId: string, url: string, project: string }' Got: ${JSON.stringify(args)}`)
     }
@@ -50,7 +50,7 @@ ipcMain.handle(CONNECTIONS_API_ADD_STORAGE_PROJECT, async (_, args) => {
         && 'project' in args && typeof args.project === 'string'
         && 'adminEmail' in args && typeof args.adminEmail === 'string') {
             const { clientId, url, project, adminEmail }: AddStorageProjectArgs = args
-        return await handleAddStorageProject(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, url, project, adminEmail })
+        return await handleAddStorageProject(getLANStoragePath(), { clientId, url, project, adminEmail })
     } else {
         throw Error(`invalid args for ${CONNECTIONS_API_ADD_STORAGE_PROJECT}. Expected: '{ clientId: string, url: string, project: string, adminEmail: string }' Got: ${JSON.stringify(args)}`)
     }
@@ -65,7 +65,7 @@ ipcMain.handle(CONNECTIONS_API_REMOVE_STORAGE_PROJECT, async (_, args) => {
         && 'project' in args && typeof args.project === 'string'
         && 'adminEmail' in args && typeof args.adminEmail === 'string') {
             const { clientId, url, project, adminEmail }: RemoveStorageProjectArgs = args
-        return await handleRemoveStorageProject(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), { clientId, url, project, adminEmail })
+        return await handleRemoveStorageProject(getLANStoragePath(), { clientId, url, project, adminEmail })
     } else {
         throw Error(`invalid args for ${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}. Expected: '{ clientId: string, url: string, project: string, adminEmail: string }' Got: ${JSON.stringify(args)}`)
     }
