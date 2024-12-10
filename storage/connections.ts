@@ -114,11 +114,23 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             const isConnected = await connectToSamba(ipAddress)
                             if (isConnected) {
                                 lastSambaIP = ipAddress
-                                // create the full path, if it doesn't exist
-                                if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
-                                    console.log(`Creating full folder path '(${ipAddress}:)${urlObj.pathname}' if needed...`)
-                                    await ensureDir(fileURLToPath(url))
-                                }
+                            } else {
+                                // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
+                                // which can occur when there are too many existing connections to the same folder
+                                // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
+                                //
+                                // The error:
+                                // System error 1219 has occurred.
+                                // Multiple connections to a server or shared resource by the same user, 
+                                // using more than one user name, are not allowed. Disconnect all previous 
+                                // connections to the server or shared resource and try again.
+                                console.log(`Try closing other windows that may be connected to the smb folder ${ipAddress}\\\\${SHARE_NAME} and try again.`)
+                            }
+                            // create the full path, if it doesn't exist
+                            // NOTE: even if the connectToSamba fails, it's possible that the user still has folder access
+                            if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
+                                console.log(`Creating full folder path '(${ipAddress}:)${urlObj.pathname}' if needed...`)
+                                await ensureDir(fileURLToPath(url))
                             }
                         }
                         filePath = fileURLToPath(url)
