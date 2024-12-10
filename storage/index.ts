@@ -15,7 +15,7 @@ import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from '.
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
 
 const DEFAULT_STORAGE_BASE_PATH = app.getPath('userData')
-let lanStoragePath = buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH)
+let lanStoragePath = ''
 
 const getLANStoragePath = (): string => lanStoragePath
 const setLANStoragePath = (path: string): void => {
@@ -93,6 +93,7 @@ ipcMain.handle(CONNECTIONS_API_CONNECT_TO_URL, async (_, args) => {
         && ('project' in args && typeof args.project === 'string') || args.project === undefined) {
         const { clientId, url, project }: ConnectToUrlArgs = args
         const newStoragePath = await handleConnectToUrl({ clientId, url, project })
+        console.log('newStoragePath:', newStoragePath)
         setLANStoragePath(newStoragePath)
         return newStoragePath
     } else {
