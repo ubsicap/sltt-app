@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { join } from 'path'
+import path, { join } from 'path'
 import { tmpdir } from 'os'
 import { appendFile, mkdtemp, readFile } from 'fs/promises'
 import { ensureDir, remove } from 'fs-extra'
@@ -22,47 +22,47 @@ afterEach(async () => {
 
 describe('handleGetStorageProjects', () => {
     it('should throw an error if the LAN storage path is not set', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
-        await expect(handleGetStorageProjects('', args)).rejects.toThrow('LAN storage path is not set')
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: '' }
+        await expect(handleGetStorageProjects(args)).rejects.toThrow('LAN storage path is not set')
     })
 
     it('should throw an error if the LAN storage path is invalid', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
         const invalidPath = join(tempDir, 'invalid-path')
         await ensureDir(invalidPath)
-        await expect(handleGetStorageProjects(invalidPath, args)).rejects.toThrow(`LAN storage path is invalid: ${tempDir}`)
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: invalidPath }
+        await expect(handleGetStorageProjects(args)).rejects.toThrow(`LAN storage path is invalid: ${invalidPath}`)
     })
 
     it('should return an empty array if no projects are added', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
-        const response = await handleGetStorageProjects(tempDir, args)
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString() }
+        const response = await handleGetStorageProjects(args)
         expect(response).toEqual([])
     })
 
     it('should return added projects', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString() }
         const project = 'project1'
         const adminEmail = 'admin@example.com'
         await appendFile(`${tempDir}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
-        const response = await handleGetStorageProjects(tempDir, args)
+        const response = await handleGetStorageProjects(args)
         expect(response).toEqual([project])
     })
 
     it('should not return removed projects', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: 'url1' }
+        const args: GetStorageProjectsArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString() }
         const project = 'project1'
         const adminEmail = 'admin@example.com'
         await appendFile(`${tempDir}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
         await appendFile(`${tempDir}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
-        const response = await handleGetStorageProjects(tempDir, args)
+        const response = await handleGetStorageProjects(args)
         expect(response).toEqual([])
     })
 })
 
 describe('handleAddStorageProject', () => {
     it('should add a project to the whitelist', async () => {
-        const args: AddStorageProjectArgs = { clientId: 'client1', url: 'url1', project: 'project1', adminEmail: 'admin@example.com' }
-        await handleAddStorageProject(tempDir, args)
+        const args: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
+        await handleAddStorageProject(args)
         const whitelistContent = await readFile(`${tempDir}/whitelist.sltt-projects`, 'utf-8')
         expect(whitelistContent).toContain(`\t+\t${args.project}\t${args.adminEmail}\n`)
     })
@@ -70,10 +70,10 @@ describe('handleAddStorageProject', () => {
 
 describe('handleRemoveStorageProject', () => {
     it('should remove a project from the whitelist', async () => {
-        const addArgs: AddStorageProjectArgs = { clientId: 'client1', url: 'url1', project: 'project1', adminEmail: 'admin@example.com' }
-        await handleAddStorageProject(tempDir, addArgs)
-        const removeArgs: RemoveStorageProjectArgs = { clientId: 'client1', url: 'url1', project: 'project1', adminEmail: 'admin@example.com' }
-        await handleRemoveStorageProject(tempDir, removeArgs)
+        const addArgs: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
+        await handleAddStorageProject(addArgs)
+        const removeArgs: RemoveStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
+        await handleRemoveStorageProject(removeArgs)
         const whitelistContent = await readFile(`${tempDir}/whitelist.sltt-projects`, 'utf-8')
         expect(whitelistContent).toContain(`\t-\t${removeArgs.project}\t${removeArgs.adminEmail}\n`)
     })

@@ -45,8 +45,9 @@ const checkLanStoragePath = (lanStoragePath: string): void => {
     }
 }
 
-export const handleGetStorageProjects = async (lanStoragePath: string, { clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
-    checkLanStoragePath(lanStoragePath)
+export const handleGetStorageProjects = async ({ clientId, url }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
+    checkLanStoragePath(url)
+    const lanStoragePath = fileURLToPath(url)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
     const whitelistPath = `${lanStoragePath}/whitelist.sltt-projects`
     const projectsRemoved = new Set<string>()
@@ -69,8 +70,9 @@ export const handleGetStorageProjects = async (lanStoragePath: string, { clientI
     return [...projectsAdded]
 }
 
-export const handleAddStorageProject = async (lanStoragePath: string, { clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
-    checkLanStoragePath(lanStoragePath)
+export const handleAddStorageProject = async ({ clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
+    checkLanStoragePath(url)
+    const lanStoragePath = fileURLToPath(url)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
     try {
         await appendFile(`${lanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
@@ -80,8 +82,9 @@ export const handleAddStorageProject = async (lanStoragePath: string, { clientId
     }
 }
 
-export const handleRemoveStorageProject = async (lanStoragePath: string, { url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
-    checkLanStoragePath(lanStoragePath)
+export const handleRemoveStorageProject = async ({ url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
+    checkLanStoragePath(url)
+    const lanStoragePath = fileURLToPath(url)
     console.log(`handleRemoveStorageProject[${url}]: project ${project} removed by ${adminEmail}`)
     try {
         await appendFile(`${lanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
