@@ -10,9 +10,13 @@ import { RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
 import { handleRegisterClientUser } from './clients'
 import { GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { setupUDPServer } from './udp'
 
 const app = express()
-const PORT = process.env.PORT || 5177
+const PORT = Number(process.env.PORT) || 5177
+
+console.log('Starting UDP server on port', PORT)
+setupUDPServer(PORT)
 
 app.use(bodyParser.json())
 
