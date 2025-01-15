@@ -30,6 +30,10 @@ const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
 
+app.get('/status', (req, res) => {
+    res.json({ status: 'ok' })
+})
+
 app.post('/getStorageProjects', async (req, res) => {
     const args: GetStorageProjectsArgs = req.body
     try {

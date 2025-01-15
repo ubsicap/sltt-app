@@ -8,8 +8,9 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/main/index.ts'), // Existing main process entry
-          storage: resolve(__dirname, 'storage/index.ts') // New entry point
+          index: resolve(__dirname, 'src/main/index.ts') /* Existing main process entry */,
+          storage: resolve(__dirname, 'storage/index.ts') /*  New entry point */,
+          storageExpress: resolve(__dirname, 'storage/connections.express.ts'),
         },
       }
     }
