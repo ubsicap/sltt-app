@@ -1,4 +1,5 @@
 import express from 'express'
+import cors from 'cors'
 import bodyParser from 'body-parser'
 import { join } from 'path'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
@@ -18,6 +19,7 @@ const PORT = Number(process.env.PORT) || 45177
 console.log('Starting UDP server on port', PORT)
 setupUDPServer(PORT)
 
+app.use(cors())
 app.use(bodyParser.json())
 
 const DEFAULT_STORAGE_BASE_PATH = process.env.DEFAULT_STORAGE_BASE_PATH || 'userData'
