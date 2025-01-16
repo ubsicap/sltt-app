@@ -3,21 +3,24 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
+import { tmpdir } from 'os'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { AddStorageProjectArgs, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
+import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
-import { RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
+import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
 import { handleRegisterClientUser } from './clients'
-import { GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { setupUDPServer } from './udp'
+import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
+import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 
 const app = express()
 const PORT = Number(process.env.PORT) || 45177
 
-const multiUpload = multer({ dest: 'uploads/' })
+const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUpload` })
 
 console.log('Starting UDP server on port', PORT)
 setupUDPServer(PORT)
@@ -44,7 +47,7 @@ app.get('/status', (req, res) => {
     res.json({ status: 'ok' })
 })
 
-app.post('/getStorageProjects', async (req, res) => {
+app.post(`/${CONNECTIONS_API_GET_STORAGE_PROJECTS}`, async (req, res) => {
     const args: GetStorageProjectsArgs = req.body
     try {
         const result = await handleGetStorageProjects(args)
@@ -54,7 +57,7 @@ app.post('/getStorageProjects', async (req, res) => {
     }
 })
 
-app.post('/addStorageProject', async (req, res) => {
+app.post(`/${CONNECTIONS_API_ADD_STORAGE_PROJECT}`, async (req, res) => {
     const args: AddStorageProjectArgs = req.body
     try {
         await handleAddStorageProject(args)
@@ -64,7 +67,7 @@ app.post('/addStorageProject', async (req, res) => {
     }
 })
 
-app.post('/removeStorageProject', async (req, res) => {
+app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
     const args: RemoveStorageProjectArgs = req.body
     try {
         await handleRemoveStorageProject(args)
@@ -74,7 +77,7 @@ app.post('/removeStorageProject', async (req, res) => {
     }
 })
 
-app.post('/probeConnections', async (req, res) => {
+app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     const args: ProbeConnectionsArgs = req.body
     try {
         const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
@@ -84,7 +87,7 @@ app.post('/probeConnections', async (req, res) => {
     }
 })
 
-app.post('/connectToUrl', async (req, res) => {
+app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     const args: ConnectToUrlArgs = req.body
     try {
         const newStoragePath = await handleConnectToUrl(args)
@@ -95,7 +98,7 @@ app.post('/connectToUrl', async (req, res) => {
     }
 })
 
-app.post('/registerClientUser', async (req, res) => {
+app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, async (req, res) => {
     const { clientId, username } = req.body
     try {
         const result = await handleRegisterClientUser(getClientsPath(), { clientId, username })
@@ -105,7 +108,7 @@ app.post('/registerClientUser', async (req, res) => {
     }
 })
 
-app.post('/retrieveBlob', async (req, res) => {
+app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, async (req, res) => {
     const args: RetrieveBlobArgs = req.body
     try {
         const result = await handleRetrieveBlob(getBlobsPath(), args)
@@ -115,7 +118,7 @@ app.post('/retrieveBlob', async (req, res) => {
     }
 })
 
-app.post('/storeBlob', multiUpload.single('blob'), async (req, res) => {
+app.post(`/${BLOBS_API_STORE_BLOB}`, multiUpload.single('blob'), async (req, res) => {
     const origArgs: StoreBlobArgs = {
         clientId: req.body['clientId'],
         blobId: req.body['blobId'],
@@ -133,7 +136,7 @@ app.post('/storeBlob', multiUpload.single('blob'), async (req, res) => {
     }
 })
 
-app.post('/retrieveAllBlobIds', async (req, res) => {
+app.post(`/${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}`, async (req, res) => {
     const { clientId } = req.body
     try {
         const result = await handleRetrieveAllBlobIds(getBlobsPath(), { clientId })
@@ -143,7 +146,7 @@ app.post('/retrieveAllBlobIds', async (req, res) => {
     }
 })
 
-app.post('/storeVideoCacheRecord', async (req, res) => {
+app.post(`/${VIDEO_CACHE_RECORDS_API_STORE_VCR}`, async (req, res) => {
     const { clientId, videoCacheRecord } = req.body
     try {
         const result = await storeVcr(getVcrsPath(), { clientId, videoCacheRecord })
@@ -153,7 +156,7 @@ app.post('/storeVideoCacheRecord', async (req, res) => {
     }
 })
 
-app.post('/listVideoCacheRecordFiles', async (req, res) => {
+app.post(`/${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}`, async (req, res) => {
     const { clientId, project } = req.body
     try {
         const result = await listVcrFiles(getVcrsPath(), { clientId, project })
@@ -163,7 +166,7 @@ app.post('/listVideoCacheRecordFiles', async (req, res) => {
     }
 })
 
-app.post('/retrieveVideoCacheRecords', async (req, res) => {
+app.post(`/${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}`, async (req, res) => {
     const { clientId, filename } = req.body
     try {
         const result = await retrieveVcrs(getVcrsPath(), { clientId, filename })
@@ -173,7 +176,7 @@ app.post('/retrieveVideoCacheRecords', async (req, res) => {
     }
 })
 
-app.post('/storeRemoteDocs', async (req, res) => {
+app.post(`/${DOCS_API_STORE_REMOTE_DOCS}`, async (req, res) => {
     const args: StoreRemoteDocsArgs<IDBModDoc> = req.body
     try {
         const result = await handleStoreRemoteDocs(getDocsPath(), args)
@@ -183,7 +186,7 @@ app.post('/storeRemoteDocs', async (req, res) => {
     }
 })
 
-app.post('/retrieveRemoteDocs', async (req, res) => {
+app.post(`/${DOCS_API_RETRIEVE_REMOTE_DOCS}`, async (req, res) => {
     const args: RetrieveRemoteDocsArgs = req.body
     try {
         const result = await handleRetrieveRemoteDocs(getDocsPath(), args)
@@ -193,7 +196,7 @@ app.post('/retrieveRemoteDocs', async (req, res) => {
     }
 })
 
-app.post('/saveRemoteDocsSpots', async (req, res) => {
+app.post(`/${DOCS_API_SAVE_REMOTE_SPOTS}`, async (req, res) => {
     const args: SaveRemoteSpotsArgs = req.body
     try {
         await handleSaveRemoteSpots(getDocsPath(), args)
@@ -203,7 +206,7 @@ app.post('/saveRemoteDocsSpots', async (req, res) => {
     }
 })
 
-app.post('/getRemoteDocsSpots', async (req, res) => {
+app.post(`/${DOCS_API_GET_REMOTE_SPOTS}`, async (req, res) => {
     const { clientId, project } = req.body
     try {
         const result = await handleGetRemoteSpots(getDocsPath(), { clientId, project })
@@ -213,7 +216,7 @@ app.post('/getRemoteDocsSpots', async (req, res) => {
     }
 })
 
-app.post('/storeLocalDocs', async (req, res) => {
+app.post(`/${DOCS_API_STORE_LOCAL_DOCS}`, async (req, res) => {
     const { clientId, project, docs } = req.body
     try {
         const result = await handleStoreLocalDocs(getDocsPath(), { clientId, project, docs })
@@ -223,7 +226,7 @@ app.post('/storeLocalDocs', async (req, res) => {
     }
 })
 
-app.post('/getStoredLocalClientIds', async (req, res) => {
+app.post(`/${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS}`, async (req, res) => {
     const { project }: GetStoredLocalClientIdsArgs = req.body
     try {
         const result = await handleGetStoredLocalClientIds(getDocsPath(), { project })
@@ -233,7 +236,7 @@ app.post('/getStoredLocalClientIds', async (req, res) => {
     }
 })
 
-app.post('/retrieveLocalClientDocs', async (req, res) => {
+app.post(`/${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}`, async (req, res) => {
     const { clientId, localClientId, project, spot } = req.body
     try {
         const result = await handleRetrieveLocalClientDocs(getDocsPath(), { clientId, localClientId, project, spot })
@@ -243,7 +246,7 @@ app.post('/retrieveLocalClientDocs', async (req, res) => {
     }
 })
 
-app.post('/saveLocalSpots', async (req, res) => {
+app.post(`/${DOCS_API_SAVE_LOCAL_SPOTS}`, async (req, res) => {
     const { clientId, project, spots } = req.body
     try {
         await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
@@ -253,7 +256,7 @@ app.post('/saveLocalSpots', async (req, res) => {
     }
 })
 
-app.post('/getLocalSpots', async (req, res) => {
+app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, async (req, res) => {
     const { clientId, project } = req.body
     try {
         const result = await handleGetLocalSpots(getDocsPath(), { clientId, project })
