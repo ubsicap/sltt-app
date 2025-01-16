@@ -20,7 +20,8 @@ console.log('Starting UDP server on port', PORT)
 setupUDPServer(PORT)
 
 app.use(cors())
-app.use(bodyParser.json())
+app.use(bodyParser.json({ limit: '50mb' })) // Adjust the limit as needed
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const DEFAULT_STORAGE_BASE_PATH = process.env.DEFAULT_STORAGE_BASE_PATH || 'userData'
 let lanStoragePath = ''
@@ -131,7 +132,7 @@ app.post('/retrieveAllBlobIds', async (req, res) => {
     }
 })
 
-app.post('/storeVcr', async (req, res) => {
+app.post('/storeVideoCacheRecord', async (req, res) => {
     const { clientId, videoCacheRecord } = req.body
     try {
         const result = await storeVcr(getVcrsPath(), { clientId, videoCacheRecord })
@@ -141,7 +142,7 @@ app.post('/storeVcr', async (req, res) => {
     }
 })
 
-app.post('/listVcrFiles', async (req, res) => {
+app.post('/listVideoCacheRecordFiles', async (req, res) => {
     const { clientId, project } = req.body
     try {
         const result = await listVcrFiles(getVcrsPath(), { clientId, project })
@@ -151,7 +152,7 @@ app.post('/listVcrFiles', async (req, res) => {
     }
 })
 
-app.post('/retrieveVcrs', async (req, res) => {
+app.post('/retrieveVideoCacheRecords', async (req, res) => {
     const { clientId, filename } = req.body
     try {
         const result = await retrieveVcrs(getVcrsPath(), { clientId, filename })
@@ -181,17 +182,17 @@ app.post('/retrieveRemoteDocs', async (req, res) => {
     }
 })
 
-app.post('/saveRemoteSpots', async (req, res) => {
+app.post('/saveRemoteDocsSpots', async (req, res) => {
     const args: SaveRemoteSpotsArgs = req.body
     try {
-        const result = await handleSaveRemoteSpots(getDocsPath(), args)
-        res.json(result)
+        await handleSaveRemoteSpots(getDocsPath(), args)
+        res.json({ message: 'Remote spots saved successfully' })
     } catch (error) {
         res.status(400).json({ error: error.message })
     }
 })
 
-app.post('/getRemoteSpots', async (req, res) => {
+app.post('/getRemoteDocsSpots', async (req, res) => {
     const { clientId, project } = req.body
     try {
         const result = await handleGetRemoteSpots(getDocsPath(), { clientId, project })
@@ -234,8 +235,8 @@ app.post('/retrieveLocalClientDocs', async (req, res) => {
 app.post('/saveLocalSpots', async (req, res) => {
     const { clientId, project, spots } = req.body
     try {
-        const result = await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
-        res.json(result)
+        await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
+        res.json({ message: 'Local spots saved successfully' })
     } catch (error) {
         res.status(400).json({ error: error.message })
     }
