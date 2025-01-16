@@ -1,12 +1,13 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
+import { serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
 const CLIENT_MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 const CLIENT_MSG_HELLO = 'Hello?'
-const CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL = 'GET /storage-server/url'
+const CLIENT_MSG_GET_HOST_ADDRESS = 'GET /storage-server/host/address'
 
 // unlikely that two clients on the same networ will start at the same time
 const startedAt = new Date().toISOString()
@@ -29,7 +30,7 @@ udpClient.on('message', async (msg, rinfo) => {
     }
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
     const { message } = clientData
-    if (message.id === CLIENT_MSG_HELLO) {
+    if (message.type === 'request' && message.id === CLIENT_MSG_HELLO) {
         const responseHello = formatClientMsg({ type: 'response', id: 'Hello' })
         udpClient.send(responseHello, 0, responseHello.length, rinfo.port, rinfo.address, (err) => {
             if (err) console.error(err)
@@ -37,15 +38,25 @@ udpClient.on('message', async (msg, rinfo) => {
         })
         return
     }
-    if (message.id === CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL) {
-
-        const responseSlttStorageServerUrl = formatClientMsg({ type: 'response', id: `${CLIENT_MSG_SLTT_STORAGE_SERVER_URL}`, json: JSON.stringify({ ip: myLocalIpAddress, port: storageServerPort }) })
-        udpClient.send(responseSlttStorageServerUrl, 0, responseSlttStorageServerUrl.length, rinfo.port, rinfo.address, (err) => {
-            if (err) console.error(err)
-            else console.log('Response sent')
-        })
+    if (message.id === CLIENT_MSG_GET_HOST_ADDRESS && serverState.hostingProjects.size > 0) {
+        if (message.type === 'request') {
+            const responseSlttStorageServerUrl = formatClientMsg({ 
+                type: 'response', id: CLIENT_MSG_GET_HOST_ADDRESS,
+                json: JSON.stringify({ ip: myLocalIpAddress, port: 45177 }) 
+            })
+            udpClient.send(responseSlttStorageServerUrl, 0, responseSlttStorageServerUrl.length, rinfo.port, rinfo.address, (err) => {
+                if (err) console.error(err)
+                else console.log('Response sent')
+            })
+            return
+        }
+        if (message.type === 'response') {
+            const { ip, port } = JSON.parse(message.json)
+            serverState.hostUrl = `http://${ip}:${port}`
+            return
+        }
     }
-    if (message.id === CLIENT_MSG_SLTT_STORAGE_SERVER_URL) {
+    if (message.type === 'response' && message.id === CLIENT_MSG_SLTT_STORAGE_SERVER_URL) {
         const { ip, port } = JSON.parse(message.json)
         const serverUrl = `http://${ip}:${port}`
         console.log(`Discovered storage server at ${serverUrl}`)
@@ -59,6 +70,7 @@ udpClient.on('message', async (msg, rinfo) => {
         } catch (error) {
             console.error('Error connecting to storage server:', error);
         }
+        return
     }
 })
 
@@ -68,7 +80,7 @@ type ClientMessage = {
         computerName: string,
     },
     message: {
-        type: 'request'|'response',
+        type: 'request'|'response'|'notify',
         id: string,
         json?: string,
     }
@@ -99,11 +111,8 @@ udpClient.on('listening', () => {
 
 udpClient.bind(UDP_CLIENT_PORT)
 
-let storageServerPort = NaN
-
-export const setupUDPServer = (port: number): void => {
-    storageServerPort = port
-    const msgGetStorageServerUrl = formatClientMsg({ type: 'request', id: CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL })
+export const broadcastGetHostMessage = (): void => {
+    const msgGetStorageServerUrl = formatClientMsg({ type: 'request', id: CLIENT_MSG_GET_HOST_ADDRESS })
     udpClient.send(msgGetStorageServerUrl, 0, msgGetStorageServerUrl.length, UDP_CLIENT_PORT, '255.255.255.255', (err) => {
         if (err) console.error(err)
         else console.log('Broadcast message sent')

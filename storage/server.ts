@@ -4,6 +4,7 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { tmpdir } from 'os'
+import { getServerConfig } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -13,17 +14,17 @@ import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STO
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
 import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
-import { setupUDPServer } from './udp'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
+import { broadcastGetHostMessage } from './udp'
 
 const app = express()
-const PORT = Number(process.env.PORT) || 45177
+const serverConfig = getServerConfig()
+const PORT = Number(process.env.PORT) || serverConfig.port
 
 const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUpload` })
 
 console.log('Starting UDP server on port', PORT)
-setupUDPServer(PORT)
 
 app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
@@ -80,6 +81,7 @@ app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     const args: ProbeConnectionsArgs = req.body
     try {
+        broadcastGetHostMessage()
         const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
         res.json(result)
     } catch (error) {

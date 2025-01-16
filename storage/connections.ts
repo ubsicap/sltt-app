@@ -5,6 +5,8 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
+import { getHostUrl, updateHostingProjects } from './serverState'
+import axios from 'axios'
 
 const execPromise = promisify(exec)
 
@@ -70,7 +72,7 @@ export const handleGetStorageProjects = async ({ clientId, url }: GetStorageProj
     return [...projectsAdded]
 }
 
-export const handleAddStorageProject = async ({ clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
+export const handleAddStorageProject = async ({ clientId, url, project, adminEmail, isHost }: AddStorageProjectArgs): Promise<void> => {
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
@@ -80,6 +82,7 @@ export const handleAddStorageProject = async ({ clientId, url, project, adminEma
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
+    updateHostingProjects(project, isHost)
 }
 
 export const handleRemoveStorageProject = async ({ url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
@@ -92,53 +95,69 @@ export const handleRemoveStorageProject = async ({ url, project, adminEmail }: R
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
+    updateHostingProjects(project, false)
 }
 
 let lastSambaIP = ''
 
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
-
     await ensureDir(defaultStoragePath)
+    const hostUrl = getHostUrl()
     const connections = await Promise.all(
-        [pathToFileURL(defaultStoragePath).href, ...(urls || [])]
+        [pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrl && !urls.includes(hostUrl) ? [hostUrl] : [])]
             .map(
                 async (url) => {
-                    let filePath = ''
+                    let urlObj: URL
                     try {
-                        const urlObj = new URL(url)
-                        const ipAddress = urlObj.hostname
-                        console.log(`Probing access to '${url}'...`)
-                        if (urlObj.protocol === 'file:'
-                            && ipAddress && ipAddress !== lastSambaIP) {
-                            // keep trying until we connect once (per reboot)
-                            const isConnected = await connectToSamba(ipAddress)
-                            if (isConnected) {
-                                lastSambaIP = ipAddress
-                            } else {
-                                // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
-                                // which can occur when there are too many existing connections to the same folder
-                                // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
-                                //
-                                // The error:
-                                // System error 1219 has occurred.
-                                // Multiple connections to a server or shared resource by the same user, 
-                                // using more than one user name, are not allowed. Disconnect all previous 
-                                // connections to the server or shared resource and try again.
-                                console.log(`Try closing other windows that may be connected to the smb folder ${ipAddress}\\\\${SHARE_NAME} and try again.`)
-                            }
-                            // create the full path, if it doesn't exist
-                            // NOTE: even if the connectToSamba fails, it's possible that the user still has folder access
-                            if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
-                                console.log(`Creating full folder path '(${ipAddress}:)${urlObj.pathname}' if needed...`)
-                                await ensureDir(fileURLToPath(url))
-                            }
-                        }
-                        filePath = fileURLToPath(url)
+                        urlObj = new URL(url)
                     } catch (e) {
-                        console.error(`fileURLToPath(${url}) error`, e)
+                        console.error(`new URL(${url}) error`, e)
                         return { url, accessible: false, error: e.message }
                     }
-                    return { url, accessible: await canAccess(filePath) }
+                    if (urlObj.protocol === 'file:') {
+                        let filePath = ''
+                        try {
+                            const ipAddress = urlObj.hostname
+                            console.log(`Probing access to '${url}'...`)
+                            if (ipAddress && ipAddress !== lastSambaIP) {
+                                // keep trying until we connect once (per reboot)
+                                const isConnected = await connectToSamba(ipAddress)
+                                if (isConnected) {
+                                    lastSambaIP = ipAddress
+                                } else {
+                                    // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
+                                    // which can occur when there are too many existing connections to the same folder
+                                    // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
+                                    //
+                                    // The error:
+                                    // System error 1219 has occurred.
+                                    // Multiple connections to a server or shared resource by the same user, 
+                                    // using more than one user name, are not allowed. Disconnect all previous 
+                                    // connections to the server or shared resource and try again.
+                                    console.log(`Try closing other windows that may be connected to the smb folder ${ipAddress}\\\\${SHARE_NAME} and try again.`)
+                                }
+                                // create the full path, if it doesn't exist
+                                // NOTE: even if the connectToSamba fails, it's possible that the user still has folder access
+                                if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
+                                    console.log(`Creating full folder path '(${ipAddress}:)${urlObj.pathname}' if needed...`)
+                                    await ensureDir(fileURLToPath(url))
+                                }
+                            }
+                            filePath = fileURLToPath(url)
+                        } catch (e) {
+                            console.error(`fileURLToPath(${url}) error`, e)
+                            return { url, accessible: false, error: e.message }
+                        }
+                        return { url, accessible: await canAccess(filePath) }
+                    }
+                    if (urlObj.protocol.startsWith('http')) {
+                        console.log(`Probing access to '${url}'...`)
+                        await axios.get(url).catch((e) => {
+                            console.error(`axios.get(${url}) error`, e)
+                            return { url, accessible: false, error: e.message }
+                        })
+                        return { url, accessible: true }
+                    }
                 }
         )
     )
@@ -173,17 +192,27 @@ const canAccess = async (filePath: string, throwError = false, timeout = 5000): 
 }
 
 export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<ConnectToUrlResponse> => {
-    let filePath = ''
-    try {
-        filePath = fileURLToPath(url)
+    const urlObj = new URL(url)
+    if (urlObj.protocol === 'file:') {
+        let filePath = ''
+        try {
+            filePath = fileURLToPath(url)
+        }
+        catch (e) {
+            console.error(`fileURLToPath(${url}) error`, e)
+            throw new Error(`Connection path '${url}' is invalid due to error: ` + e.message)
+        }
+        await canAccess(filePath, true).catch((e) => {
+            console.error(`access(${filePath}) error`, e)
+            throw new Error(`Connection path '${filePath}' is inaccessible due to error: ` + e.message)
+        })
+        return filePath
     }
-    catch (e) {
-        console.error(`fileURLToPath(${url}) error`, e)
-        throw new Error(`Connection path '${url}' is invalid due to error: ` + e.message)
+    if (urlObj.protocol.startsWith('http')) {
+        await axios.get(url).catch((e) => {
+            console.error(`axios.get(${url}) error`, e)
+            throw new Error(`Connection URL '${url}' is inaccessible due to error: ` + e.message)
+        })
+        return url
     }
-    await canAccess(filePath, true).catch((e) => {
-        console.error(`access(${filePath}) error`, e)
-        throw new Error(`Connection path '${filePath}' is inaccessible due to error: ` + e.message)
-    })
-    return filePath
 }
