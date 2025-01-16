@@ -1,5 +1,5 @@
 import { ensureDir } from 'fs-extra'
-import { readFile, writeFile } from 'fs/promises'
+import { copyFile, readFile } from 'fs/promises'
 import { dirname, basename, join, posix } from 'path'
 import { RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
 import { getFiles } from './utils'
@@ -23,15 +23,14 @@ export const handleRetrieveBlob = async (blobsPath, { blobId }: RetrieveBlobArgs
     }
 }
 
-export const handleStoreBlob = async (blobsPath, { blobId, arrayBuffer }: StoreBlobArgs): Promise<StoreBlobResponse> => {
+export const handleStoreBlob = async (blobsPath, { blobId, file }: { blobId: StoreBlobArgs['blobId'], file: File }): Promise<StoreBlobResponse> => {
     const relativeVideoPath = dirname(blobId)
     const fileName = basename(blobId)
     const fullFolder = join(blobsPath, relativeVideoPath)
     await ensureDir(fullFolder)
     const fullPath = join(fullFolder, fileName)
-    const buffer = Buffer.from(arrayBuffer)
     try {
-        await writeFile(fullPath, buffer)
+        await copyFile(file.path, fullPath)
         return { fullPath }
     } catch (error) {
         console.error('An error occurred:', error.message)

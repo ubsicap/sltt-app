@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
+import multer from 'multer'
 import { join } from 'path'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
@@ -16,11 +17,13 @@ import { setupUDPServer } from './udp'
 const app = express()
 const PORT = Number(process.env.PORT) || 45177
 
+const multiUpload = multer({ dest: 'uploads/' })
+
 console.log('Starting UDP server on port', PORT)
 setupUDPServer(PORT)
 
 app.use(cors())
-app.use(bodyParser.json({ limit: '50mb' })) // Adjust the limit as needed
+app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const DEFAULT_STORAGE_BASE_PATH = process.env.DEFAULT_STORAGE_BASE_PATH || 'userData'
@@ -112,8 +115,16 @@ app.post('/retrieveBlob', async (req, res) => {
     }
 })
 
-app.post('/storeBlob', async (req, res) => {
-    const args: StoreBlobArgs = req.body
+app.post('/storeBlob', multiUpload.single('blob'), async (req, res) => {
+    const origArgs: StoreBlobArgs = {
+        clientId: req.body['clientId'],
+        blobId: req.body['blobId'],
+        blob: req.file,
+    }
+    const args: { blobId: string, file: File } = {
+        blobId: origArgs.blobId,
+        file: origArgs.blob as File,
+    }
     try {
         const result = await handleStoreBlob(getBlobsPath(), args)
         res.json(result)
