@@ -13,7 +13,7 @@ import { GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArg
 import { setupUDPServer } from './udp'
 
 const app = express()
-const PORT = Number(process.env.PORT) || 5177
+const PORT = Number(process.env.PORT) || 45177
 
 console.log('Starting UDP server on port', PORT)
 setupUDPServer(PORT)
