@@ -4,7 +4,7 @@ import axios from 'axios'
 
 const UDP_CLIENT_PORT = 41234
 
-const CLIENT_MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL:'
+const CLIENT_MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 const CLIENT_MSG_HELLO = 'Hello?'
 const CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL = 'GET /storage-server/url'
 
@@ -29,24 +29,24 @@ udpClient.on('message', async (msg, rinfo) => {
     }
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
     const { message } = clientData
-    if (message === CLIENT_MSG_HELLO) {
-        const responseHello = formatClientMsg('Hello')
+    if (message.id === CLIENT_MSG_HELLO) {
+        const responseHello = formatClientMsg({ type: 'response', id: 'Hello' })
         udpClient.send(responseHello, 0, responseHello.length, rinfo.port, rinfo.address, (err) => {
             if (err) console.error(err)
             else console.log('Response sent')
         })
         return
     }
-    if (message === CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL) {
+    if (message.id === CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL) {
 
-        const responseSlttStorageServerUrl = formatClientMsg(`${CLIENT_MSG_SLTT_STORAGE_SERVER_URL}${myLocalIpAddress}:${storageServerPort}`)
+        const responseSlttStorageServerUrl = formatClientMsg({ type: 'response', id: `${CLIENT_MSG_SLTT_STORAGE_SERVER_URL}`, json: JSON.stringify({ ip: myLocalIpAddress, port: storageServerPort }) })
         udpClient.send(responseSlttStorageServerUrl, 0, responseSlttStorageServerUrl.length, rinfo.port, rinfo.address, (err) => {
             if (err) console.error(err)
             else console.log('Response sent')
         })
     }
-    if (message.startsWith(CLIENT_MSG_SLTT_STORAGE_SERVER_URL)) {
-        const [, ip, port] = message.split(':')
+    if (message.id === CLIENT_MSG_SLTT_STORAGE_SERVER_URL) {
+        const { ip, port } = JSON.parse(message.json)
         const serverUrl = `http://${ip}:${port}`
         console.log(`Discovered storage server at ${serverUrl}`)
         try {
@@ -67,13 +67,21 @@ type ClientMessage = {
         startedAt: string,
         computerName: string,
     },
-    message: string,
+    message: {
+        type: 'request'|'response',
+        id: string,
+        json?: string,
+    }
 }
 
-const formatClientMsg = (msg: string): Buffer => {
+const formatClientMsg = ({ type, id, json }: ClientMessage['message']): Buffer => {
     const payload: ClientMessage = {
         client: { startedAt, computerName: myComputerName },
-        message: msg,
+        message: {
+            type,
+            id,
+            json,
+        },
     }
     return Buffer.from(JSON.stringify(payload))
 }
@@ -81,7 +89,7 @@ const formatClientMsg = (msg: string): Buffer => {
 udpClient.on('listening', () => {
     const address = udpClient.address()
     console.log(`Client listening on ${address.address}:${address.port}`)
-    const msgHello = formatClientMsg(CLIENT_MSG_HELLO)
+    const msgHello = formatClientMsg({ type: 'request', id: CLIENT_MSG_HELLO })
     udpClient.setBroadcast(true)
     udpClient.send(msgHello, 0, msgHello.length, UDP_CLIENT_PORT, '255.255.255.255', (err) => {
         if (err) console.error(err)
@@ -95,7 +103,7 @@ let storageServerPort = NaN
 
 export const setupUDPServer = (port: number): void => {
     storageServerPort = port
-    const msgGetStorageServerUrl = formatClientMsg(CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL)
+    const msgGetStorageServerUrl = formatClientMsg({ type: 'request', id: CLIENT_MSG_GET_SLTT_STORAGE_SERVER_URL })
     udpClient.send(msgGetStorageServerUrl, 0, msgGetStorageServerUrl.length, UDP_CLIENT_PORT, '255.255.255.255', (err) => {
         if (err) console.error(err)
         else console.log('Broadcast message sent')
