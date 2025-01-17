@@ -25,7 +25,7 @@ myClient.on('message', async (msg, rinfo) => {
     if (client.computerName === myComputerName && 
         client.startedAt === startedAt
     ) {
-        if (!myLocalIpAddress) {
+        if (myLocalIpAddress !== rinfo.address) {
             myLocalIpAddress = rinfo.address
             console.log('My local IP address:', myLocalIpAddress)
         }
