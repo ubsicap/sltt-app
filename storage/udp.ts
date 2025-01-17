@@ -1,56 +1,49 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { getAmHosting, serverState } from './serverState'
+import { getAmHosting, getServerConfig, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
-const CLIENT_MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
-const CLIENT_MSG_HELLO = 'Hello?'
-const CLIENT_MSG_GET_HOST_ADDRESS = 'GET /storage-server/host/address'
+const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
+const MSG_HELLO = 'Hello?'
+const MSG_GET_HOST_ADDRESS = 'GET /storage-server/host/address'
+const MSG_GET_PEERS = 'GET /storage-server/peers'
 
 // unlikely that two clients on the same networ will start at the same time
 const startedAt = new Date().toISOString()
 const myComputerName = hostname()
 let myLocalIpAddress = ''
 
-const udpClient = dgram.createSocket('udp4')
+const myClient = dgram.createSocket('udp4')
 
-udpClient.on('message', async (msg, rinfo) => {
+myClient.on('message', async (msg, rinfo) => {
     const clientData: ClientMessage = JSON.parse(msg.toString())
-    if (clientData.client.computerName === myComputerName && 
-        clientData.client.startedAt === startedAt
+    const { message, client } = clientData
+    if (client.computerName === myComputerName && 
+        client.startedAt === startedAt
     ) {
         if (!myLocalIpAddress) {
             myLocalIpAddress = rinfo.address
             console.log('My local IP address:', myLocalIpAddress)
         }
+        if (message.type === 'request' && message.id === MSG_HELLO) {
+            sendMessage({ type: 'response', id: 'Hello' }, rinfo.port, rinfo.address)
+            return
+        }
         console.log('Ignoring own message:', JSON.stringify(clientData, null, 2))
         return
     }
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
-    const { message } = clientData
-    if (message.type === 'request' && message.id === CLIENT_MSG_HELLO) {
-        const responseHello = formatClientMsg({ type: 'response', id: 'Hello' })
-        udpClient.send(responseHello, 0, responseHello.length, rinfo.port, rinfo.address, (err) => {
-            if (err) console.error(err)
-            else console.log('Response sent')
-        })
-        return
-    }
-    if (message.id === CLIENT_MSG_GET_HOST_ADDRESS && getAmHosting()) {
+    if (message.id === MSG_GET_HOST_ADDRESS && getAmHosting()) {
         if (message.type === 'request') {
             const projects = Array.from(serverState.hostingProjects)
-            const responseSlttStorageServerUrl = formatClientMsg({ 
-                type: 'response', id: CLIENT_MSG_GET_HOST_ADDRESS,
-                json: JSON.stringify({ 
-                    ip: myLocalIpAddress, port: 45177, projects
-                }) 
-            })
-            udpClient.send(responseSlttStorageServerUrl, 0, responseSlttStorageServerUrl.length, rinfo.port, rinfo.address, (err) => {
-                if (err) console.error(err)
-                else console.log('Response sent')
-            })
+            sendMessage({
+                type: 'response', id: MSG_GET_HOST_ADDRESS,
+                json: JSON.stringify({
+                    ip: myLocalIpAddress, port: getServerConfig().port, projects
+                })
+            }, rinfo.port, rinfo.address)
             return
         }
         if (message.type === 'response') {
@@ -60,7 +53,25 @@ udpClient.on('message', async (msg, rinfo) => {
             return
         }
     }
-    if (message.type === 'response' && message.id === CLIENT_MSG_SLTT_STORAGE_SERVER_URL) {
+    if (message.id === MSG_GET_PEERS) {
+        if (message.type === 'request') {
+            sendMessage({
+                type: 'response', id: MSG_GET_PEERS,
+                json: JSON.stringify({
+                    ip: myLocalIpAddress, port: getServerConfig().port
+                })
+            }, rinfo.port, rinfo.address)
+            return
+        }
+        if (message.type === 'response') {
+            const { ip, port } = JSON.parse(message.json)
+            serverState.myPeers.add(`http://${ip}:${port}?clientId=${client.computerName}&startedAt=${client.startedAt}`)
+            console.log('Peers count: ', serverState.myPeers.size)
+            return
+        }
+        return
+    }
+    if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
         const { ip, port } = JSON.parse(message.json)
         const serverUrl = `http://${ip}:${port}`
         console.log(`Discovered storage server at ${serverUrl}`)
@@ -102,23 +113,29 @@ const formatClientMsg = ({ type, id, json }: ClientMessage['message']): Buffer =
     return Buffer.from(JSON.stringify(payload))
 }
 
-udpClient.on('listening', () => {
-    const address = udpClient.address()
-    console.log(`Client listening on ${address.address}:${address.port}`)
-    const msgHello = formatClientMsg({ type: 'request', id: CLIENT_MSG_HELLO })
-    udpClient.setBroadcast(true)
-    udpClient.send(msgHello, 0, msgHello.length, UDP_CLIENT_PORT, '255.255.255.255', (err) => {
+const BROADCAST_ADDRESS = '255.255.255.255'
+
+const sendMessage = ({ type, id, json }: ClientMessage['message'], port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
+    const msg = formatClientMsg({ type, id, json })
+    myClient.send(msg, 0, msg.length, port, address, (err) => {
         if (err) console.error(err)
-        else console.log('Broadcast message sent')
+        else console.log(`Message sent to '${address}:${port}': ${id}`)
     })
+}
+
+myClient.on('listening', () => {
+    const address = myClient.address()
+    console.log(`Client listening on ${address.address}:${address.port}`)
+    myClient.setBroadcast(true)
+    sendMessage({ type: 'request', id: MSG_HELLO })
 })
 
-udpClient.bind(UDP_CLIENT_PORT)
+myClient.bind(UDP_CLIENT_PORT)
 
 export const broadcastGetHostMessage = (): void => {
-    const msgGetStorageServerUrl = formatClientMsg({ type: 'request', id: CLIENT_MSG_GET_HOST_ADDRESS })
-    udpClient.send(msgGetStorageServerUrl, 0, msgGetStorageServerUrl.length, UDP_CLIENT_PORT, '255.255.255.255', (err) => {
-        if (err) console.error(err)
-        else console.log('Broadcast message sent')
-    })
+    sendMessage({ type: 'request', id: MSG_GET_HOST_ADDRESS })
+}
+
+export const broadcastGetPeerstMessage = (): void => {
+    sendMessage({ type: 'request', id: MSG_GET_PEERS })
 }

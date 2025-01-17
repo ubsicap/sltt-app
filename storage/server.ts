@@ -16,7 +16,7 @@ import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
-import { broadcastGetHostMessage } from './udp'
+import { broadcastGetHostMessage, broadcastGetPeerstMessage } from './udp'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -82,6 +82,7 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     const args: ProbeConnectionsArgs = req.body
     try {
         broadcastGetHostMessage()
+        broadcastGetPeerstMessage()
         const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
         res.json(result)
     } catch (error) {
@@ -92,6 +93,8 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     const args: ConnectToUrlArgs = req.body
     try {
+        broadcastGetHostMessage()
+        broadcastGetPeerstMessage()
         const newStoragePath = await handleConnectToUrl(args)
         setLANStoragePath(newStoragePath)
         res.json({ newStoragePath })

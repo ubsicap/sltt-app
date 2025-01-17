@@ -11,6 +11,7 @@ export const serverState = {
     hostingProjects: new Set(),
     hostUrl: '',
     myUrl: '',
+    myPeers: new Set(),
 }
 
 export const getAmHosting = (): boolean => {
