@@ -192,7 +192,6 @@ const canAccess = async (filePath: string, throwError = false, timeout = 5000): 
 }
 
 export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<ConnectToUrlResponse> => {
-    
     let urlObj: URL
     try {
         urlObj = new URL(url)
