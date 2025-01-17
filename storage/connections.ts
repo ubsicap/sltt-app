@@ -192,7 +192,14 @@ const canAccess = async (filePath: string, throwError = false, timeout = 5000): 
 }
 
 export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<ConnectToUrlResponse> => {
-    const urlObj = new URL(url)
+    
+    let urlObj: URL
+    try {
+        urlObj = new URL(url)
+    } catch (e) {
+        console.error(`new URL(${url}) error`, e)
+        throw new Error(`Connection URL '${url}' is invalid due to error: ` + e.message)
+    }
     if (urlObj.protocol === 'file:') {
         let filePath = ''
         try {

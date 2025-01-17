@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import path, { join } from 'path'
+import { join } from 'path'
 import { tmpdir } from 'os'
 import { appendFile, mkdtemp, readFile } from 'fs/promises'
 import { ensureDir, remove } from 'fs-extra'
 import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections, handleConnectToUrl, SLTT_APP_LAN_FOLDER } from './connections'
 import { AddStorageProjectArgs, GetStorageProjectsArgs, RemoveStorageProjectArgs, ProbeConnectionsArgs, ConnectToUrlArgs } from './connections.d'
 import { fileURLToPath, pathToFileURL } from 'url'
+import { serverState } from './serverState'
 
 let tempDir: string
 
@@ -60,22 +61,48 @@ describe('handleGetStorageProjects', () => {
 })
 
 describe('handleAddStorageProject', () => {
-    it('should add a project to the whitelist', async () => {
-        const args: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
+    it.each([
+        { case: 'not our host url - no host url', hostProject: false, myUrl: '', hostUrl: '', expectedHostUrl: '', expectedHostProjects: [] },
+        { case: 'not our host url - host url, no hostProject', hostProject: false, myUrl: '', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: 'http://172.16.0.1:45177', expectedHostProjects: [] },
+        { case: 'not our host url - host url, with hostProject', hostProject: true, myUrl: '', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: 'http://172.16.0.1:45177', expectedHostProjects: [] },
+        { case: 'our host url - host url, no hostProject', hostProject: false, myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: '', expectedHostProjects: [] },
+        { case: 'our host url - host url, with hostProject', hostProject: true, myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: 'http://172.16.0.1:45177', expectedHostProjects: ['project1'] },
+    ])('should add a project to the whitelist - $case', async ({ myUrl, hostUrl, expectedHostUrl, hostProject, expectedHostProjects, }) => {
+        serverState.myUrl = myUrl
+        serverState.hostUrl = hostUrl
+        const args: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com', hostProject }
         await handleAddStorageProject(args)
         const whitelistContent = await readFile(`${tempDir}/whitelist.sltt-projects`, 'utf-8')
         expect(whitelistContent).toContain(`\t+\t${args.project}\t${args.adminEmail}\n`)
+        const { hostUrl: hostUrl1, hostProjects } = serverState
+        expect(hostUrl1).toEqual(expectedHostUrl)
+        expect([...hostProjects]).toEqual(expectedHostProjects)
     })
 })
 
 describe('handleRemoveStorageProject', () => {
-    it('should remove a project from the whitelist', async () => {
-        const addArgs: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
+    it.each([
+        { case: 'not our host url - no host url', hostProject: false, myUrl: '', hostUrl: '', expectedHostUrl: '', expectedHostProjects: [] },
+        { case: 'not our host url - host url, no hostProject', hostProject: false, myUrl: '', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: 'http://172.16.0.1:45177', hostProjects: ['project1'], expectedHostProjects: ['project1'] },
+        { case: 'not our host url - host url, with hostProject', hostProject: true, myUrl: '', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: 'http://172.16.0.1:45177', hostProjects: ['project1'], expectedHostProjects: ['project1'] },
+        { case: 'our host url - host url, no hostProject', hostProject: false, myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: '', hostProjects: [], expectedHostProjects: [] },
+        { case: 'our host url - host url, with hostProject', hostProject: true, myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.1:45177', expectedHostUrl: '', hostProjects: [], expectedHostProjects: [] },
+    ])('should remove a project from the whitelist - $case', async ({
+        myUrl, hostUrl, hostProject, hostProjects, expectedHostUrl, expectedHostProjects,
+    }) => {
+        serverState.myUrl = myUrl
+        serverState.hostUrl = hostUrl
+        serverState.hostProjects = new Set(hostProjects)
+
+        const addArgs: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com', hostProject }
         await handleAddStorageProject(addArgs)
         const removeArgs: RemoveStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
         await handleRemoveStorageProject(removeArgs)
         const whitelistContent = await readFile(`${tempDir}/whitelist.sltt-projects`, 'utf-8')
         expect(whitelistContent).toContain(`\t-\t${removeArgs.project}\t${removeArgs.adminEmail}\n`)
+        const { hostUrl: hostUrl1, hostProjects: hostProjects1 } = serverState
+        expect(hostUrl1).toEqual(expectedHostUrl)
+        expect([...hostProjects1]).toEqual(expectedHostProjects)
     })
 })
 
@@ -110,7 +137,7 @@ describe('handleConnectToUrl', () => {
     it('should throw an error if the URL is invalid', async () => {
         const url = 'invalid-url'
         const args: ConnectToUrlArgs = { url, clientId: 'client1', project: 'project1' }
-        await expect(handleConnectToUrl(args)).rejects.toThrow(`Connection path '${url}' is invalid due to error: `)
+        await expect(handleConnectToUrl(args)).rejects.toThrow(`Connection URL '${url}' is invalid due to error: `)
     })
 
     it('should throw an error if the file path is inaccessible', async () => {
