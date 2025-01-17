@@ -5,14 +5,16 @@ import { getAmHosting, getServerConfig, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
-const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 const MSG_HELLO = 'Hello?'
-const MSG_GET_HOST_ADDRESS = 'GET /storage-server/host/address'
+const MSG_GET_HOST = 'GET /storage-server/host'
 const MSG_GET_PEERS = 'GET /storage-server/peers'
+const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
 // unlikely that two clients on the same networ will start at the same time
 const startedAt = new Date().toISOString()
 const myComputerName = hostname()
+console.log('My computer name:', myComputerName)
+console.log('UDP started at:', startedAt)
 let myLocalIpAddress = ''
 
 const myClient = dgram.createSocket('udp4')
@@ -31,25 +33,31 @@ myClient.on('message', async (msg, rinfo) => {
             sendMessage({ type: 'response', id: 'Hello' }, rinfo.port, rinfo.address)
             return
         }
-        console.log('Ignoring own message:', JSON.stringify(clientData, null, 2))
+        console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
         return
     }
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
-    if (message.id === MSG_GET_HOST_ADDRESS && getAmHosting()) {
+    if (message.id === MSG_GET_HOST && getAmHosting()) {
         if (message.type === 'request') {
             const projects = Array.from(serverState.hostingProjects)
             sendMessage({
-                type: 'response', id: MSG_GET_HOST_ADDRESS,
+                type: 'response', id: MSG_GET_HOST,
                 json: JSON.stringify({
                     ip: myLocalIpAddress, port: getServerConfig().port, projects
                 })
             }, rinfo.port, rinfo.address)
             return
         }
-        if (message.type === 'response') {
+        if (message.type === 'response' && client.startedAt <= serverState.hostStartedAt) {
             const { ip, port, projects } = JSON.parse(message.json)
             serverState.hostUrl = `http://${ip}:${port}`
             serverState.hostingProjects = new Set(projects)
+            serverState.hostComputerName = client.computerName
+            serverState.hostStartedAt = client.startedAt
+            console.log(`Set storage server to '${serverState.hostUrl}'`)
+            console.log('Host computer name:', serverState.hostComputerName)
+            console.log('Hosting projects:', projects)
+            console.log('Host started at:', serverState.hostStartedAt)
             return
         }
     }
@@ -133,7 +141,7 @@ myClient.on('listening', () => {
 myClient.bind(UDP_CLIENT_PORT)
 
 export const broadcastGetHostMessage = (): void => {
-    sendMessage({ type: 'request', id: MSG_GET_HOST_ADDRESS })
+    sendMessage({ type: 'request', id: MSG_GET_HOST })
 }
 
 export const broadcastGetPeerstMessage = (): void => {

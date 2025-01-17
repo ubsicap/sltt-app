@@ -81,8 +81,8 @@ app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     const args: ProbeConnectionsArgs = req.body
     try {
-        broadcastGetHostMessage()
         broadcastGetPeerstMessage()
+        broadcastGetHostMessage()
         const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
         res.json(result)
     } catch (error) {
@@ -93,8 +93,8 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     const args: ConnectToUrlArgs = req.body
     try {
-        broadcastGetHostMessage()
         broadcastGetPeerstMessage()
+        broadcastGetHostMessage()
         const newStoragePath = await handleConnectToUrl(args)
         setLANStoragePath(newStoragePath)
         res.json({ newStoragePath })

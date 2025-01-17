@@ -10,6 +10,8 @@ export const getServerConfig = (): ServerConfig => ({
 export const serverState = {
     hostingProjects: new Set(),
     hostUrl: '',
+    hostComputerName: '',
+    hostStartedAt: '',
     myUrl: '',
     myPeers: new Set(),
 }
