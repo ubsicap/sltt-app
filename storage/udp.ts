@@ -39,7 +39,7 @@ myClient.on('message', async (msg, rinfo) => {
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
     if (message.id === MSG_GET_HOST && getAmHosting()) {
         if (message.type === 'request') {
-            const projects = Array.from(serverState.hostingProjects)
+            const projects = Array.from(serverState.hostProjects)
             sendMessage({
                 type: 'response', id: MSG_GET_HOST,
                 json: JSON.stringify({
@@ -51,7 +51,7 @@ myClient.on('message', async (msg, rinfo) => {
         if (message.type === 'response' && (!serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
             const { ip, port, projects } = JSON.parse(message.json)
             serverState.hostUrl = `http://${ip}:${port}`
-            serverState.hostingProjects = new Set(projects)
+            serverState.hostProjects = new Set(projects)
             serverState.hostComputerName = client.computerName
             serverState.hostStartedAt = client.startedAt
             console.log(`Set storage server to '${serverState.hostUrl}'`)

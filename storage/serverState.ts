@@ -8,7 +8,7 @@ export const getServerConfig = (): ServerConfig => ({
 })
 
 export const serverState = {
-    hostingProjects: new Set(),
+    hostProjects: new Set(),
     hostUrl: '',
     hostComputerName: '',
     hostStartedAt: '',
@@ -18,20 +18,21 @@ export const serverState = {
 
 export const getAmHosting = (): boolean => {
     const { myUrl, hostUrl } = serverState
-    return myUrl && hostUrl && !hostUrl.startsWith(myUrl)
+    const result = Boolean(myUrl && hostUrl && hostUrl.startsWith(myUrl))
+    return result
 }
 
-export const updateHostingProjects = (project: string, isHost: boolean): void => {
+export const updateHostProjects = (project: string, hostProject: boolean): void => {
     if (!getAmHosting()) {
         // only update hosting projects if my server is hosting the storage server
         return
     }
-    if (isHost) {
-        serverState.hostingProjects.add(project)
+    if (hostProject) {
+        serverState.hostProjects.add(project)
     } else {
-        serverState.hostingProjects.delete(project)
+        serverState.hostProjects.delete(project)
     }
-    if (serverState.hostingProjects.size === 0) {
+    if (serverState.hostProjects.size === 0) {
         serverState.hostUrl = ''
     }
 }

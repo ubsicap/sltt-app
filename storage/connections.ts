@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getHostUrl, updateHostingProjects } from './serverState'
+import { getHostUrl, updateHostProjects } from './serverState'
 import axios from 'axios'
 
 const execPromise = promisify(exec)
@@ -72,7 +72,7 @@ export const handleGetStorageProjects = async ({ clientId, url }: GetStorageProj
     return [...projectsAdded]
 }
 
-export const handleAddStorageProject = async ({ clientId, url, project, adminEmail, isHost }: AddStorageProjectArgs): Promise<void> => {
+export const handleAddStorageProject = async ({ clientId, url, project, adminEmail, hostProject }: AddStorageProjectArgs): Promise<void> => {
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
@@ -82,7 +82,7 @@ export const handleAddStorageProject = async ({ clientId, url, project, adminEma
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    updateHostingProjects(project, isHost)
+    updateHostProjects(project, hostProject)
 }
 
 export const handleRemoveStorageProject = async ({ url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
@@ -95,7 +95,7 @@ export const handleRemoveStorageProject = async ({ url, project, adminEmail }: R
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    updateHostingProjects(project, false)
+    updateHostProjects(project, false)
 }
 
 let lastSambaIP = ''

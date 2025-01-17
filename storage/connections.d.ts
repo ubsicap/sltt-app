@@ -9,7 +9,7 @@ export const CONNECTIONS_API_GET_STORAGE_PROJECTS = 'getStorageProjects'
 export type GetStorageProjectsArgs = { clientId: string, url: string }
 export type GetStorageProjectsResponse = string[]
 
-export type AddStorageProjectArgs = { clientId: string, url: string, project: string, adminEmail: string, isHost: boolean }
+export type AddStorageProjectArgs = { clientId: string, url: string, project: string, adminEmail: string, hostProject?: boolean }
 export type AddStorageProjectResponse = void
 
 export type RemoveStorageProjectArgs = { clientId: string, url: string, project: string, adminEmail: string }
