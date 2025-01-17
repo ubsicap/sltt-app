@@ -33,7 +33,15 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 const DEFAULT_STORAGE_BASE_PATH = process.env.DEFAULT_STORAGE_BASE_PATH || 'userData'
 let lanStoragePath = ''
 
-const getLANStoragePath = (): string => lanStoragePath
+const getLANStoragePath = (): string => {
+    if (lanStoragePath === '') {
+        throw new Error('LAN storage path is not set')
+    }
+    if (lanStoragePath.startsWith('http')) {
+        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
+    }
+    return lanStoragePath
+}
 const setLANStoragePath = (path: string): void => {
     if (path === lanStoragePath) return
     lanStoragePath = path
@@ -273,4 +281,6 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
+    broadcastGetPeerstMessage()
+    broadcastGetHostMessage()
 })
