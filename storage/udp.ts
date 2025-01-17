@@ -1,7 +1,7 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { serverState } from './serverState'
+import { getAmHosting, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
@@ -38,11 +38,14 @@ udpClient.on('message', async (msg, rinfo) => {
         })
         return
     }
-    if (message.id === CLIENT_MSG_GET_HOST_ADDRESS && serverState.hostingProjects.size > 0) {
+    if (message.id === CLIENT_MSG_GET_HOST_ADDRESS && getAmHosting()) {
         if (message.type === 'request') {
+            const projects = Array.from(serverState.hostingProjects)
             const responseSlttStorageServerUrl = formatClientMsg({ 
                 type: 'response', id: CLIENT_MSG_GET_HOST_ADDRESS,
-                json: JSON.stringify({ ip: myLocalIpAddress, port: 45177 }) 
+                json: JSON.stringify({ 
+                    ip: myLocalIpAddress, port: 45177, projects
+                }) 
             })
             udpClient.send(responseSlttStorageServerUrl, 0, responseSlttStorageServerUrl.length, rinfo.port, rinfo.address, (err) => {
                 if (err) console.error(err)
@@ -51,8 +54,9 @@ udpClient.on('message', async (msg, rinfo) => {
             return
         }
         if (message.type === 'response') {
-            const { ip, port } = JSON.parse(message.json)
+            const { ip, port, projects } = JSON.parse(message.json)
             serverState.hostUrl = `http://${ip}:${port}`
+            serverState.hostingProjects = new Set(projects)
             return
         }
     }
