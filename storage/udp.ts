@@ -48,7 +48,7 @@ myClient.on('message', async (msg, rinfo) => {
             }, rinfo.port, rinfo.address)
             return
         }
-        if (message.type === 'response' && client.startedAt <= serverState.hostStartedAt) {
+        if (message.type === 'response' && (!serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
             const { ip, port, projects } = JSON.parse(message.json)
             serverState.hostUrl = `http://${ip}:${port}`
             serverState.hostingProjects = new Set(projects)
