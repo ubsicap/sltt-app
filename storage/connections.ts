@@ -159,6 +159,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         //     console.error(`axios.get(${url}) error`, e)
                         //     return { url, accessible: false, error: e.message }
                         // })
+                        // TODO: add info for computer name, etc...
                         return { url, accessible: true }
                     }
                 }
