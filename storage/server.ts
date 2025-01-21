@@ -106,7 +106,7 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     try {
         if (args.url.startsWith('http')) {
             setProxyUrl(args.url)
-            res.json(args.url)
+            res.json(args.url) // todo: JSON.stringify host computer name etc...
         } else {
             const newStoragePath = await handleConnectToUrl(args)
             setLANStoragePath(newStoragePath)
