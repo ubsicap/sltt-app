@@ -154,11 +154,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         return { url, accessible: await canAccess(filePath) }
                     }
                     if (urlObj.protocol.startsWith('http')) {
-                        console.log(`Probing access to '${url}'...`)
-                        await axios.get(url).catch((e) => {
-                            console.error(`axios.get(${url}) error`, e)
-                            return { url, accessible: false, error: e.message }
-                        })
+                        // console.log(`Probing access to '${url}'...`)
+                        // await axios.get(url).catch((e) => {
+                        //     console.error(`axios.get(${url}) error`, e)
+                        //     return { url, accessible: false, error: e.message }
+                        // })
                         return { url, accessible: true }
                     }
                 }
