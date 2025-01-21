@@ -16,6 +16,8 @@ console.log('My computer name:', myComputerName)
 console.log('UDP started at:', startedAt)
 let myLocalIpAddress = ''
 
+const createUrl = (ip: string, port: number, clientId: string, startedAt: string): string => `http://${ip}:${port}?clientId=${encodeURIComponent(clientId)}&startedAt=${encodeURIComponent(startedAt)}`
+
 const myClient = dgram.createSocket('udp4')
 
 myClient.on('message', async (msg, rinfo) => {
@@ -60,7 +62,8 @@ myClient.on('message', async (msg, rinfo) => {
             return
         }
         if (message.type === 'response') {
-            serverState.hostPeers.add(`http://${ip}:${port}?clientId=${client.computerName}&startedAt=${client.startedAt}`)
+            const url = createUrl(ip, port, client.computerName, client.startedAt)
+            serverState.hostPeers.add(url)
             console.log('Peers count: ', serverState.hostPeers.size)
         }
     }
