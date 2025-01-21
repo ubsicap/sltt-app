@@ -12,8 +12,20 @@ export const serverState = {
     hostUrl: '',
     hostComputerName: '',
     hostStartedAt: '',
+    /** proxyUrl will be hostUrl whenever CONNECTIONS_API_CONNECT_TO_URL is called with http url */
+    proxyUrl: '',
     myUrl: '',
     myPeers: new Set(),
+}
+
+export const setProxyUrl = (url: string): void => {
+    if (!url.startsWith('http')) {
+        throw new Error(`Invalid proxy url: ${url}`)
+    }
+    if (serverState.hostUrl !== url) {
+        throw new Error(`Proxy url must match host url: ${serverState.hostUrl}`)
+    }
+    serverState.proxyUrl = url
 }
 
 export const getAmHosting = (): boolean => {

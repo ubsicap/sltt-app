@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getServerConfig } from './serverState'
+import { getServerConfig, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -44,6 +44,9 @@ const getLANStoragePath = (): string => {
 }
 const setLANStoragePath = (path: string): void => {
     if (path === lanStoragePath) return
+    if (lanStoragePath.startsWith('http')) {
+        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
+    }
     lanStoragePath = path
     console.log('lanStoragePath:', lanStoragePath)
 }
@@ -103,9 +106,14 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     try {
         broadcastGetPeerstMessage()
         broadcastGetHostMessage()
-        const newStoragePath = await handleConnectToUrl(args)
-        setLANStoragePath(newStoragePath)
-        res.json({ newStoragePath })
+        if (args.url.startsWith('http')) {
+            setProxyUrl(args.url)
+            res.text(args.url)
+        } else {
+            const newStoragePath = await handleConnectToUrl(args)
+            setLANStoragePath(newStoragePath)
+            res.text(newStoragePath)
+        }
     } catch (error) {
         res.status(400).json({ error: error.message })
     }
