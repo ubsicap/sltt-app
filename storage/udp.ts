@@ -5,9 +5,8 @@ import { getAmHosting, getServerConfig, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
-const MSG_HELLO = 'Hello?'
-const MSG_GET_HOST = 'GET /storage-server/host'
-const MSG_GET_PEERS = 'GET /storage-server/peers'
+const MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS = 'GET /udp/my-local-address'
+const MSG_PUSH_HOST_DATA = 'PUSH /storage-server/host'
 const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
 // unlikely that two clients on the same networ will start at the same time
@@ -29,42 +28,32 @@ myClient.on('message', async (msg, rinfo) => {
             myLocalIpAddress = rinfo.address
             console.log('My local IP address:', myLocalIpAddress)
         }
-        if (message.type === 'request' && message.id === MSG_HELLO) {
-            sendMessage({ type: 'response', id: 'Hello' }, rinfo.port, rinfo.address)
+        if (message.type === 'request' && message.id === MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS) {
+            sendMessage({ type: 'response', id: MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS }, rinfo.port, rinfo.address)
             return
         }
         console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
         return
     }
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
-    if (message.id === MSG_GET_HOST && getAmHosting()) {
-        if (message.type === 'request') {
-            const projects = Array.from(serverState.hostProjects)
-            sendMessage({
-                type: 'response', id: MSG_GET_HOST,
-                json: JSON.stringify({
-                    ip: myLocalIpAddress, port: getServerConfig().port, projects
-                })
-            }, rinfo.port, rinfo.address)
-            return
-        }
-        if (message.type === 'response' && (!serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
-            const { ip, port, projects } = JSON.parse(message.json)
-            serverState.hostUrl = `http://${ip}:${port}`
+    if (message.id === MSG_PUSH_HOST_DATA) {
+        const { ip, port, projects, peers } = JSON.parse(message.json)
+        const hostUrl = `http://${ip}:${port}`
+        const isOkayToUpdateHost = !serverState.proxyUrl || (serverState.proxyUrl === hostUrl)
+        if (message.type === 'push' && isOkayToUpdateHost && (hostUrl === serverState.hostUrl || !serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
+            serverState.hostUrl = hostUrl
             serverState.hostProjects = new Set(projects)
+            serverState.hostPeers = new Set(peers)
             serverState.hostComputerName = client.computerName
             serverState.hostStartedAt = client.startedAt
             console.log(`Set storage server to '${serverState.hostUrl}'`)
             console.log('Host computer name:', serverState.hostComputerName)
-            console.log('Hosting projects:', projects)
+            console.log('Host projects:', projects)
+            console.log('Host peers:', peers)
             console.log('Host started at:', serverState.hostStartedAt)
-            return
-        }
-    }
-    if (message.id === MSG_GET_PEERS) {
-        if (message.type === 'request') {
+            // respond with our own local ip address and port information
             sendMessage({
-                type: 'response', id: MSG_GET_PEERS,
+                type: 'response', id: MSG_PUSH_HOST_DATA,
                 json: JSON.stringify({
                     ip: myLocalIpAddress, port: getServerConfig().port
                 })
@@ -72,12 +61,9 @@ myClient.on('message', async (msg, rinfo) => {
             return
         }
         if (message.type === 'response') {
-            const { ip, port } = JSON.parse(message.json)
-            serverState.myPeers.add(`http://${ip}:${port}?clientId=${client.computerName}&startedAt=${client.startedAt}`)
-            console.log('Peers count: ', serverState.myPeers.size)
-            return
+            serverState.hostPeers.add(`http://${ip}:${port}?clientId=${client.computerName}&startedAt=${client.startedAt}`)
+            console.log('Peers count: ', serverState.hostPeers.size)
         }
-        return
     }
     if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
         const { ip, port } = JSON.parse(message.json)
@@ -103,7 +89,7 @@ type ClientMessage = {
         computerName: string,
     },
     message: {
-        type: 'request'|'response'|'notify',
+        type: 'request'|'response'|'push',
         id: string,
         json?: string,
     }
@@ -135,15 +121,22 @@ myClient.on('listening', () => {
     const address = myClient.address()
     console.log(`Client listening on ${address.address}:${address.port}`)
     myClient.setBroadcast(true)
-    sendMessage({ type: 'request', id: MSG_HELLO })
+    sendMessage({ type: 'request', id: MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS })
 })
 
 myClient.bind(UDP_CLIENT_PORT)
 
-export const broadcastGetHostMessage = (): void => {
-    sendMessage({ type: 'request', id: MSG_GET_HOST })
-}
-
-export const broadcastGetPeerstMessage = (): void => {
-    sendMessage({ type: 'request', id: MSG_GET_PEERS })
+export const broadcastPushHostDataMaybe = (): void => {
+    if (!getAmHosting()) {
+        return
+    }
+    const projects = Array.from(serverState.hostProjects)
+    const peers = Array.from(serverState.hostPeers)
+    sendMessage({
+        type: 'push', id: MSG_PUSH_HOST_DATA,
+        json: JSON.stringify({
+            ip: myLocalIpAddress, port: getServerConfig().port, projects, peers
+        })
+    })
+    return
 }

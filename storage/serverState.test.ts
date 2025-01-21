@@ -5,11 +5,11 @@ describe('getAmHosting', () => {
     beforeEach(() => {
         // Reset serverState before each test
         serverState.hostProjects.clear()
+        serverState.hostPeers.clear()
         serverState.hostUrl = ''
         serverState.hostComputerName = ''
         serverState.hostStartedAt = ''
         serverState.myUrl = ''
-        serverState.myPeers.clear()
     })
 
     it.each([
@@ -37,7 +37,7 @@ describe('updateHostProjects', () => {
         serverState.hostComputerName = ''
         serverState.hostStartedAt = ''
         serverState.myUrl = ''
-        serverState.myPeers.clear()
+        serverState.hostPeers.clear()
     })
 
     it.each([

@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getServerConfig, setProxyUrl } from './serverState'
+import { getAmHosting, getServerConfig, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -16,7 +16,7 @@ import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
-import { broadcastGetHostMessage, broadcastGetPeerstMessage } from './udp'
+import { broadcastPushHostDataMaybe } from './udp'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -92,8 +92,7 @@ app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     const args: ProbeConnectionsArgs = req.body
     try {
-        broadcastGetPeerstMessage()
-        broadcastGetHostMessage()
+        broadcastPushHostDataMaybe()
         const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
         res.json(result)
     } catch (error) {
@@ -104,12 +103,11 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     const args: ConnectToUrlArgs = req.body
     try {
-        broadcastGetPeerstMessage()
-        broadcastGetHostMessage()
         if (args.url.startsWith('http')) {
             setProxyUrl(args.url)
             res.text(args.url)
         } else {
+            broadcastPushHostDataMaybe()
             const newStoragePath = await handleConnectToUrl(args)
             setLANStoragePath(newStoragePath)
             res.text(newStoragePath)
@@ -289,6 +287,5 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`)
-    broadcastGetPeerstMessage()
-    broadcastGetHostMessage()
+    broadcastPushHostDataMaybe()
 })

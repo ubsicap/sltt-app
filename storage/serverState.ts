@@ -13,9 +13,9 @@ export const serverState = {
     hostComputerName: '',
     hostStartedAt: '',
     /** proxyUrl will be hostUrl whenever CONNECTIONS_API_CONNECT_TO_URL is called with http url */
+    hostPeers: new Set(),
     proxyUrl: '',
     myUrl: '',
-    myPeers: new Set(),
 }
 
 export const setProxyUrl = (url: string): void => {
