@@ -5,8 +5,9 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getHostUrl, updateHostProjects } from './serverState'
+import { getHostUrl, updateMyProjectsToHost } from './serverState'
 import axios from 'axios'
+import { broadcastPushHostDataMaybe } from './udp'
 
 const execPromise = promisify(exec)
 
@@ -82,7 +83,8 @@ export const handleAddStorageProject = async ({ clientId, url, project, adminEma
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    updateHostProjects(project, hostProject)
+    updateMyProjectsToHost(project, hostProject)
+    broadcastPushHostDataMaybe()
 }
 
 export const handleRemoveStorageProject = async ({ url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
@@ -95,7 +97,8 @@ export const handleRemoveStorageProject = async ({ url, project, adminEmail }: R
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    updateHostProjects(project, false)
+    updateMyProjectsToHost(project, false)
+    broadcastPushHostDataMaybe()
 }
 
 let lastSambaIP = ''

@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getAmHosting, getServerConfig, setProxyUrl } from './serverState'
+import { getServerConfig, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -17,6 +17,7 @@ import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORE
 import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 import { broadcastPushHostDataMaybe } from './udp'
+import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -24,13 +25,13 @@ const PORT = Number(process.env.PORT) || serverConfig.port
 
 const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUpload` })
 
-console.log('Starting UDP server on port', PORT)
+console.log('Starting UDP client on port', PORT)
 
 app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
-const DEFAULT_STORAGE_BASE_PATH = process.env.DEFAULT_STORAGE_BASE_PATH || 'userData'
+const DEFAULT_STORAGE_BASE_PATH = electronApp.getPath('userData')
 let lanStoragePath = ''
 
 const getLANStoragePath = (): string => {
@@ -105,12 +106,12 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     try {
         if (args.url.startsWith('http')) {
             setProxyUrl(args.url)
-            res.text(args.url)
+            res.json(args.url)
         } else {
             broadcastPushHostDataMaybe()
             const newStoragePath = await handleConnectToUrl(args)
             setLANStoragePath(newStoragePath)
-            res.text(newStoragePath)
+            res.json(newStoragePath)
         }
     } catch (error) {
         res.status(400).json({ error: error.message })
@@ -286,6 +287,5 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, async (req, res) => {
 })
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
-    broadcastPushHostDataMaybe()
+    console.log(`Storage server is running localhost port ${PORT}`)
 })

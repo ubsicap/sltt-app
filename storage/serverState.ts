@@ -16,6 +16,7 @@ export const serverState = {
     hostPeers: new Set(),
     proxyUrl: '',
     myUrl: '',
+    myProjectsToHost: new Set(),
 }
 
 export const setProxyUrl = (url: string): void => {
@@ -34,18 +35,12 @@ export const getAmHosting = (): boolean => {
     return result
 }
 
-export const updateHostProjects = (project: string, hostProject: boolean): void => {
-    if (!getAmHosting()) {
-        // only update hosting projects if my server is hosting the storage server
-        return
-    }
+export const updateMyProjectsToHost = (project: string, hostProject: boolean): void => {
+    const { myProjectsToHost } = serverState
     if (hostProject) {
-        serverState.hostProjects.add(project)
+        myProjectsToHost.add(project)
     } else {
-        serverState.hostProjects.delete(project)
-    }
-    if (serverState.hostProjects.size === 0) {
-        serverState.hostUrl = ''
+        myProjectsToHost.delete(project)
     }
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { serverState, updateHostProjects, getAmHosting } from './serverState'
+import { serverState, updateMyProjectsToHost, getAmHosting } from './serverState'
 
 describe('getAmHosting', () => {
     beforeEach(() => {
@@ -29,68 +29,22 @@ describe('getAmHosting', () => {
     })
 })
 
-describe('updateHostProjects', () => {
+describe('updateMyProjectsToHost', () => {
     beforeEach(() => {
         // Reset serverState before each test
-        serverState.hostProjects.clear()
-        serverState.hostUrl = ''
-        serverState.hostComputerName = ''
-        serverState.hostStartedAt = ''
-        serverState.myUrl = ''
-        serverState.hostPeers.clear()
+        serverState.myProjectsToHost.clear()
     })
 
     it.each([
-        { myUrl: '', hostUrl: '', hostProject: true, project: 'project1', expected: false },
-        { myUrl: '', hostUrl: 'http://172.16.0.1:45177', hostProject: true, project: 'project1', expected: false },
-        { myUrl: 'http://172.16.0.1:45177', hostUrl: '', hostProject: true, project: 'project1', expected: false },
-        { myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.1:45177', hostProject: true, project: 'project1', expected: true },
-        { myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.1:45177', hostProject: false, project: 'project1', expected: false },
-        { myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.2:45178', hostProject: true, project: 'project1', expected: false },
-        { myUrl: 'http://172.16.0.1:45177', hostUrl: 'http://172.16.0.2:45178', hostProject: false, project: 'project1', expected: false },
-    ])('should update hostProjects correctly for myUrl: $myUrl, hostUrl: $hostUrl, hostProject: $hostProject', ({ myUrl, hostUrl, hostProject, project, expected }) => {
-        serverState.myUrl = myUrl
-        serverState.hostUrl = hostUrl
+        { initialMyHostProjects: [], hostProject: true, project: 'project1', expectedMyHostProjects: ['project1'] },
+        { initialMyHostProjects: ['project1'], hostProject: true, project: 'project1', expectedMyHostProjects: ['project1'] },
+        { initialMyHostProjects: ['project1'], hostProject: true, project: 'project2', expectedMyHostProjects: ['project1', 'project2'] },
+        { initialMyHostProjects: ['project1', 'project2'], hostProject: false, project: 'project2', expectedMyHostProjects: ['project1'] },
+        { initialMyHostProjects: ['project1', 'project2'], hostProject: false, project: 'project3', expectedMyHostProjects: ['project1', 'project2'] },
+    ])('should update hostProjects correctly for myUrl: $myUrl, hostUrl: $hostUrl, hostProject: $hostProject', ({ initialMyHostProjects, hostProject, project, expectedMyHostProjects }) => {
+        serverState.myProjectsToHost = new Set(initialMyHostProjects)
 
-        updateHostProjects(project, hostProject)
-        expect(serverState.hostProjects.has(project)).toBe(expected)
-    })
-
-    it('should not add a project to hostProjects if server is not hosting', () => {
-        serverState.myUrl = 'http://172.16.0.1:45177'
-        serverState.hostUrl = 'http://172.16.0.2:45178'
-
-        updateHostProjects('project1', true)
-        expect(serverState.hostProjects.has('project1')).toBe(false)
-    })
-
-    it('should not remove a project from hostProjects if server is not hosting', () => {
-        serverState.myUrl = 'http://172.16.0.1:45177'
-        serverState.hostUrl = 'http://172.16.0.2:45178'
-        serverState.hostProjects.add('project1')
-
-        updateHostProjects('project1', false)
-        expect(serverState.hostProjects.has('project1')).toBe(true)
-    })
-
-    it('should clear hostUrl if there are no more hostProjects', () => {
-        serverState.myUrl = 'http://172.16.0.1:45177'
-        serverState.hostUrl = 'http://172.16.0.1:45177'
-        serverState.hostProjects.add('project1')
-
-        updateHostProjects('project1', false)
-        expect(serverState.hostProjects.size).toBe(0)
-        expect(serverState.hostUrl).toBe('')
-    })
-
-    it('should not clear hostUrl if there are still hostProjects', () => {
-        serverState.myUrl = 'http://172.16.0.1:45177'
-        serverState.hostUrl = 'http://172.16.0.1:45177'
-        serverState.hostProjects.add('project1')
-        serverState.hostProjects.add('project2')
-
-        updateHostProjects('project1', false)
-        expect(serverState.hostProjects.size).toBe(1)
-        expect(serverState.hostUrl).toBe('http://172.16.0.1:45177')
+        updateMyProjectsToHost(project, hostProject)
+        expect([...serverState.myProjectsToHost]).toEqual(expectedMyHostProjects)
     })
 })

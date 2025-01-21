@@ -1,11 +1,11 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { getAmHosting, getServerConfig, serverState } from './serverState'
+import { getServerConfig, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
-const MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS = 'GET /udp/my-local-address'
+const MSG_DISCOVER_MY_LOCAL_IP_ADDRESS = 'GET /my-local-address'
 const MSG_PUSH_HOST_DATA = 'PUSH /storage-server/host'
 const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
@@ -28,8 +28,8 @@ myClient.on('message', async (msg, rinfo) => {
             myLocalIpAddress = rinfo.address
             console.log('My local IP address:', myLocalIpAddress)
         }
-        if (message.type === 'request' && message.id === MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS) {
-            sendMessage({ type: 'response', id: MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS }, rinfo.port, rinfo.address)
+        if (message.type === 'request' && message.id === MSG_DISCOVER_MY_LOCAL_IP_ADDRESS) {
+            sendMessage({ type: 'response', id: MSG_DISCOVER_MY_LOCAL_IP_ADDRESS }, rinfo.port, rinfo.address)
             return
         }
         console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
@@ -121,16 +121,14 @@ myClient.on('listening', () => {
     const address = myClient.address()
     console.log(`Client listening on ${address.address}:${address.port}`)
     myClient.setBroadcast(true)
-    sendMessage({ type: 'request', id: MSG_DISCOVER_MY_LOCAL_UDP_ADDRESS })
+    sendMessage({ type: 'request', id: MSG_DISCOVER_MY_LOCAL_IP_ADDRESS })
 })
 
 myClient.bind(UDP_CLIENT_PORT)
 
 export const broadcastPushHostDataMaybe = (): void => {
-    if (!getAmHosting()) {
-        return
-    }
-    const projects = Array.from(serverState.hostProjects)
+    if (serverState.myProjectsToHost.size === 0) return
+    const projects = Array.from(serverState.myProjectsToHost)
     const peers = Array.from(serverState.hostPeers)
     sendMessage({
         type: 'push', id: MSG_PUSH_HOST_DATA,
