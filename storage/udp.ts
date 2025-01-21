@@ -39,8 +39,7 @@ myClient.on('message', async (msg, rinfo) => {
     if (message.id === MSG_PUSH_HOST_DATA) {
         const { ip, port, projects, peers } = JSON.parse(message.json)
         const hostUrl = `http://${ip}:${port}`
-        const isOkayToUpdateHost = !serverState.proxyUrl || (serverState.proxyUrl === hostUrl)
-        if (message.type === 'push' && isOkayToUpdateHost && (hostUrl === serverState.hostUrl || !serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
+        if (message.type === 'push' && (hostUrl === serverState.hostUrl || !serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
             serverState.hostUrl = hostUrl
             serverState.hostProjects = new Set(projects)
             serverState.hostPeers = new Set(peers)

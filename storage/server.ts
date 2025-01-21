@@ -108,9 +108,9 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
             setProxyUrl(args.url)
             res.json(args.url)
         } else {
-            broadcastPushHostDataMaybe()
             const newStoragePath = await handleConnectToUrl(args)
             setLANStoragePath(newStoragePath)
+            broadcastPushHostDataMaybe()
             res.json(newStoragePath)
         }
     } catch (error) {
