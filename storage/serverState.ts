@@ -86,6 +86,7 @@ export const getAmHosting = (): boolean => {
     return result
 }
 
+/** TODO: use handleGetStorageProjects instead? */
 export const updateMyProjectsToHost = (project: string, hostProject: boolean): void => {
     const { myProjectsToHost } = serverState
     if (hostProject) {
