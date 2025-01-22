@@ -5,9 +5,10 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getHostUrl, serverState, updateMyProjectsToHost } from './serverState'
+import { getAmHosting, getHostUrl, serverState, updateMyProjectsToHost } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
+import { hostname } from 'os'
 
 const execPromise = promisify(exec)
 
@@ -156,7 +157,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             console.error(`fileURLToPath(${url}) error`, e)
                             return { url, accessible: false, error: e.message }
                         }
-                        return { url, accessible: await canAccess(filePath) }
+                        const user = serverState.myUsername
+                        const computerName = hostname()
+                        const peers = getAmHosting() ? Object.keys(serverState.hostPeers).length : 0
+                        const connectionInfo = `${user}@${computerName} - ${peers}`
+                        return { url, accessible: await canAccess(filePath), connectionInfo }
                     }
                     if (urlObj.protocol.startsWith('http')) {
                         // console.log(`Probing access to '${url}'...`)
@@ -166,7 +171,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         // })
                         // TODO: add info for computer name, etc...
                         const { user, computerName } = serverState.host
-                        const peerCount = Object.keys(serverState.hostPeers)
+                        const peerCount = Object.keys(serverState.hostPeers).length
                         const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount}` : ''
                         return {
                             url, accessible: true,
