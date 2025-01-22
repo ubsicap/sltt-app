@@ -93,6 +93,7 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
         } else {
             const newStoragePath = await handleConnectToUrl(args)
             setLANStoragePath(newStoragePath)
+            serverState.allowHosting = args.allowHosting
             broadcastPushHostDataMaybe()
             res.json(newStoragePath)
         }

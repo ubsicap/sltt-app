@@ -44,6 +44,7 @@ export const serverState = {
     hostPeers,
     proxyUrl: '',
     myUrl: '',
+    allowHosting: false,
     myProjectsToHost: new Set(),
     myUsername: '',
     myLanStoragePath: '',
@@ -87,13 +88,10 @@ export const getAmHosting = (): boolean => {
 }
 
 /** TODO: use handleGetStorageProjects instead? */
-export const updateMyProjectsToHost = (project: string, hostProject: boolean): void => {
+export const updateMyProjectsToHost = (projects: string[]): void => {
     const { myProjectsToHost } = serverState
-    if (hostProject) {
-        myProjectsToHost.add(project)
-    } else {
-        myProjectsToHost.delete(project)
-    }
+    myProjectsToHost.clear()
+    projects.forEach(project => myProjectsToHost.add(project))
 }
 
 export const getHostUrl = (): string => serverState.hostUrl

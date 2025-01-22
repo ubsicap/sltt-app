@@ -73,7 +73,7 @@ export const handleGetStorageProjects = async ({ clientId, url }: GetStorageProj
     return [...projectsAdded]
 }
 
-export const handleAddStorageProject = async ({ clientId, url, project, adminEmail, hostProject }: AddStorageProjectArgs): Promise<void> => {
+export const handleAddStorageProject = async ({ clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
@@ -83,11 +83,13 @@ export const handleAddStorageProject = async ({ clientId, url, project, adminEma
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    updateMyProjectsToHost(project, hostProject)
-    broadcastPushHostDataMaybe()
+    handleGetStorageProjects({ clientId, url }).then(projects => {
+        updateMyProjectsToHost(projects)
+        broadcastPushHostDataMaybe()
+    })
 }
 
-export const handleRemoveStorageProject = async ({ url, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
+export const handleRemoveStorageProject = async ({ url, clientId, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleRemoveStorageProject[${url}]: project ${project} removed by ${adminEmail}`)
@@ -97,8 +99,10 @@ export const handleRemoveStorageProject = async ({ url, project, adminEmail }: R
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    updateMyProjectsToHost(project, false)
-    broadcastPushHostDataMaybe()
+    handleGetStorageProjects({ clientId, url }).then(projects => {
+        updateMyProjectsToHost(projects)
+        broadcastPushHostDataMaybe()
+    })
 }
 
 let lastSambaIP = ''

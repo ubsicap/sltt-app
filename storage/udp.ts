@@ -141,7 +141,7 @@ myClient.on('listening', () => {
 myClient.bind(UDP_CLIENT_PORT)
 
 export const broadcastPushHostDataMaybe = (): void => {
-    if (serverState.myProjectsToHost.size === 0) return
+    if (!serverState.allowHosting) return
     const projects = Array.from(serverState.myProjectsToHost)
     const peers = serverState.hostPeers
     sendMessage({
