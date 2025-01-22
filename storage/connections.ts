@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getHostUrl, updateMyProjectsToHost } from './serverState'
+import { getHostUrl, serverState, updateMyProjectsToHost } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
 
@@ -160,7 +160,12 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         //     return { url, accessible: false, error: e.message }
                         // })
                         // TODO: add info for computer name, etc...
-                        return { url, accessible: true }
+                        const { user, computerName } = serverState.host
+                        const connectionInfo = user && computerName ? `${serverState.host.user}@${serverState.host.computerName}` : ''
+                        return {
+                            url, accessible: true,
+                            connectionInfo
+                        }
                     }
                 }
         )
