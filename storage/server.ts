@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getServerConfig, serverState, setProxyUrl } from './serverState'
+import { getLANStoragePath, getServerConfig, serverState, setLANStoragePath, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -32,25 +32,7 @@ app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const DEFAULT_STORAGE_BASE_PATH = electronApp.getPath('userData')
-let lanStoragePath = ''
 
-const getLANStoragePath = (): string => {
-    if (lanStoragePath === '') {
-        throw new Error('LAN storage path is not set')
-    }
-    if (lanStoragePath.startsWith('http')) {
-        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
-    }
-    return lanStoragePath
-}
-const setLANStoragePath = (path: string): void => {
-    if (path === lanStoragePath) return
-    if (lanStoragePath.startsWith('http')) {
-        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
-    }
-    lanStoragePath = path
-    console.log('lanStoragePath:', lanStoragePath)
-}
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
 const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')

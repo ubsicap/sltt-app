@@ -46,7 +46,29 @@ export const serverState = {
     myUrl: '',
     myProjectsToHost: new Set(),
     myUsername: '',
-} 
+    myLanStoragePath: '',
+}
+
+export const getLANStoragePath = (): string => {
+    const lanStoragePath = serverState.myLanStoragePath
+    if (lanStoragePath === '') {
+        throw new Error('LAN storage path is not set')
+    }
+    if (lanStoragePath.startsWith('http')) {
+        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
+    }
+    return lanStoragePath
+}
+
+export const setLANStoragePath = (path: string): void => {
+    const lanStoragePath = serverState.myLanStoragePath
+    if (path === lanStoragePath) return
+    if (lanStoragePath.startsWith('http')) {
+        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
+    }
+    serverState.myLanStoragePath = path
+    console.log('lanStoragePath:', lanStoragePath)
+}
 
 export const setProxyUrl = (url: string): void => {
     if (!url.startsWith('http')) {
