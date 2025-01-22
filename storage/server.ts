@@ -4,7 +4,7 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { getServerConfig, setProxyUrl } from './serverState'
+import { getServerConfig, serverState, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { getLANStoragePath as buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -104,6 +104,7 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     const args: ConnectToUrlArgs = req.body
     try {
+        serverState.myUsername = args.username
         if (args.url.startsWith('http')) {
             setProxyUrl(args.url)
             res.json(args.url) // todo: JSON.stringify host computer name etc...

@@ -18,5 +18,5 @@ export type RemoveStorageProjectArgs = void
 export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }
 export type ProbeConnectionsResponse = { url: string, accessible: boolean }[]
 
-export type ConnectToUrlArgs = { clientId: string, url: string, project: string }
+export type ConnectToUrlArgs = { clientId: string, url: string, project: string, username: string }
 export type ConnectToUrlResponse = string

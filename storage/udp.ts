@@ -16,8 +16,6 @@ console.log('My computer name:', myComputerName)
 console.log('UDP started at:', startedAt)
 let myLocalIpAddress = ''
 
-const createUrl = (ip: string, port: number, clientId: string, startedAt: string): string => `http://${ip}:${port}?clientId=${encodeURIComponent(clientId)}&startedAt=${encodeURIComponent(startedAt)}`
-
 const myClient = dgram.createSocket('udp4')
 
 myClient.on('message', async (msg, rinfo) => {
@@ -41,18 +39,21 @@ myClient.on('message', async (msg, rinfo) => {
     if (message.id === MSG_PUSH_HOST_DATA) {
         const { ip, port, projects, peers } = JSON.parse(message.json)
         const hostUrl = `http://${ip}:${port}`
-        if (message.type === 'push' && (hostUrl === serverState.hostUrl || !serverState.hostStartedAt || client.startedAt <= serverState.hostStartedAt)) {
-            serverState.hostUrl = hostUrl
+        if (message.type === 'push' && (hostUrl === serverState.hostUrl || !serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
             serverState.hostProjects = new Set(projects)
-            serverState.hostPeers = new Set(peers)
-            serverState.hostComputerName = client.computerName
-            serverState.hostStartedAt = client.startedAt
+            serverState.host.ip = ip
+            serverState.host.port = port
+            serverState.host.user = client.user
+            serverState.host.startedAt = client.startedAt
+            serverState.host.updatedAt = message.createdAt
+            serverState.host.computerName = client.computerName
+            serverState.hostPeers = peers
             console.log(`Set storage server to '${serverState.hostUrl}'`)
-            console.log('Host computer name:', serverState.hostComputerName)
+            console.log('Host computer name:', serverState.host.computerName)
+            console.log('Host started at:', serverState.host.startedAt)
             console.log('Host projects:', projects)
-            console.log('Host peers:', peers)
-            console.log('Host started at:', serverState.hostStartedAt)
-            // respond with our own local ip address and port information
+            console.log('Host peers:', JSON.stringify(peers, null, 2))
+            // respond (as a peer) with our own local ip address and port information
             sendMessage({
                 type: 'response', id: MSG_PUSH_HOST_DATA,
                 json: JSON.stringify({
@@ -62,8 +63,16 @@ myClient.on('message', async (msg, rinfo) => {
             return
         }
         if (message.type === 'response') {
-            const url = createUrl(ip, port, client.computerName, client.startedAt)
-            serverState.hostPeers.add(url)
+            // the host should store each peer's data
+            const { startedAt, computerName, user } = client
+            serverState.hostPeers[client.startedAt] = {
+                startedAt,
+                updatedAt: message.createdAt,
+                computerName,
+                user,
+                ip, port,
+            }
+            // TODO: remove peers that haven't been updated in a while
             console.log('Peers count: ', serverState.hostPeers.size)
         }
     }
@@ -89,18 +98,21 @@ type ClientMessage = {
     client: {
         startedAt: string,
         computerName: string,
+        user: string,
     },
     message: {
+        createdAt: string,
         type: 'request'|'response'|'push',
         id: string,
         json?: string,
     }
 }
 
-const formatClientMsg = ({ type, id, json }: ClientMessage['message']): Buffer => {
+const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>): Buffer => {
     const payload: ClientMessage = {
-        client: { startedAt, computerName: myComputerName },
+        client: { startedAt, computerName: myComputerName, user: serverState.myUsername },
         message: {
+            createdAt: new Date().toISOString(),
             type,
             id,
             json,
@@ -111,7 +123,7 @@ const formatClientMsg = ({ type, id, json }: ClientMessage['message']): Buffer =
 
 const BROADCAST_ADDRESS = '255.255.255.255'
 
-const sendMessage = ({ type, id, json }: ClientMessage['message'], port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
+const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>, port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
     const msg = formatClientMsg({ type, id, json })
     myClient.send(msg, 0, msg.length, port, address, (err) => {
         if (err) console.error(err)
@@ -131,7 +143,7 @@ myClient.bind(UDP_CLIENT_PORT)
 export const broadcastPushHostDataMaybe = (): void => {
     if (serverState.myProjectsToHost.size === 0) return
     const projects = Array.from(serverState.myProjectsToHost)
-    const peers = Array.from(serverState.hostPeers)
+    const peers = serverState.hostPeers
     sendMessage({
         type: 'push', id: MSG_PUSH_HOST_DATA,
         json: JSON.stringify({

@@ -7,17 +7,46 @@ export const getServerConfig = (): ServerConfig => ({
     port: 45177
 })
 
+type PeerData = {
+    startedAt: string,
+    updatedAt: string,
+    computerName: string,
+    user: string,
+    ip: string,
+    port: number,
+}
+
+const createUrl = (ip: string, port: number): string => {
+    return `http://${ip}:${port}`
+}
+
+
+const host: PeerData = {
+    startedAt: '',
+    updatedAt: '',
+    computerName: '',
+    user: '',
+    ip: '',
+    port: -1,
+}
+const hostPeers: { [clientId: string]: PeerData } = {}
+
 export const serverState = {
     hostProjects: new Set(),
-    hostUrl: '',
-    hostComputerName: '',
-    hostStartedAt: '',
+    host,
+    get hostUrl(): string {
+        if (!host.ip || host.port < 0) {
+            return ''
+        }
+        return createUrl(host.ip, host.port)
+    },
     /** proxyUrl will be hostUrl whenever CONNECTIONS_API_CONNECT_TO_URL is called with http url */
-    hostPeers: new Set(),
+    hostPeers,
     proxyUrl: '',
     myUrl: '',
     myProjectsToHost: new Set(),
-}
+    myUsername: '',
+} 
 
 export const setProxyUrl = (url: string): void => {
     if (!url.startsWith('http')) {
