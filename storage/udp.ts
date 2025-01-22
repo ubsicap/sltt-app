@@ -73,7 +73,7 @@ myClient.on('message', async (msg, rinfo) => {
                 ip, port,
             }
             // TODO: remove peers that haven't been updated in a while
-            console.log('Peers count: ', serverState.hostPeers.size)
+            console.log('Peers count: ', Object.keys(serverState.hostPeers).length)
         }
     }
     if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {

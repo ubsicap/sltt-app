@@ -5,7 +5,6 @@ describe('getAmHosting', () => {
     beforeEach(() => {
         // Reset serverState before each test
         serverState.hostProjects.clear()
-        serverState.hostPeers.clear()
         serverState.hostUrl = ''
         serverState.hostComputerName = ''
         serverState.hostStartedAt = ''
