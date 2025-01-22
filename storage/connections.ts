@@ -106,6 +106,7 @@ let lastSambaIP = ''
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
     const hostUrl = getHostUrl()
+    console.log(`hostUrl: ${hostUrl}`)
     const connections = await Promise.all(
         [pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrl && !urls.includes(hostUrl) ? [hostUrl] : [])]
             .map(
