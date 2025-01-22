@@ -162,7 +162,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         // TODO: add info for computer name, etc...
                         const { user, computerName } = serverState.host
                         const peerCount = Object.keys(serverState.hostPeers)
-                        const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount} peers` : ''
+                        const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount}` : ''
                         return {
                             url, accessible: true,
                             connectionInfo

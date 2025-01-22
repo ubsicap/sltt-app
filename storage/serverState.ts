@@ -16,7 +16,7 @@ type PeerData = {
     port: number,
 }
 
-const createUrl = (ip: string, port: number): string => {
+export const createUrl = (ip: string, port: number): string => {
     return `http://${ip}:${port}`
 }
 

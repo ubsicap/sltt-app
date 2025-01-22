@@ -1,7 +1,7 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { getServerConfig, serverState } from './serverState'
+import { createUrl, getServerConfig, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
@@ -22,7 +22,7 @@ myClient.on('message', async (msg, rinfo) => {
     const clientData: ClientMessage = JSON.parse(msg.toString())
     const { message, client } = clientData
     if (client.computerName === myComputerName && 
-        client.startedAt === startedAt
+        client.startedAt === startedAt && message.id !== MSG_PUSH_HOST_DATA
     ) {
         if (myLocalIpAddress !== rinfo.address) {
             myLocalIpAddress = rinfo.address
@@ -38,7 +38,7 @@ myClient.on('message', async (msg, rinfo) => {
     console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
     if (message.id === MSG_PUSH_HOST_DATA) {
         const { ip, port, projects, peers } = JSON.parse(message.json)
-        const hostUrl = `http://${ip}:${port}`
+        const hostUrl = createUrl(ip, port)
         if (message.type === 'push' && (hostUrl === serverState.hostUrl || !serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
             serverState.hostProjects = new Set(projects)
             serverState.host.ip = ip
@@ -78,7 +78,7 @@ myClient.on('message', async (msg, rinfo) => {
     }
     if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
         const { ip, port } = JSON.parse(message.json)
-        const serverUrl = `http://${ip}:${port}`
+        const serverUrl = createUrl(ip, port)
         console.log(`Discovered storage server at ${serverUrl}`)
         try {
             const response = await axios.get(`${serverUrl}/status`, {
