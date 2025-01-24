@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getAmHosting, getHostUrl, serverState, updateMyProjectsToHost } from './serverState'
+import { getAmHosting, getHostUrl, getLANStoragePath, serverState, updateMyProjectsToHost } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
 import { hostname } from 'os'
@@ -49,7 +49,8 @@ const checkLanStoragePath = (lanStoragePath: string): void => {
     }
 }
 
-export const handleGetStorageProjects = async ({ clientId, url }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
+export const handleGetStorageProjects = async ({ clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
+    const url = getLANStoragePath()
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
@@ -74,7 +75,8 @@ export const handleGetStorageProjects = async ({ clientId, url }: GetStorageProj
     return [...projectsAdded]
 }
 
-export const handleAddStorageProject = async ({ clientId, url, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
+export const handleAddStorageProject = async ({ clientId, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
+    const url = getLANStoragePath()
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
@@ -90,7 +92,8 @@ export const handleAddStorageProject = async ({ clientId, url, project, adminEma
     })
 }
 
-export const handleRemoveStorageProject = async ({ url, clientId, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
+export const handleRemoveStorageProject = async ({ clientId, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
+    const url = getLANStoragePath()
     checkLanStoragePath(url)
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleRemoveStorageProject[${url}]: project ${project} removed by ${adminEmail}`)
