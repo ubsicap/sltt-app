@@ -64,11 +64,11 @@ export const getLANStoragePath = (): string => {
 export const setLANStoragePath = (path: string): void => {
     const lanStoragePath = serverState.myLanStoragePath
     if (path === lanStoragePath) return
-    if (lanStoragePath.startsWith('http')) {
+    if (path.startsWith('http')) {
         throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
     }
     serverState.myLanStoragePath = path
-    console.log('lanStoragePath:', lanStoragePath)
+    console.log(`lanStoragePath: ${serverState.myLanStoragePath}`, )
 }
 
 export const setProxyUrl = (url: string): void => {

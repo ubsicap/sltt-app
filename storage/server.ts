@@ -42,7 +42,15 @@ app.get('/status', (req, res) => {
     res.json({ status: 'ok' })
 })
 
+function verifyLocalhost(req: express.Request, res: express.Response): void {
+    if (req.headers.host === `localhost:${PORT}`) {
+        return
+    }
+    res.status(403).json({ error: 'Forbidden' })
+}
+
 app.post(`/${CONNECTIONS_API_SET_LAN_STORAGE_PATH}`, async (req, res) => {
+    verifyLocalhost(req, res)
     const args: SetLanStoragePathArgs = req.body
     try {
         setLANStoragePath(args.url)
@@ -83,6 +91,9 @@ app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
 })
 
 app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
+    verifyLocalhost(req, res)
+    const lanStoragePath = getLANStoragePath()
+    console.log(`probe: lanStoragePath - ${lanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
     try {
         broadcastPushHostDataMaybe()
@@ -94,6 +105,9 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
 })
 
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
+    verifyLocalhost(req, res)
+    const lanStoragePath = getLANStoragePath()
+    console.log(`connectToUrl: lanStoragePath - ${lanStoragePath}`)
     const args: ConnectToUrlArgs = req.body
     try {
         serverState.myUsername = args.username
