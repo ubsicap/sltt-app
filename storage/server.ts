@@ -33,6 +33,7 @@ app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const DEFAULT_STORAGE_BASE_PATH = electronApp.getPath('userData')
+setLANStoragePath(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH))
 
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
 const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
