@@ -33,7 +33,7 @@ app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const DEFAULT_STORAGE_BASE_PATH = electronApp.getPath('userData')
-setLANStoragePath(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH))
+// setLANStoragePath(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH))
 
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
 const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
@@ -97,8 +97,7 @@ app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
 
 app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     verifyLocalhost(req, res)
-    const lanStoragePath = getLANStoragePath()
-    console.log(`probe: lanStoragePath - ${lanStoragePath}`)
+    console.log(`probe: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
     try {
         broadcastPushHostDataMaybe()
@@ -111,8 +110,7 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
 
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
     verifyLocalhost(req, res)
-    const lanStoragePath = getLANStoragePath()
-    console.log(`connectToUrl: lanStoragePath - ${lanStoragePath}`)
+    console.log(`connectToUrl: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ConnectToUrlArgs = req.body
     try {
         serverState.myUsername = args.username
