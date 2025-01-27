@@ -81,8 +81,8 @@ export const setProxyUrl = (url: string): void => {
     if (!url.startsWith('http')) {
         throw new Error(`Invalid proxy url: ${url}`)
     }
-    if (serverState.hostUrl === url) {
-        throw new Error(`Proxy url (${url}) must exist in host urls: ${JSON.stringify(serverState.host.ip)}`)
+    if (serverState.hostUrl !== url) {
+        throw new Error(`Proxy url (${url}) must match host url: ${JSON.stringify(serverState.host.ip)}`)
     }
     serverState.proxyUrl = url
 }
