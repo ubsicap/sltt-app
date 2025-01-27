@@ -18,6 +18,7 @@ import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 import { broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
+import { fileURLToPath } from 'url'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -53,7 +54,8 @@ app.post(`/${CONNECTIONS_API_SET_LAN_STORAGE_PATH}`, async (req, res) => {
     verifyLocalhost(req, res)
     const args: SetLanStoragePathArgs = req.body
     try {
-        setLANStoragePath(args.url)
+        const filePath = fileURLToPath(args.url)
+        setLANStoragePath(filePath)
         res.json({ ok: true})
     } catch (error) {
         res.status(400).json({ error: error.message })
@@ -61,6 +63,8 @@ app.post(`/${CONNECTIONS_API_SET_LAN_STORAGE_PATH}`, async (req, res) => {
 })
 
 app.post(`/${CONNECTIONS_API_GET_STORAGE_PROJECTS}`, async (req, res) => {
+    // TODO: register ip addresses that my clients used to connect to me
+    // to narrow down the list of ipv4s for clients to probe
     const args: GetStorageProjectsArgs = req.body
     try {
         const result = await handleGetStorageProjects(args)

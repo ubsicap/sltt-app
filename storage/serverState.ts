@@ -12,7 +12,7 @@ type PeerData = {
     updatedAt: string,
     computerName: string,
     user: string,
-    ip: string,
+    ipv4s: Ipv4Details[],
     port: number,
 }
 
@@ -26,20 +26,20 @@ const host: PeerData = {
     updatedAt: '',
     computerName: '',
     user: '',
-    ip: '',
+    ipv4s: [],
     port: -1,
 }
+
 const hostPeers: { [clientId: string]: PeerData } = {}
 
 export const serverState = {
     hostProjects: new Set(),
     host,
-    get hostUrl(): string {
-        if (!host.ip || host.port < 0) {
-            return ''
-        }
-        return createUrl(host.ip, host.port)
+    get hostUrls(): string[] {
+        const hostUrls = host.ipv4s.map(ipv4 => createUrl(ipv4.address, host.port))
+        return hostUrls
     },
+
     /** proxyUrl will be hostUrl whenever CONNECTIONS_API_CONNECT_TO_URL is called with http url */
     hostPeers,
     proxyUrl: '',
@@ -49,6 +49,8 @@ export const serverState = {
     myUsername: '',
     myLanStoragePath: '',
 }
+
+export type Ipv4Details = { name: string, address: string }
 
 export const getLANStoragePath = (): string => {
     const lanStoragePath = serverState.myLanStoragePath
@@ -64,6 +66,9 @@ export const getLANStoragePath = (): string => {
 export const setLANStoragePath = (path: string): void => {
     const lanStoragePath = serverState.myLanStoragePath
     if (path === lanStoragePath) return
+    if (path.startsWith('file:')) {
+        throw new Error(`LAN storage path must be a local disk path, but got '${path}'`)
+    }
     if (path.startsWith('http')) {
         throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
     }
@@ -75,15 +80,15 @@ export const setProxyUrl = (url: string): void => {
     if (!url.startsWith('http')) {
         throw new Error(`Invalid proxy url: ${url}`)
     }
-    if (serverState.hostUrl !== url) {
-        throw new Error(`Proxy url must match host url: ${serverState.hostUrl}`)
+    if (serverState.hostUrls.some(hostUrl => hostUrl === url)) {
+        throw new Error(`Proxy url (${url}) must exist in host urls: ${JSON.stringify(serverState.host.ipv4s)}`)
     }
     serverState.proxyUrl = url
 }
 
 export const getAmHosting = (): boolean => {
-    const { myUrl, hostUrl } = serverState
-    const result = Boolean(myUrl && hostUrl && hostUrl.startsWith(myUrl))
+    const { myUrl, hostUrls } = serverState
+    const result = Boolean(myUrl && hostUrls.length > 0 && hostUrls.some(hostUrl => hostUrl.startsWith(myUrl)))
     return result
 }
 
@@ -94,4 +99,4 @@ export const updateMyProjectsToHost = (projects: string[]): void => {
     projects.forEach(project => myProjectsToHost.add(project))
 }
 
-export const getHostUrl = (): string => serverState.hostUrl
+export const getHostUrls = (): string[] => serverState.hostUrls

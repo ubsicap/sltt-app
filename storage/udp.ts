@@ -1,20 +1,59 @@
 import dgram from 'dgram'
-import { hostname } from 'os'
+import { hostname, networkInterfaces } from 'os'
 import axios from 'axios'
-import { createUrl, getServerConfig, serverState } from './serverState'
+import { createUrl, getServerConfig, Ipv4Details, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
-const MSG_DISCOVER_MY_LOCAL_IP_ADDRESS = 'GET /my-local-address'
+const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
 const MSG_PUSH_HOST_DATA = 'PUSH /storage-server/host'
 const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
-// unlikely that two clients on the same networ will start at the same time
+const getAllMyIpv4AddressDetails = (): Ipv4Details[] => {
+    const netInterfaces = networkInterfaces()
+    const ipv4Addresses: Ipv4Details[] = []
+
+    for (const netInterfaceName in netInterfaces) {
+        const netInterface = netInterfaces[netInterfaceName]
+        for (const netAddress of netInterface) {
+            if (netAddress.family === 'IPv4' && !netAddress.internal) {
+                ipv4Addresses.push({
+                    name: netInterfaceName,
+                    address: netAddress.address,
+                })
+            }
+        }
+    }
+
+    // Custom sorting function to prioritize Ethernet over Wi-Fi
+    ipv4Addresses.sort((a, b) => {
+        const ethernetKeywords = ['eth', 'en', 'Ethernet']
+        const wifiKeywords = ['wlan', 'wi-fi', 'wifi']
+
+        const aIsEthernet = ethernetKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
+        const bIsEthernet = ethernetKeywords.some(keyword => b.name.toLowerCase().includes(keyword))
+
+        const aIsWifi = wifiKeywords.some(keyword => a.name.toLowerCase().includes(keyword))
+        const bIsWifi = wifiKeywords.some(keyword => b.name.toLowerCase().includes(keyword))
+
+        if (aIsEthernet && !bIsEthernet) return -1
+        if (!aIsEthernet && bIsEthernet) return 1
+        if (aIsWifi && !bIsWifi) return 1
+        if (!aIsWifi && bIsWifi) return -1
+
+        return 0
+    })
+
+    console.log('All my ipv4 addresses:', JSON.stringify(ipv4Addresses, null, 2))
+    return ipv4Addresses
+}
+
+// unlikely that two clients on the same network will start at the same time
 const startedAt = new Date().toISOString()
 const myComputerName = hostname()
 console.log('My computer name:', myComputerName)
 console.log('UDP started at:', startedAt)
-let myLocalIpAddress = ''
+let myUdpIpAddress = ''
 
 const myClient = dgram.createSocket('udp4')
 
@@ -24,31 +63,30 @@ myClient.on('message', async (msg, rinfo) => {
     if (client.computerName === myComputerName && 
         client.startedAt === startedAt && message.id !== MSG_PUSH_HOST_DATA
     ) {
-        if (myLocalIpAddress !== rinfo.address) {
-            myLocalIpAddress = rinfo.address
-            console.log('My local IP address:', myLocalIpAddress)
+        if (myUdpIpAddress !== rinfo.address) {
+            myUdpIpAddress = rinfo.address
+            console.log('My UDP IP address:', myUdpIpAddress)
         }
-        if (message.type === 'request' && message.id === MSG_DISCOVER_MY_LOCAL_IP_ADDRESS) {
-            sendMessage({ type: 'response', id: MSG_DISCOVER_MY_LOCAL_IP_ADDRESS }, rinfo.port, rinfo.address)
+        if (message.type === 'request' && message.id === MSG_DISCOVER_MY_UDP_IP_ADDRESS) {
+            sendMessage({ type: 'response', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS }, rinfo.port, rinfo.address)
             return
         }
         console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
         return
     }
-    console.log(`Client got: "${msg}" from '${rinfo.address}:${rinfo.port}'`)
+    console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
     if (message.id === MSG_PUSH_HOST_DATA) {
-        const { ip, port, projects, peers } = JSON.parse(message.json)
-        const hostUrl = createUrl(ip, port)
-        if (message.type === 'push' && (hostUrl === serverState.hostUrl || !serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
+        const { ipv4s, port, projects, peers } = JSON.parse(message.json)
+        if (message.type === 'push' && (!serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
             serverState.hostProjects = new Set(projects)
-            serverState.host.ip = ip
+            serverState.host.ipv4s = ipv4s
             serverState.host.port = port
             serverState.host.user = client.user
             serverState.host.startedAt = client.startedAt
             serverState.host.updatedAt = message.createdAt
             serverState.host.computerName = client.computerName
             serverState.hostPeers = peers
-            console.log(`Set storage server to '${serverState.hostUrl}'`)
+            console.log(`Set storage server hostUrls to '${JSON.stringify(serverState.hostUrls)}'`)
             console.log('Host computer name:', serverState.host.computerName)
             console.log('Host started at:', serverState.host.startedAt)
             console.log('Host projects:', projects)
@@ -57,7 +95,7 @@ myClient.on('message', async (msg, rinfo) => {
             sendMessage({
                 type: 'response', id: MSG_PUSH_HOST_DATA,
                 json: JSON.stringify({
-                    ip: myLocalIpAddress, port: getServerConfig().port
+                    ip: myUdpIpAddress, port: getServerConfig().port
                 })
             }, rinfo.port, rinfo.address)
             return
@@ -70,7 +108,7 @@ myClient.on('message', async (msg, rinfo) => {
                 updatedAt: message.createdAt,
                 computerName,
                 user,
-                ip, port,
+                ipv4s, port,
             }
             // TODO: remove peers that haven't been updated in a while
             console.log('Peers count: ', Object.keys(serverState.hostPeers).length)
@@ -135,7 +173,7 @@ myClient.on('listening', () => {
     const address = myClient.address()
     console.log(`Client listening on ${address.address}:${address.port}`)
     myClient.setBroadcast(true)
-    sendMessage({ type: 'request', id: MSG_DISCOVER_MY_LOCAL_IP_ADDRESS })
+    sendMessage({ type: 'request', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS })
 })
 
 myClient.bind(UDP_CLIENT_PORT)
@@ -147,7 +185,7 @@ export const broadcastPushHostDataMaybe = (): void => {
     sendMessage({
         type: 'push', id: MSG_PUSH_HOST_DATA,
         json: JSON.stringify({
-            ip: myLocalIpAddress, port: getServerConfig().port, projects, peers
+            ipv4s: getAllMyIpv4AddressDetails(), port: getServerConfig().port, projects, peers
         })
     })
     return

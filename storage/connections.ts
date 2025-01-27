@@ -5,10 +5,11 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getAmHosting, getHostUrl, getLANStoragePath, serverState, updateMyProjectsToHost } from './serverState'
+import { getAmHosting, getHostUrls, getLANStoragePath, serverState, updateMyProjectsToHost } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
 import { hostname } from 'os'
+import { uniq } from 'lodash'
 
 const execPromise = promisify(exec)
 
@@ -44,15 +45,17 @@ const checkLanStoragePath = (lanStoragePath: string): void => {
     if (!lanStoragePath) {
         throw new Error('LAN storage path is not set')
     }
+    if (lanStoragePath.startsWith('file:')) {
+        throw new Error(`LAN storage path must be a local disk path, but got '${lanStoragePath}'`)
+    }
     if (!normalize(lanStoragePath).endsWith(`${normalize(SLTT_APP_LAN_FOLDER)}`)) {
         throw new Error(`LAN storage path is invalid: ${lanStoragePath}`)
     }
 }
 
 export const handleGetStorageProjects = async ({ clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
-    const url = getLANStoragePath()
-    checkLanStoragePath(url)
-    const lanStoragePath = fileURLToPath(url)
+    const lanStoragePath = getLANStoragePath()
+    checkLanStoragePath(lanStoragePath)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
     const whitelistPath = `${lanStoragePath}/whitelist.sltt-projects`
     const projectsRemoved = new Set<string>()
@@ -113,10 +116,11 @@ let lastSambaIP = ''
 
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
-    const hostUrl = getHostUrl()
-    console.log(`hostUrl: ${hostUrl}`)
+    const hostUrls = getHostUrls()
+    console.log(`hostUrls: ${hostUrls}`)
+    const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrls || [])])
     const connections = await Promise.all(
-        [pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrl && !urls.includes(hostUrl) ? [hostUrl] : [])]
+        allPossibleUrls
             .map(
                 async (url) => {
                     let urlObj: URL
@@ -167,12 +171,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         return { url, accessible: await canAccess(filePath), connectionInfo }
                     }
                     if (urlObj.protocol.startsWith('http')) {
-                        // console.log(`Probing access to '${url}'...`)
-                        // await axios.get(url).catch((e) => {
-                        //     console.error(`axios.get(${url}) error`, e)
-                        //     return { url, accessible: false, error: e.message }
-                        // })
-                        // TODO: add info for computer name, etc...
+                        console.log(`Probing access to '${url}'...`)
+                        await axios.get(url, { timeout: 500 }).catch((e) => {
+                            console.error(`axios.get(${url}) error`, e)
+                            return { url, accessible: false, error: e.message }
+                        })
                         const { user, computerName } = serverState.host
                         const peerCount = Object.keys(serverState.hostPeers).length
                         const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount}` : ''
