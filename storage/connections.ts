@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getAmHosting, getHostUrls, getLANStoragePath, serverState, updateMyProjectsToHost } from './serverState'
+import { getAmHosting, getHostUrl, getLANStoragePath, serverState, updateMyProjectsToHost } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
 import { hostname } from 'os'
@@ -116,9 +116,9 @@ let lastSambaIP = ''
 
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
-    const hostUrls = getHostUrls()
-    console.log(`hostUrls: ${hostUrls}`)
-    const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrls || [])])
+    const hostUrl = getHostUrl()
+    console.log(`hostUrl: ${hostUrl}`)
+    const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrl && [hostUrl] || [])])
     const connections = await Promise.all(
         allPossibleUrls
             .map(
@@ -171,11 +171,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         return { url, accessible: await canAccess(filePath), connectionInfo }
                     }
                     if (urlObj.protocol.startsWith('http')) {
-                        console.log(`Probing access to '${url}'...`)
-                        await axios.get(url, { timeout: 500 }).catch((e) => {
-                            console.error(`axios.get(${url}) error`, e)
-                            return { url, accessible: false, error: e.message }
-                        })
+                        // console.log(`Probing access to '${url}'...`)
+                        // await axios.get(url, { timeout: 500 }).catch((e) => {
+                        //     console.error(`axios.get(${url}) error`, e)
+                        //     return { url, accessible: false, error: e.message }
+                        // })
                         const { user, computerName } = serverState.host
                         const peerCount = Object.keys(serverState.hostPeers).length
                         const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount}` : ''

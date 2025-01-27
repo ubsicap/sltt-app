@@ -12,7 +12,7 @@ type PeerData = {
     updatedAt: string,
     computerName: string,
     user: string,
-    ipv4s: Ipv4Details[],
+    ip: string,
     port: number,
 }
 
@@ -26,7 +26,7 @@ const host: PeerData = {
     updatedAt: '',
     computerName: '',
     user: '',
-    ipv4s: [],
+    ip: '',
     port: -1,
 }
 
@@ -35,9 +35,10 @@ const hostPeers: { [clientId: string]: PeerData } = {}
 export const serverState = {
     hostProjects: new Set(),
     host,
-    get hostUrls(): string[] {
-        const hostUrls = host.ipv4s.map(ipv4 => createUrl(ipv4.address, host.port))
-        return hostUrls
+    get hostUrl(): string {
+        if (host.ip === '') return ''
+        if (host.port === -1) return ''
+        return createUrl(host.ip, host.port)
     },
 
     /** proxyUrl will be hostUrl whenever CONNECTIONS_API_CONNECT_TO_URL is called with http url */
@@ -80,15 +81,15 @@ export const setProxyUrl = (url: string): void => {
     if (!url.startsWith('http')) {
         throw new Error(`Invalid proxy url: ${url}`)
     }
-    if (serverState.hostUrls.some(hostUrl => hostUrl === url)) {
+    if (serverState.hostUrl === url) {
         throw new Error(`Proxy url (${url}) must exist in host urls: ${JSON.stringify(serverState.host.ipv4s)}`)
     }
     serverState.proxyUrl = url
 }
 
 export const getAmHosting = (): boolean => {
-    const { myUrl, hostUrls } = serverState
-    const result = Boolean(myUrl && hostUrls.length > 0 && hostUrls.some(hostUrl => hostUrl.startsWith(myUrl)))
+    const { myUrl, hostUrl } = serverState
+    const result = Boolean(myUrl && hostUrl && hostUrl.startsWith(myUrl))
     return result
 }
 
@@ -99,4 +100,4 @@ export const updateMyProjectsToHost = (projects: string[]): void => {
     projects.forEach(project => myProjectsToHost.add(project))
 }
 
-export const getHostUrls = (): string[] => serverState.hostUrls
+export const getHostUrl = (): string => serverState.hostUrl
