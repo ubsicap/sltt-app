@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getAmHosting, getHostUrl, getLANStoragePath, serverState, updateMyProjectsToHost } from './serverState'
+import { getAmHosting, getHostUrl, getLANStoragePath, serverState } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
 import { hostname } from 'os'
@@ -89,10 +89,7 @@ export const handleAddStorageProject = async ({ clientId, project, adminEmail }:
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    handleGetStorageProjects({ clientId, url }).then(projects => {
-        updateMyProjectsToHost(projects)
-        broadcastPushHostDataMaybe()
-    })
+    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId, url }))
 }
 
 export const handleRemoveStorageProject = async ({ clientId, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
@@ -106,10 +103,7 @@ export const handleRemoveStorageProject = async ({ clientId, project, adminEmail
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    handleGetStorageProjects({ clientId, url }).then(projects => {
-        updateMyProjectsToHost(projects)
-        broadcastPushHostDataMaybe()
-    })
+    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId, url }))
 }
 
 let lastSambaIP = ''

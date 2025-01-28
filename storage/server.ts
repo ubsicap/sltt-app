@@ -6,7 +6,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { getLANStoragePath, getServerConfig, serverState, setLANStoragePath, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
-import { getLANStoragePath as buildLANStoragePath } from './core'
+import { buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, CONNECTIONS_API_SET_LAN_STORAGE_PATH, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, SetLanStoragePathArgs } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
@@ -100,7 +100,9 @@ app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
     console.log(`probe: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
     try {
-        broadcastPushHostDataMaybe()
+        if (serverState.myLanStoragePath) {
+            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
+        }
         const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
         res.json(result)
     } catch (error) {
@@ -121,7 +123,7 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
             const newStoragePath = await handleConnectToUrl(args)
             setLANStoragePath(newStoragePath)
             serverState.allowHosting = args.allowHosting
-            broadcastPushHostDataMaybe()
+            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
             res.json(newStoragePath)
         }
     } catch (error) {

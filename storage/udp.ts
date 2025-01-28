@@ -139,14 +139,15 @@ myClient.on('listening', () => {
 
 myClient.bind(UDP_CLIENT_PORT)
 
-export const broadcastPushHostDataMaybe = (): void => {
+export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]>): void => {
     if (!serverState.allowHosting) return
-    const projects = Array.from(serverState.myProjectsToHost)
-    const peers = serverState.hostPeers
-    sendMessage({
-        type: 'push', id: MSG_PUSH_HOST_DATA,
-        json: JSON.stringify({
-            port: getServerConfig().port, projects, peers
+    fnGetProjects().then((projects) => {
+        const peers = serverState.hostPeers
+        sendMessage({
+            type: 'push', id: MSG_PUSH_HOST_DATA,
+            json: JSON.stringify({
+                port: getServerConfig().port, projects, peers
+            })
         })
     })
     return
