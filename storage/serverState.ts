@@ -21,7 +21,7 @@ export const createUrl = (ip: string, port: number): string => {
 }
 
 
-const host: PeerData = {
+export const initialHost: PeerData = {
     startedAt: '',
     updatedAt: '',
     computerName: '',
@@ -29,6 +29,8 @@ const host: PeerData = {
     ip: '',
     port: -1,
 }
+
+const host = { ...initialHost }
 
 const hostPeers: { [clientId: string]: PeerData } = {}
 
@@ -50,8 +52,6 @@ export const serverState = {
     myUsername: '',
     myLanStoragePath: '',
 }
-
-export type Ipv4Details = { name: string, address: string }
 
 export const getLANStoragePath = (): string => {
     const lanStoragePath = serverState.myLanStoragePath

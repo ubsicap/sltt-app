@@ -1,7 +1,7 @@
 import dgram from 'dgram'
-import { hostname, networkInterfaces } from 'os'
+import { hostname } from 'os'
 import axios from 'axios'
-import { createUrl, getServerConfig, Ipv4Details, serverState } from './serverState'
+import { createUrl, getServerConfig, initialHost, serverState } from './serverState'
 
 const UDP_CLIENT_PORT = 41234
 
@@ -151,3 +151,26 @@ export const broadcastPushHostDataMaybe = (): void => {
     })
     return
 }
+
+// setup interval timer to determine expired host or host peers
+const peerExpirationMs = 1000 * 10 * 2 // 20 seconds (2x the client probe interval)
+
+setInterval(() => {
+    const now = new Date().getTime()
+    if (serverState.host.updatedAt && now - new Date(serverState.host.updatedAt).getTime() > peerExpirationMs) {
+        console.log('Removing expired host')
+        serverState.host = { ...initialHost}
+        serverState.hostProjects = new Set()
+        serverState.hostPeers = {}
+        return
+    }
+    const expiredPeers = Object.keys(serverState.hostPeers).filter((startedAt) => {
+        const peer = serverState.hostPeers[startedAt]
+        const updatedAt = new Date(peer.updatedAt).getTime()
+        return now - updatedAt > peerExpirationMs
+    })
+    expiredPeers.forEach((startedAt) => {
+        console.log(`Removing expired peer: ${startedAt}`)
+        delete serverState.hostPeers[startedAt]
+    })
+}, 1000)
