@@ -127,12 +127,8 @@ app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, a
 
 app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveBlobArgs = req.body
-    try {
-        const result = await handleRetrieveBlob(getBlobsPath(), args)
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
+    const result = await handleRetrieveBlob(getBlobsPath(), args)
+    res.json(result)
 }))
 
 app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.single('blob'), asyncHandler(async (req, res) => {
