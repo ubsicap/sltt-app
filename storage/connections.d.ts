@@ -1,11 +1,14 @@
-
+export const CONNECTIONS_API_SET_ALLOW_HOSTING = 'setAllowHosting'
 export const CONNECTIONS_API_PROBE = 'probeConnections'
 export const CONNECTIONS_API_CONNECT_TO_URL = 'connectToUrl'
-// not sure if these belong to a different module or not
 export const CONNECTIONS_API_SET_LAN_STORAGE_PATH = 'setLanStoragePath'
+// not sure if these belong to a different module or not
 export const CONNECTIONS_API_ADD_STORAGE_PROJECT = 'addStorageProject'
 export const CONNECTIONS_API_REMOVE_STORAGE_PROJECT = 'removeStorageProject'
 export const CONNECTIONS_API_GET_STORAGE_PROJECTS = 'getStorageProjects'
+
+export type SetAllowHostingArgs = { clientId: string, allowHosting: boolean }
+export type SetAllowHostingResponse = { ok: true }
 
 export type SetLanStoragePathArgs = { clientId: string, url: string }
 export type GetStorageProjectsArgs = { clientId: string, url: string }
