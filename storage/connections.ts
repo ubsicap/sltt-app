@@ -10,6 +10,7 @@ import axios from 'axios'
 import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
 import { hostname } from 'os'
 import { uniq } from 'lodash'
+import { MY_CLIENT_ID } from './serverConfig'
 
 const execPromise = promisify(exec)
 
@@ -256,6 +257,6 @@ export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<Con
 
 setInterval(() => {
     if (serverState.allowHosting) {
-        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: '$me$' }))
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
     }
 }, hostUpdateIntervalMs)

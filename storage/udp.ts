@@ -1,7 +1,8 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { createUrl, getServerConfig, initialHost, serverState } from './serverState'
+import { createUrl, initialHost, serverState } from './serverState'
+import { getServerConfig } from './serverConfig'
 
 const UDP_CLIENT_PORT = 41234
 
@@ -38,9 +39,9 @@ myClient.on('message', async (msg, rinfo) => {
     console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
     if (message.id === MSG_PUSH_HOST_DATA) {
         const { port, projects, peers } = JSON.parse(message.json)
-        // TODO: replace host detection based on clientId that is persisted on each computer
-        if (message.type === 'push' && (!serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
+        if (message.type === 'push' && (!serverState.host.serverId || serverState.host.serverId === client.serverId || client.startedAt <= serverState.host.startedAt)) {
             serverState.hostProjects = new Set(projects)
+            serverState.host.serverId = client.serverId
             serverState.host.ip = rinfo.address
             serverState.host.port = port
             serverState.host.user = client.user
@@ -48,7 +49,8 @@ myClient.on('message', async (msg, rinfo) => {
             serverState.host.updatedAt = message.createdAt
             serverState.host.computerName = client.computerName
             serverState.hostPeers = peers
-            console.log(`Set storage server hostUrl to '${JSON.stringify(serverState.hostUrl)}'`)
+            console.log(`Set storage server hostUrl to '${serverState.hostUrl}'`)
+            console.log('Host serverId:', serverState.host.serverId)
             console.log('Host computer name:', serverState.host.computerName)
             console.log('Host started at:', serverState.host.startedAt)
             console.log('Host projects:', projects)
@@ -63,7 +65,8 @@ myClient.on('message', async (msg, rinfo) => {
         if (message.type === 'response') {
             // the host should store each peer's data
             const { startedAt, computerName, user } = client
-            serverState.hostPeers[client.startedAt] = {
+            serverState.hostPeers[client.serverId] = {
+                serverId: client.serverId,
                 startedAt,
                 updatedAt: message.createdAt,
                 computerName,
@@ -95,6 +98,7 @@ myClient.on('message', async (msg, rinfo) => {
 
 type ClientMessage = {
     client: {
+        serverId: string,
         startedAt: string,
         computerName: string,
         user: string,
@@ -109,7 +113,7 @@ type ClientMessage = {
 
 const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>): Buffer => {
     const payload: ClientMessage = {
-        client: { startedAt, computerName: myComputerName, user: serverState.myUsername },
+        client: { serverId: serverState.myServerId, startedAt, computerName: myComputerName, user: serverState.myUsername },
         message: {
             createdAt: new Date().toISOString(),
             type,

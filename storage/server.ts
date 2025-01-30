@@ -3,8 +3,8 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
-import { tmpdir } from 'os'
-import { getLANStoragePath, getServerConfig, serverState, setLANStoragePath, setProxyUrl } from './serverState'
+import { hostname, tmpdir } from 'os'
+import { getLANStoragePath, serverState, setLANStoragePath, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
@@ -19,6 +19,7 @@ import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FIL
 import { broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 import { fileURLToPath } from 'url'
+import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -34,11 +35,28 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const DEFAULT_STORAGE_BASE_PATH = electronApp.getPath('userData')
 // setLANStoragePath(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH))
+const configFilePath = join(electronApp.getPath('userData'), 'servers', `server-${getServerConfig().port}.sltt-config`)
 
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
 const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
+
+loadServerSettings(configFilePath).then(async (settings) => {
+    let needsToSave = false
+    if (!settings.myServerId) {
+        serverState.myServerId = `${hostname()} - ${new Date().toISOString()}`
+        needsToSave = true
+    } else {
+        serverState.myServerId = settings.myServerId
+    }
+    serverState.allowHosting = settings.allowHosting
+    setLANStoragePath(settings.myLanStoragePath)
+    if (needsToSave) {
+        await saveServerSettings(configFilePath, serverState)
+    }
+    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+})
 
 app.get('/status', (req, res) => {
     res.json({ status: 'ok' })
@@ -65,6 +83,11 @@ app.post(`/${CONNECTIONS_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
     serverState.allowHosting = args.allowHosting
     const filePath = fileURLToPath(args.url)
     setLANStoragePath(filePath)
+    await saveServerSettings(configFilePath, {
+        myServerId: serverState.myServerId,
+        allowHosting: args.allowHosting,
+        myLanStoragePath: filePath,
+    })
     broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     const response: SetAllowHostingResponse = { ok: true }
     res.json(response)

@@ -12,10 +12,10 @@ export type SetAllowHostingResponse = { ok: true }
 export type GetStorageProjectsArgs = { clientId: string }
 export type GetStorageProjectsResponse = string[]
 
-export type AddStorageProjectArgs = { clientId: string, url: string, project: string, adminEmail: string, hostProject?: boolean }
+export type AddStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
 export type AddStorageProjectResponse = void
 
-export type RemoveStorageProjectArgs = { clientId: string, url: string, project: string, adminEmail: string }
+export type RemoveStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
 export type RemoveStorageProjectArgs = void
 
 export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }

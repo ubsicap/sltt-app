@@ -1,13 +1,5 @@
-
-type ServerConfig = {
-    port: number,
-}
-
-export const getServerConfig = (): ServerConfig => ({
-    port: 45177
-})
-
 type PeerData = {
+    serverId: string,
     startedAt: string,
     updatedAt: string,
     computerName: string,
@@ -22,6 +14,7 @@ export const createUrl = (ip: string, port: number): string => {
 
 
 export const initialHost: PeerData = {
+    serverId: '',
     startedAt: '',
     updatedAt: '',
     computerName: '',
@@ -33,6 +26,18 @@ export const initialHost: PeerData = {
 const host = { ...initialHost }
 
 const hostPeers: { [clientId: string]: PeerData } = {}
+
+export type ServerSettings = {
+    allowHosting: boolean,
+    myLanStoragePath: string,
+    myServerId: string,
+}
+
+export const initialServerConfig: ServerSettings = {
+    allowHosting: false,
+    myLanStoragePath: '',
+    myServerId: '',
+}
 
 export const serverState = {
     hostProjects: new Set<string>(),
@@ -47,9 +52,8 @@ export const serverState = {
     hostPeers,
     proxyUrl: '',
     myUrl: '',
-    allowHosting: false,
     myUsername: '',
-    myLanStoragePath: '',
+    ...initialServerConfig
 }
 
 export const getLANStoragePath = (): string => {
