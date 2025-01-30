@@ -94,7 +94,6 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, verifyLocalhost, asyncHandler(asy
     } else {
         const newStoragePath = await handleConnectToUrl(args)
         setLANStoragePath(newStoragePath)
-        serverState.allowHosting = args.allowHosting
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
         res.json(newStoragePath)
     }
