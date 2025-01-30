@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import multer from 'multer'
@@ -44,104 +44,88 @@ app.get('/status', (req, res) => {
     res.json({ status: 'ok' })
 })
 
-function verifyLocalhost(req: express.Request, res: express.Response): void {
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        fn(req, res, next).catch((error: unknown) => {
+            res.status(400).json({ error: (error as Error).message })
+        })
+    }
+}
+
+function verifyLocalhost(req: express.Request, res: express.Response, next: express.NextFunction): void {
     if (req.headers.host === `localhost:${PORT}`) {
+        next()
         return
     }
     res.status(403).json({ error: 'Forbidden' })
 }
 
-app.post(`/${CONNECTIONS_API_SET_LAN_STORAGE_PATH}`, async (req, res) => {
-    verifyLocalhost(req, res)
+app.post(`/${CONNECTIONS_API_SET_LAN_STORAGE_PATH}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SetLanStoragePathArgs = req.body
-    try {
-        const filePath = fileURLToPath(args.url)
-        setLANStoragePath(filePath)
-        res.json({ ok: true})
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const filePath = fileURLToPath(args.url)
+    setLANStoragePath(filePath)
+    res.json({ ok: true})
+}))
 
-app.post(`/${CONNECTIONS_API_GET_STORAGE_PROJECTS}`, async (req, res) => {
-    // TODO: register ip addresses that my clients used to connect to me
-    // to narrow down the list of ipv4s for clients to probe
-    const args: GetStorageProjectsArgs = req.body
-    try {
-        const result = await handleGetStorageProjects(args)
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
-
-app.post(`/${CONNECTIONS_API_ADD_STORAGE_PROJECT}`, async (req, res) => {
-    const args: AddStorageProjectArgs = req.body
-    try {
-        await handleAddStorageProject(args)
-        res.json({ message: 'Project added successfully' })
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
-
-app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, async (req, res) => {
-    const args: RemoveStorageProjectArgs = req.body
-    try {
-        await handleRemoveStorageProject(args)
-        res.json({ message: 'Project removed successfully' })
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
-
-app.post(`/${CONNECTIONS_API_PROBE}`, async (req, res) => {
-    verifyLocalhost(req, res)
+app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`probe: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
-    try {
-        if (serverState.myLanStoragePath) {
-            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
-        }
-        const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
+    if (serverState.myLanStoragePath) {
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
     }
-})
+    const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
+    res.json(result)
+}))
 
-app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, async (req, res) => {
-    verifyLocalhost(req, res)
+app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`connectToUrl: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ConnectToUrlArgs = req.body
-    try {
-        serverState.myUsername = args.username
-        if (args.url.startsWith('http')) {
-            setProxyUrl(args.url)
-            res.json(args.url) // todo: JSON.stringify host computer name etc...
-        } else {
-            const newStoragePath = await handleConnectToUrl(args)
-            setLANStoragePath(newStoragePath)
-            serverState.allowHosting = args.allowHosting
-            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
-            res.json(newStoragePath)
-        }
-    } catch (error) {
-        res.status(400).json({ error: error.message })
+    serverState.myUsername = args.username
+    if (args.url.startsWith('http')) {
+        setProxyUrl(args.url)
+        res.json(args.url) // todo: JSON.stringify host computer name etc...
+    } else {
+        const newStoragePath = await handleConnectToUrl(args)
+        setLANStoragePath(newStoragePath)
+        serverState.allowHosting = args.allowHosting
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
+        res.json(newStoragePath)
     }
-})
+}))
 
-app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, async (req, res) => {
+function verifyLocalhostUnlessHosting(req: express.Request, res: express.Response, next: express.NextFunction): void {
+    if (serverState.allowHosting) {
+        next()
+        return
+    }
+    verifyLocalhost(req, res, next)
+}
+
+app.post(`/${CONNECTIONS_API_GET_STORAGE_PROJECTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
+    const args: GetStorageProjectsArgs = req.body
+    const result = await handleGetStorageProjects(args)
+    res.json(result)
+}))
+
+app.post(`/${CONNECTIONS_API_ADD_STORAGE_PROJECT}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
+    const args: AddStorageProjectArgs = req.body
+    await handleAddStorageProject(args)
+    res.json({ message: 'Project added successfully' })
+}))
+
+app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
+    const args: RemoveStorageProjectArgs = req.body
+    await handleRemoveStorageProject(args)
+    res.json({ message: 'Project removed successfully' })
+}))
+
+app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, username } = req.body
-    try {
-        const result = await handleRegisterClientUser(getClientsPath(), { clientId, username })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleRegisterClientUser(getClientsPath(), { clientId, username })
+    res.json(result)
+}))
 
-app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, async (req, res) => {
+app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveBlobArgs = req.body
     try {
         const result = await handleRetrieveBlob(getBlobsPath(), args)
@@ -149,9 +133,9 @@ app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, async (req, res) => {
     } catch (error) {
         res.status(400).json({ error: error.message })
     }
-})
+}))
 
-app.post(`/${BLOBS_API_STORE_BLOB}`, multiUpload.single('blob'), async (req, res) => {
+app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.single('blob'), asyncHandler(async (req, res) => {
     const origArgs: StoreBlobArgs = {
         clientId: req.body['clientId'],
         blobId: req.body['blobId'],
@@ -161,143 +145,87 @@ app.post(`/${BLOBS_API_STORE_BLOB}`, multiUpload.single('blob'), async (req, res
         blobId: origArgs.blobId,
         file: origArgs.blob as File,
     }
-    try {
-        const result = await handleStoreBlob(getBlobsPath(), args)
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleStoreBlob(getBlobsPath(), args)
+    res.json(result)
+}))
 
-app.post(`/${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}`, async (req, res) => {
+app.post(`/${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId } = req.body
-    try {
-        const result = await handleRetrieveAllBlobIds(getBlobsPath(), { clientId })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleRetrieveAllBlobIds(getBlobsPath(), { clientId })
+    res.json(result)
+}))
 
-app.post(`/${VIDEO_CACHE_RECORDS_API_STORE_VCR}`, async (req, res) => {
+app.post(`/${VIDEO_CACHE_RECORDS_API_STORE_VCR}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, videoCacheRecord } = req.body
-    try {
-        const result = await storeVcr(getVcrsPath(), { clientId, videoCacheRecord })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await storeVcr(getVcrsPath(), { clientId, videoCacheRecord })
+    res.json(result)
+}))
 
-app.post(`/${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}`, async (req, res) => {
+app.post(`/${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, project } = req.body
-    try {
-        const result = await listVcrFiles(getVcrsPath(), { clientId, project })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await listVcrFiles(getVcrsPath(), { clientId, project })
+    res.json(result)
+}))
 
-app.post(`/${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}`, async (req, res) => {
+app.post(`/${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, filename } = req.body
-    try {
-        const result = await retrieveVcrs(getVcrsPath(), { clientId, filename })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await retrieveVcrs(getVcrsPath(), { clientId, filename })
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_STORE_REMOTE_DOCS}`, async (req, res) => {
+app.post(`/${DOCS_API_STORE_REMOTE_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: StoreRemoteDocsArgs<IDBModDoc> = req.body
-    try {
-        const result = await handleStoreRemoteDocs(getDocsPath(), args)
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleStoreRemoteDocs(getDocsPath(), args)
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_RETRIEVE_REMOTE_DOCS}`, async (req, res) => {
+app.post(`/${DOCS_API_RETRIEVE_REMOTE_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveRemoteDocsArgs = req.body
-    try {
-        const result = await handleRetrieveRemoteDocs(getDocsPath(), args)
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleRetrieveRemoteDocs(getDocsPath(), args)
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_SAVE_REMOTE_SPOTS}`, async (req, res) => {
+app.post(`/${DOCS_API_SAVE_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: SaveRemoteSpotsArgs = req.body
-    try {
-        await handleSaveRemoteSpots(getDocsPath(), args)
-        res.json({ message: 'Remote spots saved successfully' })
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    await handleSaveRemoteSpots(getDocsPath(), args)
+    res.json({ message: 'Remote spots saved successfully' })
+}))
 
-app.post(`/${DOCS_API_GET_REMOTE_SPOTS}`, async (req, res) => {
+app.post(`/${DOCS_API_GET_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, project } = req.body
-    try {
-        const result = await handleGetRemoteSpots(getDocsPath(), { clientId, project })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleGetRemoteSpots(getDocsPath(), { clientId, project })
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_STORE_LOCAL_DOCS}`, async (req, res) => {
+app.post(`/${DOCS_API_STORE_LOCAL_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, project, docs } = req.body
-    try {
-        const result = await handleStoreLocalDocs(getDocsPath(), { clientId, project, docs })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleStoreLocalDocs(getDocsPath(), { clientId, project, docs })
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS}`, async (req, res) => {
+app.post(`/${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { project }: GetStoredLocalClientIdsArgs = req.body
-    try {
-        const result = await handleGetStoredLocalClientIds(getDocsPath(), { project })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleGetStoredLocalClientIds(getDocsPath(), { project })
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}`, async (req, res) => {
+app.post(`/${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, localClientId, project, spot } = req.body
-    try {
-        const result = await handleRetrieveLocalClientDocs(getDocsPath(), { clientId, localClientId, project, spot })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleRetrieveLocalClientDocs(getDocsPath(), { clientId, localClientId, project, spot })
+    res.json(result)
+}))
 
-app.post(`/${DOCS_API_SAVE_LOCAL_SPOTS}`, async (req, res) => {
+app.post(`/${DOCS_API_SAVE_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, project, spots } = req.body
-    try {
-        await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
-        res.json({ message: 'Local spots saved successfully' })
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
+    res.json({ message: 'Local spots saved successfully' })
+}))
 
-app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, async (req, res) => {
+app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, project } = req.body
-    try {
-        const result = await handleGetLocalSpots(getDocsPath(), { clientId, project })
-        res.json(result)
-    } catch (error) {
-        res.status(400).json({ error: error.message })
-    }
-})
+    const result = await handleGetLocalSpots(getDocsPath(), { clientId, project })
+    res.json(result)
+}))
 
 app.listen(PORT, () => {
     console.log(`Storage server is running localhost port ${PORT}`)
