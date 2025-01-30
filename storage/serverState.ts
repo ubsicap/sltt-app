@@ -35,7 +35,7 @@ const host = { ...initialHost }
 const hostPeers: { [clientId: string]: PeerData } = {}
 
 export const serverState = {
-    hostProjects: new Set(),
+    hostProjects: new Set<string>(),
     host,
     get hostUrl(): string {
         if (host.ip === '') return ''

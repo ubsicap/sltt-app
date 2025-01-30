@@ -34,8 +34,8 @@ ipcMain.handle(CONNECTIONS_API_GET_STORAGE_PROJECTS, async (_, args) => {
     } else if (typeof args === 'object'
         && 'clientId' in args && typeof args.clientId === 'string'
         && 'url' in args && typeof args.url === 'string') {
-            const { clientId, url }: GetStorageProjectsArgs = args
-        return await handleGetStorageProjects({ clientId, url })
+            const { clientId }: GetStorageProjectsArgs = args
+        return await handleGetStorageProjects({ clientId })
     } else {
         throw Error(`invalid args for ${CONNECTIONS_API_GET_STORAGE_PROJECTS}. Expected: '{ clientId: string, url: string, project: string }' Got: ${JSON.stringify(args)}`)
     }

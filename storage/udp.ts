@@ -154,10 +154,15 @@ export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]
 }
 
 // setup interval timer to determine expired host or host peers
-const peerExpirationMs = 1000 * 10 * 2 // 20 seconds (2x the client probe interval)
+export const hostUpdateIntervalMs = 1000 * 10 // 10 seconds
+const peerExpirationMs = hostUpdateIntervalMs * 2 // 20 seconds (2x the host update interval)
 
 setInterval(() => {
     const now = new Date().getTime()
+    if (serverState.allowHosting && now - new Date(serverState.host.updatedAt).getTime() > hostUpdateIntervalMs) {
+        broadcastPushHostDataMaybe(() => Promise.resolve(Array.from(serverState.hostProjects)))
+    }
+
     if (serverState.host.updatedAt && now - new Date(serverState.host.updatedAt).getTime() > peerExpirationMs) {
         console.log('Removing expired host')
         serverState.host = { ...initialHost}

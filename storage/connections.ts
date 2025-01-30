@@ -7,7 +7,7 @@ import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStora
 import { normalize } from 'path'
 import { getAmHosting, getHostUrl, getLANStoragePath, serverState } from './serverState'
 import axios from 'axios'
-import { broadcastPushHostDataMaybe } from './udp'
+import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
 import { hostname } from 'os'
 import { uniq } from 'lodash'
 
@@ -81,6 +81,11 @@ export const handleGetStorageProjects = async ({ clientId }: GetStorageProjectsA
 export const handleAddStorageProject = async ({ clientId, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
     const url = getLANStoragePath()
     checkLanStoragePath(url)
+    const existingProjects = await handleGetStorageProjects({ clientId })
+    if (existingProjects.includes(project)) {
+        console.error(`handleAddStorageProject[${url}]: project '${project}' not added for '${adminEmail}' (client '${clientId}'): already in storage projects`)
+        return
+    }
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
     try {
@@ -89,12 +94,17 @@ export const handleAddStorageProject = async ({ clientId, project, adminEmail }:
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId, url }))
+    broadcastPushHostDataMaybe(() => Promise.resolve(existingProjects.concat(project)))
 }
 
 export const handleRemoveStorageProject = async ({ clientId, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
     const url = getLANStoragePath()
     checkLanStoragePath(url)
+    const existingProjects = await handleGetStorageProjects({ clientId })
+    if (!existingProjects.includes(project)) {
+        console.error(`handleRemoveStorageProject[${url}]: project ${project} not removed for ${adminEmail}: not in storage projects`)
+        return
+    }
     const lanStoragePath = fileURLToPath(url)
     console.log(`handleRemoveStorageProject[${url}]: project ${project} removed by ${adminEmail}`)
     try {
@@ -103,7 +113,7 @@ export const handleRemoveStorageProject = async ({ clientId, project, adminEmail
         console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
-    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId, url }))
+    broadcastPushHostDataMaybe(() => Promise.resolve(existingProjects.filter((p) => p !== project)))
 }
 
 let lastSambaIP = ''
@@ -242,3 +252,11 @@ export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<Con
         return url
     }
 }
+
+
+setInterval(() => {
+    const now = new Date().getTime()
+    if (serverState.allowHosting && now - new Date(serverState.host.updatedAt).getTime() > hostUpdateIntervalMs) {
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: '$me$' }))
+    }
+}, 1000)

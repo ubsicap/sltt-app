@@ -63,22 +63,18 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
 app.post(`/${CONNECTIONS_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SetAllowHostingArgs = req.body
     serverState.allowHosting = args.allowHosting
-    const response: SetAllowHostingResponse = { ok: true }
-    res.json(response)
-}))
-
-app.post(`/${CONNECTIONS_API_SET_LAN_STORAGE_PATH}`, verifyLocalhost, asyncHandler(async (req, res) => {
-    const args: SetLanStoragePathArgs = req.body
     const filePath = fileURLToPath(args.url)
     setLANStoragePath(filePath)
-    res.json({ ok: true})
+    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
+    const response: SetAllowHostingResponse = { ok: true }
+    res.json(response)
 }))
 
 app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`probe: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
-    if (serverState.myLanStoragePath) {
-        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
+    if (serverState.allowHosting && serverState.myLanStoragePath) {
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     }
     const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
     res.json(result)
@@ -94,7 +90,7 @@ app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, verifyLocalhost, asyncHandler(asy
     } else {
         const newStoragePath = await handleConnectToUrl(args)
         setLANStoragePath(newStoragePath)
-        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId, url: 'ignore' }))
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
         res.json(newStoragePath)
     }
 }))
