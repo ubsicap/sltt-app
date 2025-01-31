@@ -39,7 +39,7 @@ myClient.on('message', async (msg, rinfo) => {
     console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
     if (message.id === MSG_PUSH_HOST_DATA) {
         const { port, projects, peers } = JSON.parse(message.json)
-        if (message.type === 'push' && (!serverState.host.serverId || serverState.host.serverId === client.serverId || client.startedAt <= serverState.host.startedAt)) {
+        if (message.type === 'push' && (!serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
             serverState.hostProjects = new Set(projects)
             serverState.host.serverId = client.serverId
             serverState.host.ip = rinfo.address
