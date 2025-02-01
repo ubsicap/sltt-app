@@ -1,7 +1,8 @@
-type PeerData = {
+export type PeerData = {
     serverId: string,
     startedAt: string,
     updatedAt: string,
+    firstResponseToHostAt: string,
     computerName: string,
     user: string,
     ip: string,
@@ -17,6 +18,7 @@ export const initialHost: PeerData = {
     serverId: '',
     startedAt: '',
     updatedAt: '',
+    firstResponseToHostAt: '',
     computerName: '',
     user: '',
     ip: '',

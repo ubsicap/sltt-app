@@ -1,7 +1,7 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { createUrl, initialHost, serverState } from './serverState'
+import { createUrl, initialHost, PeerData, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
 
 const UDP_CLIENT_PORT = 41234
@@ -10,7 +10,7 @@ const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
 const MSG_PUSH_HOST_DATA = 'PUSH /storage-server/host'
 const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
-// unlikely that two clients on the same network will start at the same time
+/** unlikely that two clients on the same network will start at the same time */
 const startedAt = new Date().toISOString()
 const myComputerName = hostname()
 console.log('My computer name:', myComputerName)
@@ -18,6 +18,22 @@ console.log('UDP started at:', startedAt)
 let myUdpIpAddress = ''
 
 const myClient = dgram.createSocket('udp4')
+
+const findEarliestFirstResponseToHost = (peers: PeerData[]): string => {
+    let earliestFirstResponseToHost = ''
+    peers.forEach(peer => {
+        if (Date.now() - new Date(peer.updatedAt).getTime() > peerExpirationMs) {
+            // skip expired peers
+            return
+        }
+        if (!earliestFirstResponseToHost) {
+            earliestFirstResponseToHost = peer.firstResponseToHostAt
+        } else if (peer.firstResponseToHostAt < earliestFirstResponseToHost) {
+            earliestFirstResponseToHost = peer.firstResponseToHostAt
+        }
+    })
+    return earliestFirstResponseToHost
+}
 
 myClient.on('message', async (msg, rinfo) => {
     const clientData: ClientMessage = JSON.parse(msg.toString())
@@ -38,35 +54,43 @@ myClient.on('message', async (msg, rinfo) => {
     }
     console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
     if (message.id === MSG_PUSH_HOST_DATA) {
-        const { port, projects, peers } = JSON.parse(message.json)
-        if (message.type === 'push' && (!serverState.host.startedAt || client.startedAt <= serverState.host.startedAt)) {
-            serverState.hostProjects = new Set(projects)
-            serverState.host.serverId = client.serverId
-            serverState.host.ip = rinfo.address
-            serverState.host.port = port
-            serverState.host.user = client.user
-            serverState.host.startedAt = client.startedAt
-            serverState.host.updatedAt = message.createdAt
-            serverState.host.computerName = client.computerName
-            serverState.hostPeers = peers
-            console.log(`Set storage server hostUrl to '${serverState.hostUrl}'`)
-            console.log('Host serverId:', serverState.host.serverId)
-            console.log('Host computer name:', serverState.host.computerName)
-            console.log('Host started at:', serverState.host.startedAt)
-            console.log('Host projects:', projects)
-            console.log('Host peers:', JSON.stringify(peers, null, 2))
-            // respond (as a peer) with our own local ip address and port information
-            sendMessage({
-                type: 'response', id: MSG_PUSH_HOST_DATA,
-                json: JSON.stringify({ port: getServerConfig().port })
-            }, rinfo.port, rinfo.address)
+        if (message.type === 'push') {
+            const { port, projects, peers }: { port: number, projects: string[], peers: { [serverId: string]: PeerData }} = JSON.parse(message.json)
+            const messagePeersEarliestResponseToHost = findEarliestFirstResponseToHost(Object.values(peers))
+            const serverStateEarliestResponseToHost = findEarliestFirstResponseToHost(Object.values(serverState.hostPeers))
+            if ((!serverStateEarliestResponseToHost || messagePeersEarliestResponseToHost && (messagePeersEarliestResponseToHost <= serverStateEarliestResponseToHost))) {
+                serverState.hostProjects = new Set(projects)
+                serverState.host.serverId = client.serverId
+                serverState.host.ip = rinfo.address
+                serverState.host.port = port
+                serverState.host.user = client.user
+                serverState.host.startedAt = client.startedAt
+                serverState.host.updatedAt = message.createdAt
+                serverState.host.computerName = client.computerName
+                serverState.hostPeers = peers
+                console.log(`Set storage server hostUrl to '${serverState.hostUrl}'`)
+                console.log('Host serverId:', serverState.host.serverId)
+                console.log('Host computer name:', serverState.host.computerName)
+                console.log('Host started at:', serverState.host.startedAt)
+                console.log('Host projects:', projects)
+                console.log('Host peers:', JSON.stringify(peers, null, 2))
+                // respond (as a peer) with our own local ip address and port information
+                sendMessage({
+                    type: 'response', id: MSG_PUSH_HOST_DATA,
+                    json: JSON.stringify({ port: getServerConfig().port })
+                }, rinfo.port, rinfo.address)
+            }
             return
         }
         if (message.type === 'response') {
+            const { port }: { port: number } = JSON.parse(message.json)
             // the host should store each peer's data
             const { startedAt, computerName, user } = client
+            const existingPeer = serverState.hostPeers[client.serverId]
+            const firstResponseToHostAt = existingPeer ? existingPeer.firstResponseToHostAt : message.createdAt
             serverState.hostPeers[client.serverId] = {
                 serverId: client.serverId,
+                firstResponseToHostAt,
                 startedAt,
                 updatedAt: message.createdAt,
                 computerName,
