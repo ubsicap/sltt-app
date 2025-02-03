@@ -153,6 +153,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     const hostsByRelevance = getHostsByRelavance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
         acc[createUrl(host.ip, host.port)] = host
+        if (host.serverId === serverState.myServerId) {
+            // get our host's own peer ip/port which is probably different than localhost
+            const hostOwnPeer = host.peers[host.serverId]
+            acc[createUrl(hostOwnPeer.ip, hostOwnPeer.port)] = host
+        }
         return acc
     }, {} as Record<string, HostInfo>)
     const networkName = cachedWifiConnections[0] || ''
@@ -221,11 +226,19 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         //     return { url, accessible: false, error: e.message }
                         // })
                         const host = hostUrlToHostMap[url]
-                        const connectionInfo = buildConnectionInfoFromHost(host)
-                        return {
-                            url, accessible: true,
-                            connectionInfo,
-                            networkName
+                        if (host) {
+                            const connectionInfo = buildConnectionInfoFromHost(host)
+                            return {
+                                url, accessible: true,
+                                connectionInfo,
+                                networkName
+                            }
+                        } else {
+                            return {
+                                url, accessible: false,
+                                connectionInfo: '',
+                                networkName
+                            }
                         }
                     }
                 }
