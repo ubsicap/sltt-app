@@ -19,22 +19,6 @@ let myUdpIpAddress = ''
 
 const myClient = dgram.createSocket('udp4')
 
-const findEarliestFirstResponseToHost = (peers: PeerData[]): string => {
-    let earliestFirstResponseToHost = ''
-    peers.forEach(peer => {
-        if (Date.now() - new Date(peer.updatedAt).getTime() > peerExpirationMs) {
-            // skip expired peers
-            return
-        }
-        if (!earliestFirstResponseToHost) {
-            earliestFirstResponseToHost = peer.firstResponseToHostAt
-        } else if (peer.firstResponseToHostAt < earliestFirstResponseToHost) {
-            earliestFirstResponseToHost = peer.firstResponseToHostAt
-        }
-    })
-    return earliestFirstResponseToHost
-}
-
 myClient.on('message', async (msg, rinfo) => {
     const clientData: ClientMessage = JSON.parse(msg.toString())
     const { message, client } = clientData
@@ -56,16 +40,15 @@ myClient.on('message', async (msg, rinfo) => {
     if (message.id === MSG_PUSH_HOST_DATA) {
         if (message.type === 'push') {
             const { port, projects, peers }: { port: number, projects: string[], peers: { [serverId: string]: PeerData }} = JSON.parse(message.json)
-            const messagePeersEarliestResponseToHost = findEarliestFirstResponseToHost(Object.values(peers))
-            const serverStateEarliestResponseToHost = findEarliestFirstResponseToHost(Object.values(serverState.hostPeers))
-            if ((!serverStateEarliestResponseToHost || messagePeersEarliestResponseToHost && (messagePeersEarliestResponseToHost <= serverStateEarliestResponseToHost))) {
+            if (serverState.host.serverId === client.serverId) {
                 serverState.hostProjects = new Set(projects)
                 serverState.host.serverId = client.serverId
                 serverState.host.ip = rinfo.address
                 serverState.host.port = port
                 serverState.host.user = client.user
                 serverState.host.startedAt = client.startedAt
-                serverState.host.updatedAt = message.createdAt
+                const hostUpdatedAt = message.createdAt
+                serverState.host.updatedAt = hostUpdatedAt
                 serverState.host.computerName = client.computerName
                 serverState.hostPeers = peers
                 console.log(`Set storage server hostUrl to '${serverState.hostUrl}'`)
@@ -77,20 +60,18 @@ myClient.on('message', async (msg, rinfo) => {
                 // respond (as a peer) with our own local ip address and port information
                 sendMessage({
                     type: 'response', id: MSG_PUSH_HOST_DATA,
-                    json: JSON.stringify({ port: getServerConfig().port })
+                    json: JSON.stringify({ port: getServerConfig().port, hostUpdatedAt })
                 }, rinfo.port, rinfo.address)
             }
             return
         }
         if (message.type === 'response') {
-            const { port }: { port: number } = JSON.parse(message.json)
+            const { port, hostUpdatedAt }: { port: PeerData['port'], hostUpdatedAt: PeerData['hostUpdatedAt'] } = JSON.parse(message.json)
             // the host should store each peer's data
             const { startedAt, computerName, user } = client
-            const existingPeer = serverState.hostPeers[client.serverId]
-            const firstResponseToHostAt = existingPeer ? existingPeer.firstResponseToHostAt : message.createdAt
             serverState.hostPeers[client.serverId] = {
                 serverId: client.serverId,
-                firstResponseToHostAt,
+                hostUpdatedAt,
                 startedAt,
                 updatedAt: message.createdAt,
                 computerName,
@@ -167,19 +148,13 @@ myClient.on('listening', () => {
 
 myClient.bind(UDP_CLIENT_PORT)
 
+/** if peerHostUpdatedAt does not match host.updatedAt, then remove peer as obsoleted */
 const removeMyExpiredHostPeers = (): void => {
     if (!serverState.allowHosting) return
-    // compare host.updatedAt to each peer's updatedAt
-    // to approximate the clock difference for each peer
-    // then use each clock difference to help determine
-    // if peerExperirationMs applies
-    const myHostUpdatedAt = new Date(serverState.host.updatedAt).getTime()
-    const expiredPeers = Object.keys(serverState.hostPeers).filter((startedAt) => {
-        const peer = serverState.hostPeers[startedAt]
-        const peerUpdatedAt = new Date(peer.updatedAt).getTime()
-        const clockDifference = myHostUpdatedAt - peerUpdatedAt
-        const updatedAt = peerUpdatedAt + clockDifference
-        return Date.now() - updatedAt > peerExpirationMs
+    const expiredPeers = Object.keys(serverState.hostPeers).filter((serverId) => {
+        const peer = serverState.hostPeers[serverId]
+        const peerHostUpdatedAt = peer.hostUpdatedAt
+        return peerHostUpdatedAt !== serverState.host.updatedAt
     })
     expiredPeers.forEach((serverId) => {
         console.log(`Removing expired peer: ${serverId}`)

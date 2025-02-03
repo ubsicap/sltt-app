@@ -1,12 +1,18 @@
-export type PeerData = {
+
+type ServerData = {
     serverId: string,
     startedAt: string,
     updatedAt: string,
-    firstResponseToHostAt: string,
     computerName: string,
     user: string,
     ip: string,
     port: number,
+}
+
+export type HostData = ServerData
+
+export type PeerData = ServerData & {
+    hostUpdatedAt: string,
 }
 
 export const createUrl = (ip: string, port: number): string => {
@@ -14,11 +20,10 @@ export const createUrl = (ip: string, port: number): string => {
 }
 
 
-export const initialHost: PeerData = {
+export const initialHost: HostData = {
     serverId: '',
     startedAt: '',
     updatedAt: '',
-    firstResponseToHostAt: '',
     computerName: '',
     user: '',
     ip: '',
