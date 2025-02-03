@@ -167,9 +167,30 @@ myClient.on('listening', () => {
 
 myClient.bind(UDP_CLIENT_PORT)
 
+const removeMyExpiredHostPeers = (): void => {
+    if (!serverState.allowHosting) return
+    // compare host.updatedAt to each peer's updatedAt
+    // to approximate the clock difference for each peer
+    // then use each clock difference to help determine
+    // if peerExperirationMs applies
+    const myHostUpdatedAt = new Date(serverState.host.updatedAt).getTime()
+    const expiredPeers = Object.keys(serverState.hostPeers).filter((startedAt) => {
+        const peer = serverState.hostPeers[startedAt]
+        const peerUpdatedAt = new Date(peer.updatedAt).getTime()
+        const clockDifference = myHostUpdatedAt - peerUpdatedAt
+        const updatedAt = peerUpdatedAt + clockDifference
+        return Date.now() - updatedAt > peerExpirationMs
+    })
+    expiredPeers.forEach((serverId) => {
+        console.log(`Removing expired peer: ${serverId}`)
+        delete serverState.hostPeers[serverId]
+    })
+}
+
 export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]>): void => {
     if (!serverState.allowHosting) return
     fnGetProjects().then((projects) => {
+        removeMyExpiredHostPeers()
         const peers = serverState.hostPeers
         sendMessage({
             type: 'push', id: MSG_PUSH_HOST_DATA,
@@ -187,24 +208,13 @@ const peerExpirationMs = hostUpdateIntervalMs * 2 // 20 seconds (2x the host upd
 
 setInterval(() => {
     const now = new Date().getTime()
-    if (serverState.allowHosting && now - new Date(serverState.host.updatedAt).getTime() > hostUpdateIntervalMs) {
-        broadcastPushHostDataMaybe(() => Promise.resolve(Array.from(serverState.hostProjects)))
-    }
-
-    if (serverState.host.updatedAt && now - new Date(serverState.host.updatedAt).getTime() > peerExpirationMs) {
+    // instead of host.updatedAt, find my host peer updatedAt, since it uses my clock
+    const myPeer = serverState.hostPeers[serverState.myServerId]
+    if (myPeer && myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs) {
         console.log('Removing expired host')
         serverState.host = { ...initialHost}
         serverState.hostProjects = new Set()
         serverState.hostPeers = {}
         return
     }
-    const expiredPeers = Object.keys(serverState.hostPeers).filter((startedAt) => {
-        const peer = serverState.hostPeers[startedAt]
-        const updatedAt = new Date(peer.updatedAt).getTime()
-        return now - updatedAt > peerExpirationMs
-    })
-    expiredPeers.forEach((startedAt) => {
-        console.log(`Removing expired peer: ${startedAt}`)
-        delete serverState.hostPeers[startedAt]
-    })
 }, 1000)
