@@ -10,7 +10,14 @@ import axios from 'axios'
 import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
 import { hostname } from 'os'
 import { uniq } from 'lodash'
+import wifi from 'node-wifi'
 import { MY_CLIENT_ID } from './serverConfig'
+
+wifi.init({
+    iface: null
+})
+
+const wifiGetCurrentConnections = promisify(wifi.getCurrentConnections)
 
 const execPromise = promisify(exec)
 
@@ -119,6 +126,28 @@ export const handleRemoveStorageProject = async ({ clientId, project, adminEmail
 
 let lastSambaIP = ''
 
+let cachedWifiConnections: string[] = []
+
+const updateWifiConnections = async (): Promise<void> => {
+    console.log('Updating wifi connections...')
+    const connections = await wifiGetCurrentConnections()
+    if (connections.length !== cachedWifiConnections.length) {
+        console.log(`Wifi connections changed: ${JSON.stringify(connections, null, 2)}`)
+        cachedWifiConnections = connections.map((c) => c.bssid)
+    }
+}
+
+updateWifiConnections()
+
+const buildConnectionInfoString = ({ user, computerName }: { user: HostInfo['user'], computerName: HostInfo['computerName'] }, peerCount: number): string => {
+    return `${user} / ${computerName} - ${peerCount}`
+}
+
+const buildConnectionInfoFromHost = (host: HostInfo): string => {
+    const peerCount = Object.keys(host.peers).length
+    return buildConnectionInfoString(host, peerCount)
+}
+
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
     const hostsByRelevance = getHostsByRelavance()
@@ -126,6 +155,9 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
         acc[createUrl(host.ip, host.port)] = host
         return acc
     }, {} as Record<string, HostInfo>)
+    const networkName = cachedWifiConnections[0] || ''
+    console.log(`Network name: ${networkName}`)
+    updateWifiConnections()
     const hostUrls = Object.keys(hostUrlToHostMap)
     console.log(`hostUrls: ${JSON.stringify(hostUrls)}`)
     const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...hostUrls])
@@ -138,7 +170,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         urlObj = new URL(url)
                     } catch (e) {
                         console.error(`new URL(${url}) error`, e)
-                        return { url, accessible: false, error: e.message }
+                        return { url, accessible: false, error: e.message, networkName }
                     }
                     if (urlObj.protocol === 'file:') {
                         let filePath = ''
@@ -172,15 +204,15 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             filePath = fileURLToPath(url)
                         } catch (e) {
                             console.error(`fileURLToPath(${url}) error`, e)
-                            return { url, accessible: false, error: e.message }
+                            return { url, accessible: false, error: e.message, networkName }
                         }
                         const user = serverState.myUsername
                         const { myServerId } = serverState
                         const myHost = serverState.hosts[myServerId]
                         const computerName = hostname()
                         const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
-                        const connectionInfo = `${user}@${computerName} - ${peers}`
-                        return { url, accessible: await canAccess(filePath), connectionInfo }
+                        const connectionInfo = buildConnectionInfoString({ user, computerName }, peers)
+                        return { url, accessible: await canAccess(filePath), connectionInfo, networkName }
                     }
                     if (urlObj.protocol.startsWith('http')) {
                         // console.log(`Probing access to '${url}'...`)
@@ -189,12 +221,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         //     return { url, accessible: false, error: e.message }
                         // })
                         const host = hostUrlToHostMap[url]
-                        const { user, computerName } = host
-                        const peerCount = Object.keys(host.peers).length
-                        const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount}` : ''
+                        const connectionInfo = buildConnectionInfoFromHost(host)
                         return {
                             url, accessible: true,
-                            connectionInfo
+                            connectionInfo,
+                            networkName
                         }
                     }
                 }
