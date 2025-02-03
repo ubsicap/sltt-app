@@ -153,9 +153,9 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     const hostsByRelevance = getHostsByRelavance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
         acc[createUrl(host.ip, host.port)] = host
-        if (host.serverId === serverState.myServerId) {
-            // get our host's own peer ip/port which is probably different than localhost
-            const hostOwnPeer = host.peers[host.serverId]
+        // get our host's own peer ip/port which is probably different than localhost
+        const hostOwnPeer = host.peers[host.serverId]
+        if (hostOwnPeer) {
             acc[createUrl(hostOwnPeer.ip, hostOwnPeer.port)] = host
         }
         return acc
