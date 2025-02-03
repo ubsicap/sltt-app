@@ -78,7 +78,8 @@
     "fluent-ffmpeg": "^2.1.2",
     "formidable": "^1.2.2",
     "fs-extra": "^11.2.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "node-wifi": "^2.0.16"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
