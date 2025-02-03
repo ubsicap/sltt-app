@@ -1,13 +1,26 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { createUrl, initialHost, PeerData, serverState } from './serverState'
+import { createUrl, HostInfo, PeerInfo, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
 
 const UDP_CLIENT_PORT = 41234
 
 const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
-const MSG_PUSH_HOST_DATA = 'PUSH /storage-server/host'
+const MSG_PUSH_HOST_INFO = 'PUSH /storage-server/host'
+
+type PushHostInfoBroadcast = {
+    port: number,
+    projects: string[],
+    peers: { [serverId: string]: PeerInfo },
+}
+
+type PushHostInfoResponse = {
+    port: number,
+    hostServerId: string,
+    hostUpdatedAt: string,
+}
+
 const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
 /** unlikely that two clients on the same network will start at the same time */
@@ -23,7 +36,7 @@ myClient.on('message', async (msg, rinfo) => {
     const clientData: ClientMessage = JSON.parse(msg.toString())
     const { message, client } = clientData
     if (client.computerName === myComputerName && 
-        client.startedAt === startedAt && message.id !== MSG_PUSH_HOST_DATA
+        client.startedAt === startedAt && message.id !== MSG_PUSH_HOST_INFO
     ) {
         if (myUdpIpAddress !== rinfo.address) {
             myUdpIpAddress = rinfo.address
@@ -37,50 +50,58 @@ myClient.on('message', async (msg, rinfo) => {
         return
     }
     console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
-    if (message.id === MSG_PUSH_HOST_DATA) {
+    if (message.id === MSG_PUSH_HOST_INFO) {
         if (message.type === 'push') {
-            const { port, projects, peers }: { port: number, projects: string[], peers: { [serverId: string]: PeerData }} = JSON.parse(message.json)
-            if (!serverState.host.serverId || serverState.host.serverId === client.serverId) {
-                serverState.hostProjects = new Set(projects)
-                serverState.host.serverId = client.serverId
-                serverState.host.ip = rinfo.address
-                serverState.host.port = port
-                serverState.host.user = client.user
-                serverState.host.startedAt = client.startedAt
-                const hostUpdatedAt = message.createdAt
-                serverState.host.updatedAt = hostUpdatedAt
-                serverState.host.computerName = client.computerName
-                serverState.hostPeers = peers
-                console.log(`Set storage server hostUrl to '${serverState.hostUrl}'`)
-                console.log('Host serverId:', serverState.host.serverId)
-                console.log('Host computer name:', serverState.host.computerName)
-                console.log('Host started at:', serverState.host.startedAt)
-                console.log('Host projects:', projects)
-                console.log('Host peers:', JSON.stringify(peers, null, 2))
-                // respond (as a peer) with our own local ip address and port information
-                sendMessage({
-                    type: 'response', id: MSG_PUSH_HOST_DATA,
-                    json: JSON.stringify({ port: getServerConfig().port, hostUpdatedAt })
-                }, rinfo.port, rinfo.address)
+            const { port, projects, peers }: PushHostInfoBroadcast = JSON.parse(message.json)
+            const hostServerId = client.serverId
+            const hostUpdatedAt = message.createdAt
+            const updatedHost: HostInfo ={
+                serverId: hostServerId,
+                ip: rinfo.address,
+                port,
+                user: client.user,
+                startedAt: client.startedAt,
+                updatedAt: hostUpdatedAt,
+                computerName: client.computerName,
+                peers,
+                projects,
             }
+            serverState.hosts[client.serverId] = updatedHost
+            serverState.hostProjects = new Set(projects)
+            console.log(`Host URL is: ${createUrl(rinfo.address, port)}`)
+            console.log('Host serverId:', updatedHost.serverId)
+            console.log('Host computer name:', updatedHost.computerName)
+            console.log('Host started at:', updatedHost.startedAt)
+            console.log('Host projects:', projects)
+            console.log('Host peers:', JSON.stringify(peers, null, 2))
+            // respond (as a peer) with our own local ip address and port information
+            const payload: PushHostInfoResponse = { port: getServerConfig().port, hostServerId, hostUpdatedAt }
+            sendMessage({
+                type: 'response', id: MSG_PUSH_HOST_INFO,
+                json: JSON.stringify(payload)
+            }, rinfo.port, rinfo.address)
             return
         }
         if (message.type === 'response') {
-            const { port, hostUpdatedAt }: { port: PeerData['port'], hostUpdatedAt: PeerData['hostUpdatedAt'] } = JSON.parse(message.json)
+            const { port, hostServerId, hostUpdatedAt }: PushHostInfoResponse = JSON.parse(message.json)
             // the host should store each peer's data
             const { startedAt, computerName, user } = client
-            serverState.hostPeers[client.serverId] = {
+            const host = serverState.hosts[hostServerId]
+            const existingPeer = host.peers[client.serverId]
+            const peerUpdatedAt = message.createdAt
+            const updatedPeer: PeerInfo = {
                 serverId: client.serverId,
-                hostUpdatedAt,
-                startedAt,
-                updatedAt: message.createdAt,
                 computerName,
+                startedAt,
                 user,
                 ip: rinfo.address,
                 port,
+                hostPeersAt: existingPeer ? existingPeer.hostPeersAt : new Date().toISOString(), 
+                hostUpdatedAt,
+                updatedAt: peerUpdatedAt,
             }
-            // TODO: remove peers that haven't been updated in a while
-            console.log('Peers count: ', Object.keys(serverState.hostPeers).length)
+            host.peers[client.serverId] = updatedPeer
+            console.log('Peers count: ', Object.keys(host.peers).length)
         }
     }
     if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
@@ -149,29 +170,28 @@ myClient.on('listening', () => {
 myClient.bind(UDP_CLIENT_PORT)
 
 /** if peerHostUpdatedAt does not match host.updatedAt, then remove peer as obsoleted */
-const removeMyExpiredHostPeers = (): void => {
+const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
     if (!serverState.allowHosting) return
-    const expiredPeers = Object.keys(serverState.hostPeers).filter((serverId) => {
-        const peer = serverState.hostPeers[serverId]
-        const peerHostUpdatedAt = peer.hostUpdatedAt
-        return peerHostUpdatedAt !== serverState.host.updatedAt
+    const myHost = serverState.hosts[serverState.myServerId]
+    if (!myHost) return {}
+    const activePeers: { [serverId: string]: PeerInfo } = {}
+    Object.values(myHost.peers).forEach((peer) => {
+        if (peer.hostUpdatedAt === myHost.updatedAt) {
+            activePeers[peer.serverId] = peer
+        }
     })
-    expiredPeers.forEach((serverId) => {
-        console.log(`Removing expired peer: ${serverId}`)
-        delete serverState.hostPeers[serverId]
-    })
+    return activePeers
 }
 
 export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]>): void => {
     if (!serverState.allowHosting) return
     fnGetProjects().then((projects) => {
-        removeMyExpiredHostPeers()
-        const peers = serverState.hostPeers
+        const activePeers = getMyActivePeers()
+        const peers = activePeers
+        const payload: PushHostInfoBroadcast = { port: getServerConfig().port, projects, peers }
         sendMessage({
-            type: 'push', id: MSG_PUSH_HOST_DATA,
-            json: JSON.stringify({
-                port: getServerConfig().port, projects, peers
-            })
+            type: 'push', id: MSG_PUSH_HOST_INFO,
+            json: JSON.stringify(payload)
         })
     })
     return
@@ -183,13 +203,13 @@ const peerExpirationMs = hostUpdateIntervalMs * 2 // 20 seconds (2x the host upd
 
 setInterval(() => {
     const now = new Date().getTime()
+    // for each host, check if updatedAt is expired
     // instead of host.updatedAt, find my host peer updatedAt, since it uses my clock
-    const myPeer = serverState.hostPeers[serverState.myServerId]
-    if (myPeer && myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs) {
-        console.log('Removing expired host')
-        serverState.host = { ...initialHost}
-        serverState.hostProjects = new Set()
-        serverState.hostPeers = {}
-        return
+    for (const host of Object.values(serverState.hosts)) {
+        const myPeer = host.peers[serverState.myServerId]
+        if (myPeer && myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs) {
+            console.log('Removing expired host: ', host.serverId)
+            delete serverState.hosts[host.serverId]
+        }
     }
 }, 1000)

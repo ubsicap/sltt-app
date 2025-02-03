@@ -1,5 +1,5 @@
 
-type ServerData = {
+type ServerInfo = {
     serverId: string,
     startedAt: string,
     updatedAt: string,
@@ -9,30 +9,25 @@ type ServerData = {
     port: number,
 }
 
-export type HostData = ServerData
+export type HostInfo = ServerInfo & {
+    projects: string[],
+    peers: { [serverId: string]: PeerInfo },
+}
 
-export type PeerData = ServerData & {
+export type PeerInfo = ServerInfo & {
+    /** (host-generated timestamp) when the peer's host was updated */
     hostUpdatedAt: string,
+    /** (host-generated timestamp) when the peer was added to host peers */
+    hostPeersAt: string,
+    /** (peer-generated timestamp) when peer sent response to host */
+    updatedAt: string,
 }
 
 export const createUrl = (ip: string, port: number): string => {
     return `http://${ip}:${port}`
 }
 
-
-export const initialHost: HostData = {
-    serverId: '',
-    startedAt: '',
-    updatedAt: '',
-    computerName: '',
-    user: '',
-    ip: '',
-    port: -1,
-}
-
-const host = { ...initialHost }
-
-const hostPeers: { [clientId: string]: PeerData } = {}
+const hosts: { [serverId: string]: HostInfo } = {}
 
 export type ServerSettings = {
     allowHosting: boolean,
@@ -48,15 +43,7 @@ export const initialServerConfig: ServerSettings = {
 
 export const serverState = {
     hostProjects: new Set<string>(),
-    host,
-    get hostUrl(): string {
-        if (host.ip === '') return ''
-        if (host.port === -1) return ''
-        return createUrl(host.ip, host.port)
-    },
-
-    /** proxyUrl will be hostUrl whenever CONNECTIONS_API_CONNECT_TO_URL is called with http url */
-    hostPeers,
+    hosts,
     proxyUrl: '',
     myUrl: '',
     myUsername: '',
@@ -91,16 +78,31 @@ export const setProxyUrl = (url: string): void => {
     if (!url.startsWith('http')) {
         throw new Error(`Invalid proxy url: ${url}`)
     }
-    if (serverState.hostUrl !== url) {
-        throw new Error(`Proxy url (${url}) must match host url: ${JSON.stringify(serverState.host.ip)}`)
-    }
     serverState.proxyUrl = url
 }
 
 export const getAmHosting = (): boolean => {
-    const { myUrl, hostUrl } = serverState
-    const result = Boolean(myUrl && hostUrl && hostUrl.startsWith(myUrl))
-    return result
+    const { allowHosting } = serverState
+    return allowHosting
 }
 
-export const getHostUrl = (): string => serverState.hostUrl
+const sortHostsByRelevance = (a: HostInfo, b: HostInfo): number => {
+    const { myServerId } = serverState
+    if (serverState.allowHosting) {
+        if (a.serverId === myServerId) return -1
+        if (b.serverId === myServerId) return 1
+    }
+    // look for myself in host peers and sort by earlier updatedAt
+    const aPeer = a.peers[myServerId]
+    const bPeer = b.peers[myServerId]
+    if (aPeer && bPeer) {
+        return aPeer.hostPeersAt < bPeer.hostPeersAt ? -1 : 1
+    }
+    if (aPeer) return -1
+    if (bPeer) return 1
+    return 0
+}
+
+export const getHostsByRelavance = (): HostInfo[] => Object.values(
+    serverState.hosts
+).sort(sortHostsByRelevance)

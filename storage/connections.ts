@@ -5,7 +5,7 @@ import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
-import { getAmHosting, getHostUrl, getLANStoragePath, serverState } from './serverState'
+import { createUrl, getAmHosting, getHostsByRelavance, getLANStoragePath, HostInfo, serverState } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
 import { hostname } from 'os'
@@ -121,9 +121,14 @@ let lastSambaIP = ''
 
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
-    const hostUrl = getHostUrl()
-    console.log(`hostUrl: ${hostUrl}`)
-    const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...(hostUrl && [hostUrl] || [])])
+    const hostsByRelevance = getHostsByRelavance()
+    const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
+        acc[createUrl(host.ip, host.port)] = host
+        return acc
+    }, {} as Record<string, HostInfo>)
+    const hostUrls = Object.keys(hostUrlToHostMap)
+    console.log(`hostUrls: ${JSON.stringify(hostUrls)}`)
+    const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...hostUrls])
     const connections = await Promise.all(
         allPossibleUrls
             .map(
@@ -170,8 +175,10 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             return { url, accessible: false, error: e.message }
                         }
                         const user = serverState.myUsername
+                        const { myServerId } = serverState
+                        const myHost = serverState.hosts[myServerId]
                         const computerName = hostname()
-                        const peers = getAmHosting() ? Object.keys(serverState.hostPeers).length : 0
+                        const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
                         const connectionInfo = `${user}@${computerName} - ${peers}`
                         return { url, accessible: await canAccess(filePath), connectionInfo }
                     }
@@ -181,8 +188,9 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         //     console.error(`axios.get(${url}) error`, e)
                         //     return { url, accessible: false, error: e.message }
                         // })
-                        const { user, computerName } = serverState.host
-                        const peerCount = Object.keys(serverState.hostPeers).length
+                        const host = hostUrlToHostMap[url]
+                        const { user, computerName } = host
+                        const peerCount = Object.keys(host.peers).length
                         const connectionInfo = user && computerName ? `${user}@${computerName} - ${peerCount}` : ''
                         return {
                             url, accessible: true,
