@@ -45,7 +45,7 @@ const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
 loadServerSettings(configFilePath).then(async (settings) => {
     let needsToSave = false
     if (!settings.myServerId) {
-        serverState.myServerId = `${hostname()} - ${new Date().toISOString()}`
+        serverState.myServerId = `${hostname()}__${new Date().toISOString()}`
         needsToSave = true
     } else {
         serverState.myServerId = settings.myServerId

@@ -40,7 +40,7 @@ myClient.on('message', async (msg, rinfo) => {
     if (message.id === MSG_PUSH_HOST_DATA) {
         if (message.type === 'push') {
             const { port, projects, peers }: { port: number, projects: string[], peers: { [serverId: string]: PeerData }} = JSON.parse(message.json)
-            if (serverState.host.serverId === client.serverId) {
+            if (!serverState.host.serverId || serverState.host.serverId === client.serverId) {
                 serverState.hostProjects = new Set(projects)
                 serverState.host.serverId = client.serverId
                 serverState.host.ip = rinfo.address
