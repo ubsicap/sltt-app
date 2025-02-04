@@ -125,6 +125,7 @@ export const handleRemoveStorageProject = async ({ clientId, project, adminEmail
 }
 
 let lastSambaIP = ''
+let newSambaIpAddressMaybe = ''
 
 let cachedWifiConnections: string[] = []
 
@@ -166,6 +167,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     const hostUrls = Object.keys(hostUrlToHostMap)
     console.log(`hostUrls: ${JSON.stringify(hostUrls)}`)
     const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...hostUrls])
+    const user = serverState.myUsername
+    const { myServerId } = serverState
+    const myHost = serverState.hosts[myServerId]
+    const computerName = hostname()
+    const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
     const connections = await Promise.all(
         allPossibleUrls
             .map(
@@ -180,42 +186,32 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                     if (urlObj.protocol === 'file:') {
                         let filePath = ''
                         try {
-                            const ipAddress = urlObj.hostname
-                            console.log(`Probing access to '${url}'...`)
-                            if (ipAddress && ipAddress !== lastSambaIP) {
-                                // keep trying until we connect once (per reboot)
-                                const isConnected = await connectToSamba(ipAddress)
-                                if (isConnected) {
-                                    lastSambaIP = ipAddress
-                                } else {
-                                    // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
-                                    // which can occur when there are too many existing connections to the same folder
-                                    // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
-                                    //
-                                    // The error:
-                                    // System error 1219 has occurred.
-                                    // Multiple connections to a server or shared resource by the same user, 
-                                    // using more than one user name, are not allowed. Disconnect all previous 
-                                    // connections to the server or shared resource and try again.
-                                    console.log(`Try closing other windows that may be connected to the smb folder ${ipAddress}\\\\${SHARE_NAME} and try again.`)
-                                }
-                                // create the full path, if it doesn't exist
-                                // NOTE: even if the connectToSamba fails, it's possible that the user still has folder access
-                                if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
-                                    console.log(`Creating full folder path '(${ipAddress}:)${urlObj.pathname}' if needed...`)
-                                    await ensureDir(fileURLToPath(url))
-                                }
-                            }
                             filePath = fileURLToPath(url)
                         } catch (e) {
                             console.error(`fileURLToPath(${url}) error`, e)
                             return { url, accessible: false, error: e.message, networkName }
                         }
-                        const user = serverState.myUsername
-                        const { myServerId } = serverState
-                        const myHost = serverState.hosts[myServerId]
-                        const computerName = hostname()
-                        const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
+                        console.log(`Probing access to '${url}'...`)
+                        if (urlObj.hostname) {
+                            if (urlObj.hostname !== lastSambaIP) {
+                                newSambaIpAddressMaybe = urlObj.hostname
+                                console.log(`Possibly Samba IP detected: ${newSambaIpAddressMaybe}`)
+                            }
+                            // create the full path, if it doesn't exist
+                            // NOTE: even if the connectToSamba fails, it's possible that the user still has folder access
+                            const connectionInfo = buildConnectionInfoString({ user, computerName }, peers)
+                            if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
+                                console.log(`Creating full folder path '(${newSambaIpAddressMaybe}:)${urlObj.pathname}' if needed...`)
+                                try {
+                                    await canEnsureDir(filePath, true)
+                                    return { url, accessible: true, connectionInfo, networkName }
+                                } catch (error) {
+                                    console.error(`ensureDir(${filePath}) error`, error)
+                                    return { url, accessible: false, error: error.message, networkName }
+                                }
+                            }
+                        }
+
                         const connectionInfo = buildConnectionInfoString({ user, computerName }, peers)
                         return { url, accessible: await canAccess(filePath), connectionInfo, networkName }
                     }
@@ -247,7 +243,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     return connections
 }
 
-const canAccess = async (filePath: string, throwError = false, timeout = 5000): Promise<boolean> => {
+const asyncPathOperationUntilTimeout = async (opName: string, fnPathOperation: (path: string) => Promise<void>, path: string, throwError = false, timeout = 50): Promise<boolean> => {
     const MSG_OPERATION_TIMED_OUT = 'Operation timed out'
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => {
@@ -257,21 +253,33 @@ const canAccess = async (filePath: string, throwError = false, timeout = 5000): 
 
     try {
         await Promise.race([
-            access(filePath, constants.F_OK),
+            fnPathOperation(path),
             timeoutPromise
         ])
         return true
     } catch (error) {
         if (error.message === MSG_OPERATION_TIMED_OUT) {
-            console.error(`access(${filePath}) timed out`)
+            console.error(`${opName}(${path}) timed out`)
         } else {
-            console.error(`access(${filePath}) error`, error)
+            console.error(`${opName}(${path}) error`, error)
         }
         if (throwError) {
             throw error
         }
         return false
     }
+}
+
+const canEnsureDir = async (path: string, throwError = false, timeout = 50): Promise<boolean> => {
+    return asyncPathOperationUntilTimeout('ensureDir', async (path) => {
+        await ensureDir(path)
+    }, path, throwError, timeout)
+}
+
+const canAccess = async (filePath: string, throwError = false, timeout = 5000): Promise<boolean> => {
+    return asyncPathOperationUntilTimeout('access', async (path) => {
+        await access(path, constants.F_OK)
+    }, filePath, throwError, timeout)
 }
 
 export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<ConnectToUrlResponse> => {
@@ -312,3 +320,35 @@ setInterval(() => {
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
     }
 }, hostUpdateIntervalMs)
+
+let tryingToConnectToSamba = false
+setInterval(async () => {
+
+    if (tryingToConnectToSamba || !newSambaIpAddressMaybe || newSambaIpAddressMaybe === lastSambaIP) {
+        return
+    }
+    console.log(`Connecting to Samba drive (${newSambaIpAddressMaybe})...`)
+    tryingToConnectToSamba = true
+    try {
+        // keep trying until we connect once (per reboot)
+        const isConnected = await connectToSamba(newSambaIpAddressMaybe)
+        if (isConnected) {
+            lastSambaIP = newSambaIpAddressMaybe
+        } else {
+            // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
+            // which can occur when there are too many existing connections to the same folder
+            // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
+            //
+            // The error:
+            // System error 1219 has occurred.
+            // Multiple connections to a server or shared resource by the same user, 
+            // using more than one user name, are not allowed. Disconnect all previous 
+            // connections to the server or shared resource and try again.
+            console.log(`Try closing other windows that may be connected to the smb folder ${newSambaIpAddressMaybe}\\\\${SHARE_NAME} and try again.`)
+        }
+    } catch (error) {
+        console.error(`Error connecting to Samba drive (${newSambaIpAddressMaybe}): ${error.message}`)
+    } finally {
+        tryingToConnectToSamba = false
+    }
+}, 30000)
