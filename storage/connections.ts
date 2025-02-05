@@ -3,7 +3,7 @@ import { constants, ensureDir } from 'fs-extra'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { pathToFileURL, fileURLToPath } from 'url'
-import { AddStorageProjectArgs, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
+import { AddStorageProjectArgs, ConnectionInfo, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { normalize } from 'path'
 import { createUrl, getAmHosting, getHostsByRelavance, getLANStoragePath, HostInfo, serverState } from './serverState'
 import axios from 'axios'
@@ -140,15 +140,6 @@ const updateWifiConnections = async (): Promise<void> => {
 
 updateWifiConnections()
 
-const buildConnectionInfoString = ({ user, computerName }: { user: HostInfo['user'], computerName: HostInfo['computerName'] }, peerCount: number): string => {
-    return `${user} / ${computerName} - ${peerCount}`
-}
-
-const buildConnectionInfoFromHost = (host: HostInfo): string => {
-    const peerCount = Object.keys(host.peers).length
-    return buildConnectionInfoString(host, peerCount)
-}
-
 export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
     const hostsByRelevance = getHostsByRelavance()
@@ -172,6 +163,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     const myHost = serverState.hosts[myServerId]
     const computerName = hostname()
     const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
+    const connectionInfo: ConnectionInfo = {
+        computerName,
+        user,
+        peers,
+    }
     const connections = await Promise.all(
         allPossibleUrls
             .map(
@@ -181,7 +177,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         urlObj = new URL(url)
                     } catch (e) {
                         console.error(`new URL(${url}) error`, e)
-                        return { url, accessible: false, error: e.message, networkName }
+                        return { url, accessible: false, error: e.message, connectionInfo, networkName }
                     }
                     if (urlObj.protocol === 'file:') {
                         let filePath = ''
@@ -189,7 +185,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             filePath = fileURLToPath(url)
                         } catch (e) {
                             console.error(`fileURLToPath(${url}) error`, e)
-                            return { url, accessible: false, error: e.message, networkName }
+                            return { url, accessible: false, error: e.message, connectionInfo, networkName }
                         }
                         console.log(`Probing access to '${url}'...`)
                         if (urlObj.hostname) {
@@ -199,7 +195,6 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             }
                             // create the full path, if it doesn't exist
                             // NOTE: even if the connectToSamba fails, it's possible that the user still has folder access
-                            const connectionInfo = buildConnectionInfoString({ user, computerName }, peers)
                             if (urlObj.pathname === `/${SHARE_NAME}/${SLTT_APP_LAN_FOLDER}`) {
                                 console.log(`Creating full folder path '(${newSambaIpAddressMaybe}:)${urlObj.pathname}' if needed...`)
                                 try {
@@ -207,12 +202,11 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                                     return { url, accessible: true, connectionInfo, networkName }
                                 } catch (error) {
                                     console.error(`ensureDir(${filePath}) error`, error)
-                                    return { url, accessible: false, error: error.message, networkName }
+                                    return { url, accessible: false, error: error.message, connectionInfo, networkName }
                                 }
                             }
                         }
 
-                        const connectionInfo = buildConnectionInfoString({ user, computerName }, peers)
                         return { url, accessible: await canAccess(filePath), connectionInfo, networkName }
                     }
                     if (urlObj.protocol.startsWith('http')) {
@@ -223,16 +217,20 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                         // })
                         const host = hostUrlToHostMap[url]
                         if (host) {
-                            const connectionInfo = buildConnectionInfoFromHost(host)
+                            connectionInfo.computerName = host.computerName
                             return {
                                 url, accessible: true,
-                                connectionInfo,
+                                connectionInfo: {
+                                    computerName: host.computerName,
+                                    user: host.user,
+                                    peers: Object.keys(host.peers).length
+                                },
                                 networkName
                             }
                         } else {
                             return {
                                 url, accessible: false,
-                                connectionInfo: '',
+                                connectionInfo,
                                 networkName
                             }
                         }

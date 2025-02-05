@@ -18,8 +18,14 @@ export type AddStorageProjectResponse = void
 export type RemoveStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
 export type RemoveStorageProjectArgs = void
 
+export type ConnectionInfo = {
+    peers: number,
+    computerName: string,
+    user: string,
+}
+
 export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }
-export type ProbeConnectionsResponse = { url: string, accessible: boolean, connectionInfo?: string, networkName: string }[]
+export type ProbeConnectionsResponse = { url: string, accessible: boolean, connectionInfo: ConnectionInfo, networkName: string }[]
 
 export type ConnectToUrlArgs = { clientId: string, url: string, project: string, username: string }
 export type ConnectToUrlResponse = string
