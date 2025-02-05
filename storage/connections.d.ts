@@ -22,6 +22,7 @@ export type ConnectionInfo = {
     peers: number,
     computerName: string,
     user: string,
+    /** hosted projects */
     projects: string[],
 }
 
