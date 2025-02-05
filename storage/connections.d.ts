@@ -22,6 +22,7 @@ export type ConnectionInfo = {
     peers: number,
     computerName: string,
     user: string,
+    projects: string[],
 }
 
 export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }

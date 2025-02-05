@@ -63,6 +63,10 @@ const checkLanStoragePath = (lanStoragePath: string): void => {
 
 export const handleGetStorageProjects = async ({ clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
     const lanStoragePath = getLANStoragePath()
+    return await getStorageProjects(clientId, lanStoragePath)
+}
+
+async function getStorageProjects(clientId: string, lanStoragePath: string): Promise<GetStorageProjectsResponse> {
     checkLanStoragePath(lanStoragePath)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
     const whitelistPath = `${lanStoragePath}/whitelist.sltt-projects`
@@ -140,7 +144,7 @@ const updateWifiConnections = async (): Promise<void> => {
 
 updateWifiConnections()
 
-export const handleProbeConnections = async (defaultStoragePath: string, { urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
+export const handleProbeConnections = async (defaultStoragePath: string, { clientId, urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     await ensureDir(defaultStoragePath)
     const hostsByRelevance = getHostsByRelavance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
@@ -163,10 +167,12 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
     const myHost = serverState.hosts[myServerId]
     const computerName = hostname()
     const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
+    const projects = getAmHosting() ? myHost.projects : []
     const connectionInfo: ConnectionInfo = {
         computerName,
         user,
         peers,
+        projects
     }
     const connections = await Promise.all(
         allPossibleUrls
@@ -188,7 +194,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             return { url, accessible: false, error: e.message, connectionInfo, networkName }
                         }
                         console.log(`Probing access to '${url}'...`)
-                        if (urlObj.hostname) {
+                        if (urlObj.hostname /** starts with ip address */) {
                             if (urlObj.hostname !== lastSambaIP) {
                                 newSambaIpAddressMaybe = urlObj.hostname
                                 console.log(`Possibly Samba IP detected: ${newSambaIpAddressMaybe}`)
@@ -199,7 +205,12 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                                 console.log(`Creating full folder path '(${newSambaIpAddressMaybe}:)${urlObj.pathname}' if needed...`)
                                 try {
                                     await canEnsureDir(filePath, true)
-                                    return { url, accessible: true, connectionInfo, networkName }
+                                    const projects = await getStorageProjects(clientId, filePath)
+                                    const newConnectionInfo = {
+                                        ...connectionInfo,
+                                        projects
+                                    }
+                                    return { url, accessible: true, connectionInfo: newConnectionInfo, networkName }
                                 } catch (error) {
                                     console.error(`ensureDir(${filePath}) error`, error)
                                     return { url, accessible: false, error: error.message, connectionInfo, networkName }
@@ -207,7 +218,13 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                             }
                         }
 
-                        return { url, accessible: await canAccess(filePath), connectionInfo, networkName }
+                        const projects = await getStorageProjects(clientId, filePath)
+                        const newConnectionInfo = {
+                            ...connectionInfo,
+                            projects
+                        }
+
+                        return { url, accessible: await canAccess(filePath), connectionInfo: newConnectionInfo, networkName }
                     }
                     if (urlObj.protocol.startsWith('http')) {
                         // console.log(`Probing access to '${url}'...`)
@@ -223,7 +240,8 @@ export const handleProbeConnections = async (defaultStoragePath: string, { urls 
                                 connectionInfo: {
                                     computerName: host.computerName,
                                     user: host.user,
-                                    peers: Object.keys(host.peers).length
+                                    peers: Object.keys(host.peers).length,
+                                    projects: host.projects
                                 },
                                 networkName
                             }
