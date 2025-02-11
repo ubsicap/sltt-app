@@ -55,17 +55,21 @@ $ git clone https://github.com/ubsicap/sltt.git sltt
 2. Build the `sltt` client source pages
 ```bash
 $ cd sltt/client
-$ yarn install
-$ yarn build:dev:sltt-app:client // or build:prd:sltt-app:client
+$ git checkout dev; git pull     # OR main
+$ npm install        # DON'T use yarn install
+$ yarn build:dev:sltt-app:client # or build:prd:sltt-app:client
 ```
 
-3. Set the `SLTT_CLIENT_PATH` environment variable to the `sltt/client` directory
+3. Set the `SLTT_CLIENT_DIR` environment variable to the `sltt/client` directory
 
 ```bash
-$ set SLTT_CLIENT_PATH={path to sltt repo sltt/client} # For windows 
+$ set SLTT_CLIENT_DIR={path to sltt repo sltt/client} # For windows 
 ```
 
 4. Bump the `package.json` version number
+
+Find the client version number in the build/assets/index-*.js.
+It will look like this: const version = "2.63.11";
 
 The package.json version number is used to create the release tag and version number in the file name, and to check client version code to match our build expectations in step 5 below. For example, if the version number is `206311.4.5`, then it will expect to find a version number matching `2.63.11` in the client source code built from step 4. The `4.51 part is the version number is the sltt-app version number. In semantic versioning terms: `4.5` is `major.minor|patch` where the major part represents something breaking between the client and the electron code, and minor|patch are combined to get bumped for something new or something fixed.
 
@@ -79,10 +83,13 @@ Also, the release tag will be `v206311.4.5` and the file name will be `sltt-app 
 
 5. Copy the build `sltt/client/build` to the `sltt-app` `out/client` directory
 
-This step will also verify that the client version number matches the expected version number in step 4 above.
+On Windows, this step will also verify that the client version number matches the expected version number in step 4 above.
 
 ```bash
-$ yarn copy:build:client # uses the `%SLTT_CLIENT_PATH%` environment variable from step 1.3
+# For Windows
+$ yarn copy:build:client # uses the `%SLTT_CLIENT_DIR%` environment variable from step 1.3
+# For Mac
+$ yarn copy:mac:client # uses the `%SLTT_CLIENT_DIR%` environment variable from step 1.3
 ```
 
 6. Add a commit message that summarizes the release
@@ -99,8 +106,10 @@ $ git push
 Before publishing the new installer, test the new installer to make sure it works as expected. For example:
 
 ```bash
-# For windows
+# For Windows
 $ npm run build:win:norelease
+# For Mac
+$ npm run build:mac:norelease
 ```
 
 The installer will be located in the `dist` directory. For example, `dist/sltt-app Setup 206311.4.5.exe`.

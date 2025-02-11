@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "206507.4.8",
+  "version": "206512.4.8",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -36,9 +36,12 @@
     "build:win:sign:release": "cross-env SIGN=true GH_TOKEN=%GH_TOKEN% npm run build:win:release && npm run build:win:update:metadata && npm run build:win:release:metadata",
     "build:win:update:metadata": "cross-env LATEST_YAML_PATH=./dist/latest.yml node build/recomputeHash.js && echo 'Do NOT forget to upload updated `dist/latest.yml` to release (e.g. npm run build:win:release:metadata)'",
     "build:win:release:metadata": "cross-env LATEST_YAML_PATH=./dist/latest.yml node build/updateReleaseMetadata.js",
+    
+    "copy:mac:client": "rm -rf out/client; cp -R $SLTT_CLIENT_DIR/build out/client",
     "build:mac:norelease": "electron-vite build && electron-builder --mac --config --publish never",
     "build:mac": "electron-vite build && electron-builder --mac --config",
     "build:mac:release": "electron-vite build && electron-builder --mac --config --publish always",
+    
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },
   "build": {
