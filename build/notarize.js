@@ -1,4 +1,4 @@
-console.log('afterSign hook triggered')
+// console.log('afterSign hook triggered')
 
 require('dotenv').config()
 
