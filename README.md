@@ -22,11 +22,16 @@ $ npm run dev
 
 ### Setup the certificate for code signing
 
-For those authorized to sign the code
+For windows (ask the "Eric Pyle"<epyle@biblesocieties.org> for the p12 file and password, or if needed, it can be gotten from "Tim Steenwyk"<tsteenwyk@biblesocieties.org>).
+Tim's signing instructions are at https://docs.google.com/document/d/1Me_5qVJKT4US2o1tVjl-KZNdhkV25Ud19sxtv2k8iGI/edit?pli=1&tab=t.0#heading=h.k3oaogackmbe
+Since I (EricP) could not bring myself to install (3.5Gb) WindowsSDK just to have CodeSign, I followed these instructions for `jsign`:
+https://knowledge.digicert.com/tutorials/configure-keylocker-for-jsign-using-the-pkcs11-library
+*NOTE*: this requires JavaRE to be installed to run the `java` command
+
+After everything is setup, the following command can be used to sign the installer:
+
 ```bash
-# For windows (ask the "Eric Pyle"<epyle@biblesocieties.org> for the pfx file and password, or if needed, it can be gotten from "Jeff Klassen"<jklassen@biblesocieties.org>)
-$ set CSC_LINK={pfx path https://www.electron.build/code-signing.html}
-$ set CSC_KEY_PASSWORD={pfx password}
+java -jar path\to\jsign-5.0.jar --keystore "C:\Program Files\DigiCert\DigiCert Keylocker Tools\pkcs11properties.cfg" --storepass <certificate password> --storetype PKCS11 --alias <keypair> "sltt-app Setup <version>.exe"
 ```
 
 If you're not able to sign the code, the steps below should still work, but the installer will not be signed, and so should not be used in a published release.
