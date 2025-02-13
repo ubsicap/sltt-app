@@ -20,7 +20,7 @@ $ npm install
 $ npm run dev
 ```
 
-### Setup the certificate for code signing
+### Setup the certificate for code signing (Windows only)
 
 For windows (ask the "Eric Pyle"<epyle@biblesocieties.org> for the p12 file and password, or if needed, it can be gotten from "Tim Steenwyk"<tsteenwyk@biblesocieties.org>).
 Tim's signing instructions are at https://docs.google.com/document/d/1Me_5qVJKT4US2o1tVjl-KZNdhkV25Ud19sxtv2k8iGI/edit?pli=1&tab=t.0#heading=h.k3oaogackmbe
