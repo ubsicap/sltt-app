@@ -28,6 +28,8 @@ Since I (EricP) could not bring myself to install (3.5Gb) WindowsSDK just to hav
 https://knowledge.digicert.com/tutorials/configure-keylocker-for-jsign-using-the-pkcs11-library
 *NOTE*: this requires JavaRE to be installed to run the `java` command
 
+See also github workflow https://github.com/ubsicap/sltt/blob/dev/.github/workflows/publish-sltt-app.yml
+
 After everything is setup, the following command can be used to sign the installer:
 
 ```bash
