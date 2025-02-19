@@ -33,19 +33,30 @@ const hashFile = async (file) => {
   });
 };
 
-const getActualFilePath = (targetPath, appName) => {
-  const resolvedPath = path.resolve(targetPath);
-  // first test if the file exists as is
-  // then split the file by - and replace with spaces and try again
-  if (fs.existsSync(resolvedPath)) {
-    return targetPath;
+/**
+ * artifacts on disk are in the format of `${appName} Setup ${version}.exe`
+ * e.g. `sltt-app Setup 206506.4.7.exe`
+ * but in the release and latest.yml file, it is in the format of `${appName}-Setup-${version}.exe`
+ * e.g. `sltt-app-Setup-206506.4.7.exe`
+ * @param {*} distFolder
+ * @param {*} filePathInYml (e.g. `sltt-app-Setup-206506.4.7.exe`)
+ * @param {*} appName (`sltt-app` from package.json > name)
+ * @returns 
+ */
+const getActualFilePath = (distFolder, filePathInYml, appName) => {
+    // first split the file by - and replace with spaces and see if it exists
+  const resolvedFilePathInYml = path.resolve(path.join(distFolder, filePathInYml));
+  const targetFilenameParts = path.basename(resolvedFilePathInYml).split(`${appName}-`)[1].split("-");
+  const actualFilePath1 = path.join(path.dirname(resolvedFilePathInYml), [appName, ...targetFilenameParts].join(" "));
+  if (fs.existsSync(actualFilePath1)) {
+    console.log(`Found file: '${filePathInYml}' --> '${actualFilePath1}'`);
+    return actualFilePath1;
   }
-  const targetFilenameParts = path.basename(resolvedPath).split(`${appName}-`)[1].split("-");
-  const actualFilePath = path.join(path.dirname(resolvedPath), [appName, ...targetFilenameParts].join(" "));
-  if (fs.existsSync(actualFilePath)) {
-    return actualFilePath;
+  // next, test if the file exists as is
+  if (fs.existsSync(resolvedFilePathInYml)) {
+    return resolvedFilePathInYml;
   }
-  throw new Error(`File not found: '${resolvedPath}' or '${actualFilePath}'`);
+  throw new Error(`File not found: '${actualFilePath1}' or yml path: '${resolvedFilePathInYml}'`);
 }
 
 const updateLatestYaml = async (
@@ -59,9 +70,10 @@ const updateLatestYaml = async (
   const latestDto = YAML.parse(latestYaml);
   const originalDto = { ...latestDto };
   const parsedYmlPath = path.parse(latestYamlPath);
-  const folder = parsedYmlPath.dir;
+  const distFolder = parsedYmlPath.dir;
+  console.log(`Dist folder: ${distFolder}`);
 
-  const latestDtoPath = getActualFilePath(path.join(folder, latestDto.path), appName);
+  const latestDtoPath = getActualFilePath(distFolder, latestDto.path, appName);
   const newHash = await hashFile(latestDtoPath);
   const newSize = fs.statSync(latestDtoPath).size;
   console.log(`New path hash (${latestDto.path}):`, newHash)
@@ -70,7 +82,7 @@ const updateLatestYaml = async (
   latestDto.size = newSize;
 
   for (const file of latestDto.files) {
-    const fullFilePath = getActualFilePath(path.join(folder, file.url), appName)
+    const fullFilePath = getActualFilePath(distFolder, file.url, appName)
     const newFileHash = await hashFile(fullFilePath);
     const stats = await fsPromises.stat(fullFilePath);
     const newFileSize = stats.size;
