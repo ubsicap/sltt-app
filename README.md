@@ -30,10 +30,15 @@ https://knowledge.digicert.com/tutorials/configure-keylocker-for-jsign-using-the
 
 See also github workflow https://github.com/ubsicap/sltt/blob/dev/.github/workflows/publish-sltt-app.yml
 
-After everything is setup, the following command can be used to sign the installer:
+After everything is setup, the following command is used in `build/win-sign.js` to sign the installer using the `build:win:sign:norelease` or `build:win:sign:release` npm scripts.
+
+NOTE the following environment variables must be set:
+- `JSIGN_JAR_PATH` - path to the jsign jar file
+- `SM_CLIENT_CERT_PASSWORD` - password for the certificate
+- `SM_KEYPAIR_ALIAS` - alias for the keypair
 
 ```bash
-java -jar path\to\jsign-5.0.jar --keystore "C:\Program Files\DigiCert\DigiCert Keylocker Tools\pkcs11properties.cfg" --storepass <certificate password> --storetype PKCS11 --alias <keypair> "sltt-app Setup <version>.exe"
+java -jar ${process.env.JSIGN_JAR_PATH} --keystore "C:\\Program Files\\DigiCert\\DigiCert Keylocker Tools\\pkcs11properties.cfg" --storepass ${process.env.SM_CLIENT_CERT_PASSWORD} --storetype PKCS11 --alias ${process.env.SM_KEYPAIR_ALIAS} "${file}"`
 ```
 
 If you're not able to sign the code, the steps below should still work, but the installer will not be signed, and so should not be used in a published release.
