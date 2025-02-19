@@ -96,6 +96,7 @@ const updateLatestYaml = async (
   console.log(`============\nUpdated '${latestYamlPath}':\n============\n${YAML.stringify(latestDto)}`);
   if (consoleOnly) {
     console.log("Console only mode, skipping file write");
+    return
   }
   await fsPromises.writeFile(latestYamlPath, YAML.stringify(latestDto));
 };
