@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "206506.4.6",
+  "version": "206506.4.7",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -33,7 +33,7 @@
     "build:win:norelease": "npm run build:win:core && electron-builder --win --config --publish never",
     "build:win:sign:norelease": "cross-env SIGN=true npm run build:win:norelease",
     "build:win:release": "npm run build:win:core && cross-env GH_TOKEN=%GH_TOKEN% electron-builder --win --config --publish always",
-    "build:win:sign:release": "cross-env SIGN=true GH_TOKEN=%GH_TOKEN% && npm run build:win:release",
+    "build:win:sign:release": "cross-env SIGN=true GH_TOKEN=%GH_TOKEN% npm run build:win:release",
     "build:mac:norelease": "electron-vite build && electron-builder --mac --config --publish never",
     "build:mac": "electron-vite build && electron-builder --mac --config",
     "build:mac:release": "electron-vite build && electron-builder --mac --config --publish always",
