@@ -7,6 +7,8 @@ const path = require("path")
 /**
  * From https://stackoverflow.com/a/77871470
  * Signing via build/win-sign.js results in latest.yml that has incorrect sha512 hash.
+ * As far as I (EricP) can tell there is no hook that can make sure checksums in latest.yml are correct before sending to release. (See https://github.com/electron-userland/electron-builder/issues/2111)
+ * The `sign` hook is no longer in the electron-builder api AFAICT.
  * To generate the correct latest.yml use this as a node script and upload latest.yml to the release
  * `TARGET_PATH="dist/sltt-app Setup 206506.4.7.exe" LATEST_YAML_PATH="dist/latest.yml" node build/recomputeHash.js
  * @param {*} file 
