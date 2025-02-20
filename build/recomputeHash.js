@@ -64,13 +64,29 @@ const getActualFilePath = (distFolder, filePathInYml, appName) => {
 const updateLatestYaml = async (
   latestYamlPath,
   appName,
+  waitForYamlPath = false,
   consoleOnly = false
 ) => {
+
+  if (waitForYamlPath) {
+    console.log("Waiting for file: ", latestYamlPath);
+    let attempts = 0;
+    const timeout = 500;
+    while (!fs.existsSync(latestYamlPath)) {
+      if (attempts > 20) {
+        throw new Error(`File not found: '${latestYamlPath}' after ${attempts * timeout}ms`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, timeout));
+      attempts++;
+    }
+    console.log(`File found: '${latestYamlPath}' after ${attempts * timeout}ms`);
+  }
+
   const latestYaml = await fsPromises.readFile(latestYamlPath, {
     encoding: "utf-8",
   });
   const latestDto = YAML.parse(latestYaml);
-  const originalDto = { ...latestDto };
+  const originalDto = YAML.parse(latestYaml);
   const parsedYmlPath = path.parse(latestYamlPath);
   const distFolder = parsedYmlPath.dir;
   console.log(`Dist folder: ${distFolder}`);
@@ -103,9 +119,13 @@ const updateLatestYaml = async (
   await fsPromises.writeFile(latestYamlPath, YAML.stringify(latestDto));
 };
 
-void (async () => {
+const recomputeHash = async (
+  latestYamlPath = process.env.LATEST_YAML_PATH,
+  waitForYamlPath = process.env.WAIT_FOR_YAML_PATH  === "true",
+  consoleOnly = process.env.CONSOLE_ONLY === "true"
+) => {
   try {
-    if (!process.env.LATEST_YAML_PATH) {
+    if (!latestYamlPath) {
       console.error("LATEST_YAML_PATH is missing");
       process.exit(1);
     }
@@ -121,12 +141,19 @@ void (async () => {
     const appName = packageJson.name;
     console.log(`App name: '${appName}'`);
     await updateLatestYaml(
-      process.env.LATEST_YAML_PATH,
+      latestYamlPath,
       packageJson.name,
-      process.env.CONSOLE_ONLY === "true"
+      waitForYamlPath,
+      consoleOnly
     );
   } catch (e) {
     console.error(e);
     process.exit(1);
   }
-})();
+}
+
+module.exports = { recomputeHash };
+
+if (require.main === module) {
+  recomputeHash();
+}
