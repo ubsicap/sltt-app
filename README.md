@@ -30,7 +30,7 @@ https://knowledge.digicert.com/tutorials/configure-keylocker-for-jsign-using-the
 
 See also github workflow https://github.com/ubsicap/sltt/blob/dev/.github/workflows/publish-sltt-app.yml
 
-After everything is setup, the following command is used in `build/win-sign.js` to sign the installer using the `build:win:sign:norelease` or `build:win:sign:release` npm scripts. `build/recomputeHash.js` and `build/updateReleaseMetadata.js` will also be called in `build:win:update:metadata` and `build:win:release:metadata` respectively, in order to make sure the github release gets a `latest.yml` that reflects the checksums of the signed exe installer. Without this, autoUpdater will fail due to mismatched checksums.
+After everything is setup, the following command is used in `build/win-sign.js` to sign the installer using the `build:win:sign:norelease` or `build:win:sign:release` npm scripts. `build/recomputeHash.js` and `build/updateReleaseMetadata.js` will also be called in `build:win:update:metadata` and `build:win:release:metadata` respectively, in order to make sure the github release gets a `dist/latest.yml` that reflects the checksums of the signed exe installer. Without this, autoUpdater will fail due to mismatched checksums.
 
 **NOTE** the following environment variables must be set:
 - `JSIGN_JAR_PATH` - path to the jsign jar file
