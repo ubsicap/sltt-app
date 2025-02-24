@@ -20,6 +20,8 @@ import { broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 import { fileURLToPath } from 'url'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
+import { canWriteToFolder } from './hostFolder'
+import { CanWriteToFolderArgs, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER } from './hostFolder.d'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -77,6 +79,12 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
     }
     res.status(403).json({ error: 'Forbidden' })
 }
+
+app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
+    const args: CanWriteToFolderArgs = req.body
+    const result = await canWriteToFolder(args.folderPath)
+    res.json(result)
+}))
 
 app.post(`/${CONNECTIONS_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SetAllowHostingArgs = req.body
