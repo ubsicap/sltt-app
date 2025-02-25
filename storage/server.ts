@@ -83,6 +83,9 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
 app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: CanWriteToFolderArgs = req.body
     const result = await canWriteToFolder(args.folderPath)
+    if (result.error) {
+        console.warn(`canWriteToFolder error: ${result.error}`)
+    }
     res.json(result)
 }))
 

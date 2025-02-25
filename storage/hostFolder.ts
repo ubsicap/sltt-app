@@ -21,7 +21,7 @@ const createTempFile = async (folderPath: string): Promise<void> => {
  */
 const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> => {
     try {
-        console.log(`canWriteToFolder: ${folderPath}`)
+        console.log(`canWriteToFolder: "${folderPath}"`)
         
         // Check if the folderPath has an extension
         const ext = path.extname(folderPath)
@@ -30,7 +30,7 @@ const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> 
         }
 
         if (!path.isAbsolute(folderPath)) {
-            return { error: 'Full drive path required' };
+            return { error: `Expected full drive path required. Got "${folderPath}"` };
         }
 
         // Check if the folder exists
@@ -66,7 +66,7 @@ const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> 
 
 // Create a Bottleneck instance for debouncing
 const limiter = new Bottleneck({
-    minTime: 300, // Minimum time between function calls in milliseconds
+    minTime: 2000, // Minimum time between function calls in milliseconds
 })
 
 const debouncedCanWriteToFolder = limiter.wrap(canWriteToFolder)
