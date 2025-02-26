@@ -1,3 +1,4 @@
+import { normalize } from 'path'
 
 type ServerInfo = {
     serverId: string,
@@ -61,15 +62,27 @@ export const getLANStoragePath = (): string => {
     return lanStoragePath
 }
 
+export const SLTT_APP_LAN_FOLDER = `sltt-app/lan`
+
+export const checkHostStoragePath = (hostStoragePath: string, checkEndConvention = true): void => {
+    if (!hostStoragePath) {
+        throw new Error('Host storage path is empty')
+    }
+    if (hostStoragePath.startsWith('file:')) {
+        throw new Error(`Host storage path must be a local disk path, but got '${hostStoragePath}'`)
+    }
+    if (hostStoragePath.startsWith('http')) {
+        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${hostStoragePath}'`)
+    }
+    if (checkEndConvention && !normalize(hostStoragePath).endsWith(`${normalize(SLTT_APP_LAN_FOLDER)}`)) {
+        throw new Error(`Host storage path should end with: "${normalize(SLTT_APP_LAN_FOLDER)}"`)
+    }
+}
+
 export const setLANStoragePath = (path: string): void => {
     const lanStoragePath = serverState.myLanStoragePath
     if (path === lanStoragePath) return
-    if (path.startsWith('file:')) {
-        throw new Error(`LAN storage path must be a local disk path, but got '${path}'`)
-    }
-    if (path.startsWith('http')) {
-        throw new Error(`Using proxy server? Expected LAN disk storage path, but got '${lanStoragePath}'`)
-    }
+    checkHostStoragePath(path)
     serverState.myLanStoragePath = path
     console.log(`lanStoragePath: ${serverState.myLanStoragePath}`, )
 }

@@ -2,10 +2,9 @@ import { access, appendFile, readFile } from 'fs/promises'
 import { constants, ensureDir } from 'fs-extra'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { pathToFileURL, fileURLToPath } from 'url'
+import { fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectionInfo, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
-import { normalize } from 'path'
-import { createUrl, getAmHosting, getHostsByRelavance, getLANStoragePath, HostInfo, serverState } from './serverState'
+import { checkHostStoragePath, createUrl, getAmHosting, getHostsByRelavance, getLANStoragePath, HostInfo, serverState, SLTT_APP_LAN_FOLDER } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
 import { hostname } from 'os'
@@ -34,7 +33,6 @@ async function connectToSambaWithCommand(command: string): Promise<boolean> {
 }
 
 const SHARE_NAME = 'sltt-local-team-storage'
-export const SLTT_APP_LAN_FOLDER = `sltt-app/lan`
 
 async function connectToSamba(sambaIP: string): Promise<boolean> {
     if (process.platform === 'win32') {
@@ -49,25 +47,13 @@ async function connectToSamba(sambaIP: string): Promise<boolean> {
     }
 }
 
-const checkLanStoragePath = (lanStoragePath: string): void => {
-    if (!lanStoragePath) {
-        throw new Error('LAN storage path is not set')
-    }
-    if (lanStoragePath.startsWith('file:')) {
-        throw new Error(`LAN storage path must be a local disk path, but got '${lanStoragePath}'`)
-    }
-    if (!normalize(lanStoragePath).endsWith(`${normalize(SLTT_APP_LAN_FOLDER)}`)) {
-        throw new Error(`LAN storage path is invalid: ${lanStoragePath}`)
-    }
-}
-
 export const handleGetStorageProjects = async ({ clientId }: GetStorageProjectsArgs): Promise<GetStorageProjectsResponse> => {
     const lanStoragePath = getLANStoragePath()
     return await getStorageProjects(clientId, lanStoragePath)
 }
 
 async function getStorageProjects(clientId: string, lanStoragePath: string): Promise<GetStorageProjectsResponse> {
-    checkLanStoragePath(lanStoragePath)
+    checkHostStoragePath(lanStoragePath)
     console.log(`handleGetStorageProjects by client '${clientId}'`)
     const whitelistPath = `${lanStoragePath}/whitelist.sltt-projects`
     const projectsRemoved = new Set<string>()
@@ -86,43 +72,41 @@ async function getStorageProjects(clientId: string, lanStoragePath: string): Pro
     } catch (error) {
         console.error(`readFile(${whitelistPath}) error`, error)
     }
-    console.log(`handleGetStorageProjects[${clientId}]: projects added: ${[...projectsAdded]}, projects removed: ${[...projectsRemoved]}`)
+    console.log(`handleGetStorageProjects[${clientId}]: projects added: [${[...projectsAdded]}], projects removed: [${[...projectsRemoved]}]`)
     return [...projectsAdded]
 }
 
 export const handleAddStorageProject = async ({ clientId, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
-    const url = getLANStoragePath()
-    checkLanStoragePath(url)
+    const myLanStoragePath = getLANStoragePath()
+    checkHostStoragePath(myLanStoragePath)
     const existingProjects = await handleGetStorageProjects({ clientId })
     if (existingProjects.includes(project)) {
-        console.error(`handleAddStorageProject[${url}]: project '${project}' not added for '${adminEmail}' (client '${clientId}'): already in storage projects`)
+        console.error(`handleAddStorageProject[${myLanStoragePath}]: project '${project}' not added for '${adminEmail}' (client '${clientId}'): already in storage projects`)
         return
     }
-    const lanStoragePath = fileURLToPath(url)
-    console.log(`handleAddStorageProject[${url}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
+    console.log(`handleAddStorageProject[${myLanStoragePath}]: project '${project}' added by '${adminEmail}' (client '${clientId}')`)
     try {
-        await appendFile(`${lanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
+        await appendFile(`${myLanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
     } catch (error) {
-        console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
+        console.error(`appendFile(${myLanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
     broadcastPushHostDataMaybe(() => Promise.resolve(existingProjects.concat(project)))
 }
 
 export const handleRemoveStorageProject = async ({ clientId, project, adminEmail }: RemoveStorageProjectArgs): Promise<void> => {
-    const url = getLANStoragePath()
-    checkLanStoragePath(url)
+    const myLanStoragePath = getLANStoragePath()
+    checkHostStoragePath(myLanStoragePath)
     const existingProjects = await handleGetStorageProjects({ clientId })
     if (!existingProjects.includes(project)) {
-        console.error(`handleRemoveStorageProject[${url}]: project ${project} not removed for ${adminEmail}: not in storage projects`)
+        console.error(`handleRemoveStorageProject[${myLanStoragePath}]: project ${project} not removed for ${adminEmail}: not in storage projects`)
         return
     }
-    const lanStoragePath = fileURLToPath(url)
-    console.log(`handleRemoveStorageProject[${url}]: project ${project} removed by ${adminEmail}`)
+    console.log(`handleRemoveStorageProject[${myLanStoragePath}]: project ${project} removed by ${adminEmail}`)
     try {
-        await appendFile(`${lanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
+        await appendFile(`${myLanStoragePath}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
     } catch (error) {
-        console.error(`appendFile(${lanStoragePath}/whitelist.sltt-projects) error`, error)
+        console.error(`appendFile(${myLanStoragePath}/whitelist.sltt-projects) error`, error)
         throw error
     }
     broadcastPushHostDataMaybe(() => Promise.resolve(existingProjects.filter((p) => p !== project)))
@@ -144,8 +128,7 @@ const updateWifiConnections = async (): Promise<void> => {
 
 updateWifiConnections()
 
-export const handleProbeConnections = async (defaultStoragePath: string, { clientId, urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
-    await ensureDir(defaultStoragePath)
+export const handleProbeConnections = async ({ clientId, urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     const hostsByRelevance = getHostsByRelavance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
         acc[createUrl(host.ip, host.port)] = host
@@ -161,7 +144,7 @@ export const handleProbeConnections = async (defaultStoragePath: string, { clien
     updateWifiConnections()
     const hostUrls = Object.keys(hostUrlToHostMap)
     console.log(`hostUrls: ${JSON.stringify(hostUrls)}`)
-    const allPossibleUrls = uniq([pathToFileURL(defaultStoragePath).href, ...(urls || []), ...hostUrls])
+    const allPossibleUrls = uniq([...(urls || []), ...hostUrls])
     const user = serverState.myUsername
     const { myServerId } = serverState
     const myHost = serverState.hosts[myServerId]

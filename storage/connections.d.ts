@@ -13,10 +13,10 @@ export type GetStorageProjectsArgs = { clientId: string }
 export type GetStorageProjectsResponse = string[]
 
 export type AddStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
-export type AddStorageProjectResponse = void
+export type AddStorageProjectResponse = { message: 'ok' }
 
 export type RemoveStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
-export type RemoveStorageProjectArgs = void
+export type RemoveStorageProjectArgs = { message: 'ok' }
 
 export type ConnectionInfo = {
     peers: number,

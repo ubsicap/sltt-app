@@ -20,8 +20,8 @@ import { broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 import { fileURLToPath } from 'url'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
-import { canWriteToFolder } from './hostFolder'
-import { CanWriteToFolderArgs, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER } from './hostFolder.d'
+import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
+import { CanWriteToFolderArgs, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse } from './hostFolder.d'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -35,8 +35,6 @@ app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
-const DEFAULT_STORAGE_BASE_PATH = electronApp.getPath('userData')
-// setLANStoragePath(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH))
 const configFilePath = join(electronApp.getPath('userData'), 'servers', `server-${getServerConfig().port}.sltt-config`)
 
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
@@ -77,8 +75,22 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
         next()
         return
     }
+    console.error(`Forbidden: ${req.headers.host} from ${req.ip}`)
     res.status(403).json({ error: 'Forbidden' })
 }
+
+app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
+    const response = await loadHostFolder()
+    res.json(response)
+}))
+
+app.post(`/${HOST_FOLDER_API_SAVE_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
+    const args: SaveHostFolderArgs = req.body
+    const response: SaveHostFolderResponse = await saveHostFolder(args.hostFolder)
+    await saveServerSettings(configFilePath, serverState)
+    res.json(response)
+}))
+    
 
 app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: CanWriteToFolderArgs = req.body
@@ -110,7 +122,7 @@ app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, 
     if (serverState.allowHosting && serverState.myLanStoragePath) {
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     }
-    const result = await handleProbeConnections(buildLANStoragePath(DEFAULT_STORAGE_BASE_PATH), args)
+    const result = await handleProbeConnections(args)
     res.json(result)
 }))
 
@@ -146,13 +158,13 @@ app.post(`/${CONNECTIONS_API_GET_STORAGE_PROJECTS}`, verifyLocalhostUnlessHostin
 app.post(`/${CONNECTIONS_API_ADD_STORAGE_PROJECT}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: AddStorageProjectArgs = req.body
     await handleAddStorageProject(args)
-    res.json({ message: 'Project added successfully' })
+    res.json({ message: 'ok' })
 }))
 
 app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RemoveStorageProjectArgs = req.body
     await handleRemoveStorageProject(args)
-    res.json({ message: 'Project removed successfully' })
+    res.json({ message: 'ok' })
 }))
 
 app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
@@ -220,7 +232,7 @@ app.post(`/${DOCS_API_RETRIEVE_REMOTE_DOCS}`, verifyLocalhostUnlessHosting, asyn
 app.post(`/${DOCS_API_SAVE_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: SaveRemoteSpotsArgs = req.body
     await handleSaveRemoteSpots(getDocsPath(), args)
-    res.json({ message: 'Remote spots saved successfully' })
+    res.json({ message: 'ok' })
 }))
 
 app.post(`/${DOCS_API_GET_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
@@ -250,7 +262,7 @@ app.post(`/${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}`, verifyLocalhostUnlessHosting
 app.post(`/${DOCS_API_SAVE_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const { clientId, project, spots } = req.body
     await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
-    res.json({ message: 'Local spots saved successfully' })
+    res.json({ message: 'ok' })
 }))
 
 app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
