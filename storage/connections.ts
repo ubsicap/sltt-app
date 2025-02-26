@@ -319,7 +319,7 @@ export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<Con
 
 
 setInterval(() => {
-    if (serverState.allowHosting) {
+    if (getAmHosting()) {
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
     }
 }, hostUpdateIntervalMs)

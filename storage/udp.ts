@@ -1,7 +1,7 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
 import axios from 'axios'
-import { createUrl, HostInfo, PeerInfo, serverState } from './serverState'
+import { createUrl, getAmHosting, HostInfo, PeerInfo, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
 
 const UDP_CLIENT_PORT = 41234
@@ -171,7 +171,7 @@ myClient.bind(UDP_CLIENT_PORT)
 
 /** if peerHostUpdatedAt does not match host.updatedAt, then remove peer as obsoleted */
 const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
-    if (!serverState.allowHosting) return
+    if (!getAmHosting()) return
     const myHost = serverState.hosts[serverState.myServerId]
     if (!myHost) return {}
     const activePeers: { [serverId: string]: PeerInfo } = {}
@@ -184,7 +184,7 @@ const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
 }
 
 export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]>): void => {
-    if (!serverState.allowHosting) return
+    if (!getAmHosting()) return
     fnGetProjects().then((projects) => {
         const activePeers = getMyActivePeers()
         const peers = activePeers

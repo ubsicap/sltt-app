@@ -4,11 +4,10 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { hostname, tmpdir } from 'os'
-import { getLANStoragePath, serverState, setLANStoragePath, setProxyUrl } from './serverState'
+import { getAmHosting, getLANStoragePath, serverState, setLANStoragePath, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
-import { buildLANStoragePath } from './core'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, CONNECTIONS_API_SET_ALLOW_HOSTING, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, SetAllowHostingArgs, SetAllowHostingResponse } from './connections.d'
+import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
 import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
@@ -18,10 +17,9 @@ import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
 import { broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
-import { fileURLToPath } from 'url'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
-import { CanWriteToFolderArgs, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse } from './hostFolder.d'
+import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse } from './hostFolder.d'
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -101,17 +99,17 @@ app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandle
     res.json(result)
 }))
 
-app.post(`/${CONNECTIONS_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (req, res) => {
+app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SetAllowHostingArgs = req.body
     serverState.allowHosting = args.allowHosting
-    const filePath = fileURLToPath(args.url)
-    setLANStoragePath(filePath)
     await saveServerSettings(configFilePath, {
         myServerId: serverState.myServerId,
         allowHosting: args.allowHosting,
-        myLanStoragePath: filePath,
+        myLanStoragePath: serverState.myLanStoragePath,
     })
-    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
+    if (getAmHosting()) {
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
+    }
     const response: SetAllowHostingResponse = { ok: true }
     res.json(response)
 }))
@@ -119,7 +117,7 @@ app.post(`/${CONNECTIONS_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
 app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`probe: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
-    if (serverState.allowHosting && serverState.myLanStoragePath) {
+    if (getAmHosting()) {
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     }
     const result = await handleProbeConnections(args)

@@ -94,14 +94,15 @@ export const setProxyUrl = (url: string): void => {
     serverState.proxyUrl = url
 }
 
+/** true when allowHosting and myLanStoragePath are truthy */
 export const getAmHosting = (): boolean => {
-    const { allowHosting } = serverState
-    return allowHosting
+    const { allowHosting, myLanStoragePath } = serverState
+    return allowHosting && !!myLanStoragePath
 }
 
 const sortHostsByRelevance = (a: HostInfo, b: HostInfo): number => {
     const { myServerId } = serverState
-    if (serverState.allowHosting) {
+    if (getAmHosting()) {
         if (a.serverId === myServerId) return -1
         if (b.serverId === myServerId) return 1
     }
