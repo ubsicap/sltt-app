@@ -1,7 +1,5 @@
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
-import Bottleneck from 'bottleneck'
-
 
 const createTempFile = async (folderPath: string): Promise<void> => {
     try {
@@ -63,12 +61,4 @@ const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> 
         }
     }
 }
-
-// Create a Bottleneck instance for debouncing
-const limiter = new Bottleneck({
-    minTime: 2000, // Minimum time between function calls in milliseconds
-})
-
-const debouncedCanWriteToFolder = limiter.wrap(canWriteToFolder)
-
-export { debouncedCanWriteToFolder as canWriteToFolder }
+export { canWriteToFolder }
