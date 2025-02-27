@@ -3,6 +3,7 @@ import { hostname } from 'os'
 import axios from 'axios'
 import { createUrl, getAmHosting, HostInfo, PeerInfo, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
+import disk from 'diskusage'
 
 const UDP_CLIENT_PORT = 41234
 
@@ -13,6 +14,7 @@ type PushHostInfoBroadcast = {
     port: number,
     projects: string[],
     peers: { [serverId: string]: PeerInfo },
+    diskUsage: { free: number, total: number } | undefined,
 }
 
 type PushHostInfoResponse = {
@@ -52,7 +54,7 @@ myClient.on('message', async (msg, rinfo) => {
     console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
     if (message.id === MSG_PUSH_HOST_INFO) {
         if (message.type === 'push') {
-            const { port, projects, peers }: PushHostInfoBroadcast = JSON.parse(message.json)
+            const { port, projects, peers, diskUsage }: PushHostInfoBroadcast = JSON.parse(message.json)
             const hostServerId = client.serverId
             const hostUpdatedAt = message.createdAt
             const updatedHost: HostInfo ={
@@ -65,6 +67,7 @@ myClient.on('message', async (msg, rinfo) => {
                 computerName: client.computerName,
                 peers,
                 projects,
+                diskUsage,
             }
             serverState.hosts[client.serverId] = updatedHost
             serverState.hostProjects = new Set(projects)
@@ -183,12 +186,23 @@ const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
     return activePeers
 }
 
+const getDiskUsage = async (): Promise<{ free: number, total: number } | undefined > => {
+    try {
+        const { free, total } = await disk.check(serverState.myLanStoragePath)
+        return { free, total }
+    } catch (error) {
+        console.error('Error getting disk usage:', error)
+    }
+    return undefined
+}
+
 export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]>): void => {
     if (!getAmHosting()) return
-    fnGetProjects().then((projects) => {
+    fnGetProjects().then(async (projects) => {
         const activePeers = getMyActivePeers()
+        const diskUsage = await getDiskUsage()
         const peers = activePeers
-        const payload: PushHostInfoBroadcast = { port: getServerConfig().port, projects, peers }
+        const payload: PushHostInfoBroadcast = { port: getServerConfig().port, projects, peers, diskUsage }
         sendMessage({
             type: 'push', id: MSG_PUSH_HOST_INFO,
             json: JSON.stringify(payload)

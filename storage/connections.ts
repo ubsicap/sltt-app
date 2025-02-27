@@ -155,11 +155,14 @@ export const handleProbeConnections = async ({ clientId, urls }: ProbeConnection
     const computerName = hostname()
     const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
     const projects = getAmHosting() ? myHost.projects : []
+    const diskUsage = getAmHosting() ? myHost.diskUsage : undefined
     const connectionInfo: ConnectionInfo = {
         computerName,
         user,
         peers,
-        projects
+        projects,
+        isMyServer: true,
+        diskUsage,
     }
     const connections = await Promise.all(
         allPossibleUrls
@@ -221,15 +224,20 @@ export const handleProbeConnections = async ({ clientId, urls }: ProbeConnection
                         // })
                         const host = hostUrlToHostMap[url]
                         if (host) {
-                            connectionInfo.computerName = host.computerName
+                            const hostConnectionInfo: ConnectionInfo = {
+                                computerName: host.computerName,
+                                isMyServer: host.serverId === myServerId,
+                                user: host.user,
+                                peers: Object.keys(host.peers).length,
+                                projects: host.projects,
+                                diskUsage: host.diskUsage
+                            }
+                            const accessible = host.diskUsage !== undefined && (
+                                host.diskUsage.free > 50 * 1024 * 1024 /* 50 MB */
+                            )
                             return {
-                                url, accessible: true,
-                                connectionInfo: {
-                                    computerName: host.computerName,
-                                    user: host.user,
-                                    peers: Object.keys(host.peers).length,
-                                    projects: host.projects
-                                },
+                                url, accessible,
+                                connectionInfo: hostConnectionInfo,
                                 networkName
                             }
                         } else {

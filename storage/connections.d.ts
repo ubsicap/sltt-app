@@ -17,9 +17,11 @@ export type RemoveStorageProjectArgs = { message: 'ok' }
 export type ConnectionInfo = {
     peers: number,
     computerName: string,
+    isMyServer: boolean,
     user: string,
     /** hosted projects */
     projects: string[],
+    diskUsage: { free: number, total: number } | undefined,
 }
 
 export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }
