@@ -1,16 +1,18 @@
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
-import { LoadHostFolderResponse, SaveHostFolderResponse } from './hostFolder.d'
+import { CanWriteToFolderResponse, LoadHostFolderResponse, SaveHostFolderResponse } from './hostFolder.d'
 import { platform } from 'os'
 import { checkHostStoragePath, serverState, setLANStoragePath, SLTT_APP_LAN_FOLDER } from './serverState'
 import { normalize } from 'path'
+import disk from 'diskusage'
 
 
 export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
     const defaultFolder = platform() === 'win32' ? 'C:\\sltt-app\\lan' : '/Users/Shared/sltt-app/lan'
     const requiredEnd = normalize(SLTT_APP_LAN_FOLDER)
     const hostFolder = serverState.myLanStoragePath
-    const response = { hostFolder, defaultFolder, requiredEnd }
+    const diskUsage = await disk.check(hostFolder || defaultFolder)
+    const response = { hostFolder, defaultFolder, requiredEnd, diskUsage }
     console.log(`loadHostFolder: ${JSON.stringify(response)}`)
     return response
 }
@@ -45,7 +47,8 @@ const createTempFile = async (folderPath: string): Promise<void> => {
  * if we created the folder here, then delete it.
  * if the folder exists, then write a file to it and delete it
  */
-const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> => {
+const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderResponse> => {
+    let diskUsage: Awaited<ReturnType<typeof disk.check>>
     try {
         const normalizedFolder = normalize(folderPath.trim())
         console.log(`canWriteToFolder: "${folderPath}" -> "${normalizedFolder}"`)
@@ -53,17 +56,18 @@ const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> 
         // Check if the normalizedFolder has an extension
         const ext = path.extname(normalizedFolder)
         if (ext) {
-            return { error: `Extension is not allowed in folder path:` + ` "${ext}"` }
+            return { error: `Extension is not allowed in folder path:` + ` "${ext}"`, diskUsage }
         }
 
         if (!path.isAbsolute(normalizedFolder)) {
-            return { error: `Full drive path required.` };
+            return { error: `Full drive path required.`, diskUsage };
         }
 
         try {
             checkHostStoragePath(normalizedFolder, false)
+            diskUsage = await disk.check(normalizedFolder)
         } catch(err) {
-            return { error: err.message }
+            return { error: err.message, diskUsage }
         }
 
         // Check if the folder exists
@@ -71,10 +75,10 @@ const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> 
         if (stats.isDirectory()) {
             // Folder exists, check write permissions by creating a temporary file
             await createTempFile(normalizedFolder)
-            return { error: '' }
+            return { error: '', diskUsage }
         } else {
             console.error(`Path exists but is not a directory: ${folderPath}`)
-            return { error: `Path exists but is not a directory.` }
+            return { error: `Path exists but is not a directory.`, diskUsage }
         }
     } catch (err) {
         if (err.code === 'ENOENT') {
@@ -85,14 +89,14 @@ const canWriteToFolder = async (folderPath: string): Promise<{ error: string }> 
                 await createTempFile(folderPath)
                 // Clean up by removing the created folder
                 await rmdir(folderPath)
-                return { error: '' }
+                return { error: '', diskUsage }
             } catch (mkdirErr) {
                 console.error(`Write permission error: ${folderPath}`, mkdirErr)
-                return { error: `Write permission error.` }
+                return { error: `Write permission error.`, diskUsage }
             }
         } else {
             console.error(`Error accessing folder: ${folderPath}`, err)
-            return { error: `Error accessing folder.` }
+            return { error: `Error accessing folder.`, diskUsage }
         }
     }
 }

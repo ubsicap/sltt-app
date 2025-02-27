@@ -13,7 +13,7 @@ type ServerInfo = {
 export type HostInfo = ServerInfo & {
     projects: string[],
     peers: { [serverId: string]: PeerInfo },
-    diskUsage: { free: number, total: number } | undefined,
+    diskUsage: { available: number, free: number, total: number } | undefined,
 }
 
 export type PeerInfo = ServerInfo & {

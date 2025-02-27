@@ -5,10 +5,12 @@ export const HOST_FOLDER_API_SAVE_HOST_FOLDER = 'saveHostFolder'
 export const HOST_FOLDER_API_SET_ALLOW_HOSTING = 'setAllowHosting'
 export const HOST_FOLDER_API_GET_ALLOW_HOSTING = 'getAllowHosting'
 
-export type CanWriteToFolderArgs = { folderPath: string }
-export type CanWriteToFolderResponse = { error: string }
+type DiskUsage = { available: number, free: number, total: number }
 
-export type LoadHostFolderResponse = { hostFolder: string, defaultFolder: string, requiredEnd: string }
+export type CanWriteToFolderArgs = { folderPath: string }
+export type CanWriteToFolderResponse = { error: string, diskUsage: DiskUsage | undefined }
+
+export type LoadHostFolderResponse = { hostFolder: string, defaultFolder: string, requiredEnd: string, diskUsage: DiskUsage | undefined }
 
 export type SaveHostFolderArgs = { hostFolder: string }
 export type SaveHostFolderResponse = { finalHostFolder: string }

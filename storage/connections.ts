@@ -233,7 +233,7 @@ export const handleProbeConnections = async ({ clientId, urls }: ProbeConnection
                                 diskUsage: host.diskUsage
                             }
                             const accessible = host.diskUsage !== undefined && (
-                                host.diskUsage.free > 50 * 1024 * 1024 /* 50 MB */
+                                host.diskUsage.available > 50 * 1024 * 1024 /* 50 MB */
                             )
                             return {
                                 url, accessible,

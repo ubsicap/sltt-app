@@ -14,6 +14,8 @@ export type AddStorageProjectResponse = { message: 'ok' }
 export type RemoveStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
 export type RemoveStorageProjectArgs = { message: 'ok' }
 
+type DiskUsage = { available: number, free: number, total: number }
+
 export type ConnectionInfo = {
     peers: number,
     computerName: string,
@@ -21,7 +23,7 @@ export type ConnectionInfo = {
     user: string,
     /** hosted projects */
     projects: string[],
-    diskUsage: { free: number, total: number } | undefined,
+    diskUsage: DiskUsage | undefined,
 }
 
 export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }

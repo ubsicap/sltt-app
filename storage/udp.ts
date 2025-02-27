@@ -14,7 +14,7 @@ type PushHostInfoBroadcast = {
     port: number,
     projects: string[],
     peers: { [serverId: string]: PeerInfo },
-    diskUsage: { free: number, total: number } | undefined,
+    diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined,
 }
 
 type PushHostInfoResponse = {
@@ -186,10 +186,9 @@ const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
     return activePeers
 }
 
-const getDiskUsage = async (): Promise<{ free: number, total: number } | undefined > => {
+const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.check>> | undefined > => {
     try {
-        const { free, total } = await disk.check(serverState.myLanStoragePath)
-        return { free, total }
+        return await disk.check(serverState.myLanStoragePath)
     } catch (error) {
         console.error('Error getting disk usage:', error)
     }
