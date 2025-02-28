@@ -121,9 +121,10 @@ const updateWifiConnections = async (): Promise<void> => {
     console.log('Updating wifi connections...')
     try {
         const connections = await wifiGetCurrentConnections()
-        if (connections.length !== cachedWifiConnections.length) {
+        const ssIdList = connections.map((c) => c.bssid || c.ssid)
+        if (JSON.stringify(ssIdList) !== JSON.stringify(cachedWifiConnections)) {
             console.log(`Wifi connections changed: ${JSON.stringify(connections, null, 2)}`)
-            cachedWifiConnections = connections.map((c) => c.bssid || c.ssid)
+            cachedWifiConnections = ssIdList
         }
     } catch (error) {
         console.error('wifi.getCurrentConnections() error', error)
