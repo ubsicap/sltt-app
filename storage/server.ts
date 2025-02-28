@@ -63,7 +63,9 @@ app.get('/status', (req, res) => {
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) => {
     return (req: Request, res: Response, next: NextFunction): void => {
         fn(req, res, next).catch((error: unknown) => {
-            res.status(400).json({ error: (error as Error).message })
+            const errMessage = (error as Error).message
+            console.error('asyncHandler error:', errMessage)
+            res.status(400).json({ error: errMessage })
         })
     }
 }

@@ -17,15 +17,35 @@ export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
     return response
 }
 
+/**
+ * this will take a hostFolder and make sure it ends with the required end "sltt-app/lan" (aka SLTT_APP_LAN_FOLDER)
+ * So if the hostFolder is "C:\\sltt-app\\lan" or "C:\\sltt-app\\lan\\" it will return "C:\\sltt-app\\lan"
+ * if the hostFolder is "C:\\sltt-app" or "C:\\sltt-app\\" it will return "C:\\sltt-app\\lan"
+ * if the hostFolder is "C:\\sltt-app\\lan\\subfolder" it will return "C:\\sltt-app\\subfolder\\sltt-app\\lan"
+ * if the hostFolder is "c:\\subfolder" it will return "c:\\subfolder\\sltt-app\\lan"
+ * @param hostFolder
+ */
+const finalizeHostFolder = (hostFolder: string): string => {
+    const normalizedHostFolder = normalize(hostFolder.trim()).replace(/[\\/]+$/, '')
+    const normalizedEnd = normalize(SLTT_APP_LAN_FOLDER)
+    const requiredParts = normalizedEnd.split(path.sep).filter(s => s)
+    const appendToEnd = []
+    while (requiredParts.length) {
+        const endMaybe = requiredParts.join(path.sep)
+        const requiredPart = requiredParts.pop()
+        if (normalizedHostFolder.endsWith(endMaybe)) {
+            break
+        } else {
+            appendToEnd.unshift(requiredPart)
+        }
+    }
+    const finalFolder = path.join(normalizedHostFolder, ...appendToEnd)
+    return finalFolder
+}
+
 export const saveHostFolder = async (hostFolder: string): Promise<SaveHostFolderResponse> => {
-    console.log(`saveHostFolder: "${hostFolder}"`)
-    const normalizedHostFolder = normalize(hostFolder)
-    const parts = normalizedHostFolder.split(path.sep)
-    const requiredParts = normalize(SLTT_APP_LAN_FOLDER).split(path.sep)
-    // find what parts are missing from the end of the folder
-    const missingParts = requiredParts.filter((part, index) => parts[parts.length - requiredParts.length + index] !== part)
-    // add missing parts to the end of the folder
-    const finalFolder = missingParts.reduce((folder, part) => path.join(folder, part), normalizedHostFolder)
+    const finalFolder = finalizeHostFolder(hostFolder)
+    console.log(`saveHostFolder: "${hostFolder}" -> "${finalFolder}"`)
     await mkdir(finalFolder, { recursive: true })
     setLANStoragePath(finalFolder)
     return { finalHostFolder: finalFolder }

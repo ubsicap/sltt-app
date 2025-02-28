@@ -188,7 +188,12 @@ const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
 
 const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.check>> | undefined > => {
     try {
-        return await disk.check(serverState.myLanStoragePath)
+        const startAt = new Date()
+        console.debug('Checking disk usage...')
+        const result = await disk.check(serverState.myLanStoragePath)
+        const endAt = new Date()
+        console.debug('Disk usage finished in', endAt.getTime() - startAt.getTime(), 'ms')
+        return result
     } catch (error) {
         console.error('Error getting disk usage:', error)
     }
