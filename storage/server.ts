@@ -124,6 +124,7 @@ app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
 app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`probe: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ProbeConnectionsArgs = req.body
+    serverState.myUsername = args.username
     if (getAmHosting()) {
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     }
@@ -134,7 +135,6 @@ app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, 
 app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`connectToUrl: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
     const args: ConnectToUrlArgs = req.body
-    serverState.myUsername = args.username
     if (args.url.startsWith('http')) {
         setProxyUrl(args.url)
         res.json(args.url) // todo: JSON.stringify host computer name etc...

@@ -26,8 +26,8 @@ export type ConnectionInfo = {
     diskUsage: DiskUsage | undefined,
 }
 
-export type ProbeConnectionsArgs = { clientId: string, urls?: string[] }
+export type ProbeConnectionsArgs = { clientId: string, urls?: string[], username: string }
 export type ProbeConnectionsResponse = { url: string, accessible: boolean, connectionInfo: ConnectionInfo, networkName: string }[]
 
-export type ConnectToUrlArgs = { clientId: string, url: string, project: string, username: string }
+export type ConnectToUrlArgs = { clientId: string, url: string, project: string }
 export type ConnectToUrlResponse = string
