@@ -11,7 +11,12 @@ export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
     const defaultFolder = platform() === 'win32' ? 'C:\\sltt-app\\lan' : '/Users/Shared/sltt-app/lan'
     const requiredEnd = normalize(SLTT_APP_LAN_FOLDER)
     const hostFolder = serverState.myLanStoragePath
-    const diskUsage = await disk.check(hostFolder || defaultFolder)
+    let diskUsage: Awaited<ReturnType<typeof disk.check>>
+    try {
+        await disk.check(hostFolder || defaultFolder)
+    } catch (err) {
+        console.error(`Error checking disk usage: ${hostFolder || defaultFolder}`)
+    }
     const response = { hostFolder, defaultFolder, requiredEnd, diskUsage }
     console.log(`loadHostFolder: ${JSON.stringify(response)}`)
     return response
