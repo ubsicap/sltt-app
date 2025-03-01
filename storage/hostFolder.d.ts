@@ -5,7 +5,7 @@ export const HOST_FOLDER_API_SAVE_HOST_FOLDER = 'saveHostFolder'
 export const HOST_FOLDER_API_SET_ALLOW_HOSTING = 'setAllowHosting'
 export const HOST_FOLDER_API_GET_ALLOW_HOSTING = 'getAllowHosting'
 
-type DiskUsage = { available: number, free: number, total: number }
+export type DiskUsage = { available: number, free: number, total: number }
 
 export type CanWriteToFolderArgs = { folderPath: string }
 export type CanWriteToFolderResponse = { error: string, diskUsage: DiskUsage | undefined }
