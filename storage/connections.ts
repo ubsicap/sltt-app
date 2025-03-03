@@ -155,6 +155,7 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
     const myHost = serverState.hosts[myServerId]
     const computerName = hostname()
     const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
+    const clients = getAmHosting() ? Object.values(myHost.peers).filter(peer => peer.isClient).length : 0
     const canProxy = getAmHosting() ? myHost.protocol === 'http' : false
     const projects = getAmHosting() ? myHost.projects : []
     const diskUsage = getAmHosting() ? myHost.diskUsage : undefined
@@ -164,6 +165,7 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
         computerName,
         user,
         peers,
+        clients,
         projects,
         isMyServer: true,
         diskUsage,
@@ -234,6 +236,7 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                                 computerName: host.computerName,
                                 isMyServer: host.serverId === myServerId,
                                 user: host.user,
+                                clients: (Object.values(host.peers).filter(peer => peer.isClient)).length,
                                 peers: Object.keys(host.peers).length,
                                 projects: host.projects,
                                 diskUsage: host.diskUsage

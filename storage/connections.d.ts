@@ -20,6 +20,7 @@ export type ConnectionInfo = {
     serverId: string,
     canProxy: boolean,
     peers: number,
+    clients: number,
     computerName: string,
     isMyServer: boolean,
     user: string,

@@ -21,6 +21,7 @@ type PushHostInfoResponse = {
     port: number,
     hostServerId: string,
     hostUpdatedAt: string,
+    isClient: boolean,
 }
 
 const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
@@ -80,7 +81,10 @@ myClient.on('message', async (msg, rinfo) => {
             console.log('Host projects:', projects)
             console.log('Host peers:', JSON.stringify(peers, null, 2))
             // respond (as a peer) with our own local ip address and port information
-            const payload: PushHostInfoResponse = { port: getServerConfig().port, hostServerId, hostUpdatedAt }
+            const payload: PushHostInfoResponse = {
+                port: getServerConfig().port, hostServerId, hostUpdatedAt,
+                isClient: serverState.proxyServerId === hostServerId,
+            }
             sendMessage({
                 type: 'response', id: MSG_PUSH_HOST_INFO,
                 json: JSON.stringify(payload)
@@ -88,7 +92,7 @@ myClient.on('message', async (msg, rinfo) => {
             return
         }
         if (message.type === 'response') {
-            const { port, hostServerId, hostUpdatedAt }: PushHostInfoResponse = JSON.parse(message.json)
+            const { port, hostServerId, hostUpdatedAt, isClient }: PushHostInfoResponse = JSON.parse(message.json)
             // the host should store each peer's data
             const { startedAt, computerName, user } = client
             const host = serverState.hosts[hostServerId]
@@ -104,6 +108,7 @@ myClient.on('message', async (msg, rinfo) => {
                 port,
                 hostPeersAt: existingPeer ? existingPeer.hostPeersAt : new Date().toISOString(), 
                 hostUpdatedAt,
+                isClient,
                 updatedAt: peerUpdatedAt,
             }
             host.peers[client.serverId] = updatedPeer

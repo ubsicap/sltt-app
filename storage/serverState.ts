@@ -24,6 +24,8 @@ export type PeerInfo = ServerInfo & {
     hostPeersAt: string,
     /** (peer-generated timestamp) when peer sent response to host */
     updatedAt: string,
+    /** is a client using the host as a proxy */
+    isClient: boolean,
 }
 
 export const createUrl = (protocol: string, ip: string, port: number): string => {
@@ -48,6 +50,7 @@ export const serverState = {
     hostProjects: new Set<string>(),
     hosts,
     proxyUrl: '',
+    proxyServerId: '',
     myUrl: '',
     myUsername: '',
     ...initialServerConfig
@@ -89,10 +92,14 @@ export const setLANStoragePath = (path: string): void => {
     console.log(`lanStoragePath: ${serverState.myLanStoragePath}`, )
 }
 
-export const setProxyUrl = (url: string): void => {
+export const setProxy = ({ serverId, url }: { serverId: string, url: string }): void => {
     if (!url.startsWith('http')) {
         throw new Error(`Invalid proxy url: ${url}`)
     }
+    if (!serverId) {
+        throw new Error(`Invalid proxy serverId: ${serverId}`)
+    }
+    serverState.proxyServerId = serverId
     serverState.proxyUrl = url
 }
 
