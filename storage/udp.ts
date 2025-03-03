@@ -57,8 +57,10 @@ myClient.on('message', async (msg, rinfo) => {
             const { port, projects, peers, diskUsage }: PushHostInfoBroadcast = JSON.parse(message.json)
             const hostServerId = client.serverId
             const hostUpdatedAt = message.createdAt
+            const protocol = 'http'
             const updatedHost: HostInfo ={
                 serverId: hostServerId,
+                protocol,
                 ip: rinfo.address,
                 port,
                 user: client.user,
@@ -71,7 +73,7 @@ myClient.on('message', async (msg, rinfo) => {
             }
             serverState.hosts[client.serverId] = updatedHost
             serverState.hostProjects = new Set(projects)
-            console.log(`Host URL is: ${createUrl(rinfo.address, port)}`)
+            console.log(`Host URL is: ${createUrl(protocol, rinfo.address, port)}`)
             console.log('Host serverId:', updatedHost.serverId)
             console.log('Host computer name:', updatedHost.computerName)
             console.log('Host started at:', updatedHost.startedAt)
@@ -97,6 +99,7 @@ myClient.on('message', async (msg, rinfo) => {
                 computerName,
                 startedAt,
                 user,
+                protocol: 'http',
                 ip: rinfo.address,
                 port,
                 hostPeersAt: existingPeer ? existingPeer.hostPeersAt : new Date().toISOString(), 
@@ -109,7 +112,7 @@ myClient.on('message', async (msg, rinfo) => {
     }
     if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
         const { ip, port } = JSON.parse(message.json)
-        const serverUrl = createUrl(ip, port)
+        const serverUrl = createUrl('http', ip, port)
         console.log(`Discovered storage server at ${serverUrl}`)
         try {
             const response = await axios.get(`${serverUrl}/status`, {

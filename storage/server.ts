@@ -4,10 +4,10 @@ import bodyParser from 'body-parser'
 import multer from 'multer'
 import { join } from 'path'
 import { hostname, tmpdir } from 'os'
-import { getAmHosting, getLANStoragePath, serverState, setLANStoragePath, setProxyUrl } from './serverState'
+import { createUrl, getAmHosting, getLANStoragePath, serverState, setLANStoragePath, setProxyUrl } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT_TO_URL, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectToUrlArgs, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
+import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
 import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
@@ -132,18 +132,29 @@ app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, 
     res.json(result)
 }))
 
-app.post(`/${CONNECTIONS_API_CONNECT_TO_URL}`, verifyLocalhost, asyncHandler(async (req, res) => {
+app.post(`/${CONNECTIONS_API_CONNECT}`, verifyLocalhost, asyncHandler(async (req, res) => {
     console.log(`connectToUrl: serverState.myLanStoragePath - ${serverState.myLanStoragePath}`)
-    const args: ConnectToUrlArgs = req.body
-    if (args.url.startsWith('http')) {
-        setProxyUrl(args.url)
-        res.json(args.url) // todo: JSON.stringify host computer name etc...
-    } else {
-        const newStoragePath = await handleConnectToUrl(args)
-        setLANStoragePath(newStoragePath)
-        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
-        res.json(newStoragePath)
+    const args: ConnectArgs = req.body
+    // lookup connection info for serverId
+    const host = serverState.hosts[args.serverId]
+    const url = createUrl(host.protocol, host.ip, host.port)
+    if (host) {
+        if (host.protocol === 'http') {
+            setProxyUrl(url)
+            const response: ConnectResponse = { connectionUrl: url }
+            res.json(response) // todo: JSON.stringify host computer name etc...
+            return
+        } else if (host.protocol === 'file') {
+            const { connectionUrl: newStoragePath } = await handleConnectToUrl({ url })
+            setLANStoragePath(newStoragePath)
+            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
+            res.json(newStoragePath)
+            return
+        } else {
+            throw new Error (`Unknown protocol: ${host.protocol}`)
+        }
     }
+    throw new Error(`Server not found: ${args.serverId}`)
 }))
 
 function verifyLocalhostUnlessHosting(req: express.Request, res: express.Response, next: express.NextFunction): void {

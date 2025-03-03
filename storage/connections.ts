@@ -3,7 +3,7 @@ import { constants, ensureDir } from 'fs-extra'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { fileURLToPath } from 'url'
-import { AddStorageProjectArgs, ConnectionInfo, ConnectToUrlArgs, ConnectToUrlResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
+import { AddStorageProjectArgs, ConnectionInfo, ConnectResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { checkHostStoragePath, createUrl, getAmHosting, getHostsByRelavance, getLANStoragePath, HostInfo, serverState, SLTT_APP_LAN_FOLDER } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
@@ -133,14 +133,14 @@ const updateWifiConnections = async (): Promise<void> => {
 
 updateWifiConnections()
 
-export const handleProbeConnections = async ({ clientId, urls }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
+export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
     const hostsByRelevance = getHostsByRelavance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
-        acc[createUrl(host.ip, host.port)] = host
+        acc[createUrl(host.protocol, host.ip, host.port)] = host
         // get our host's own peer ip/port which is probably different than localhost
         const hostOwnPeer = host.peers[host.serverId]
         if (hostOwnPeer) {
-            acc[createUrl(hostOwnPeer.ip, hostOwnPeer.port)] = host
+            acc[createUrl(hostOwnPeer.protocol, hostOwnPeer.ip, hostOwnPeer.port)] = host
         }
         return acc
     }, {} as Record<string, HostInfo>)
@@ -149,15 +149,18 @@ export const handleProbeConnections = async ({ clientId, urls }: ProbeConnection
     updateWifiConnections()
     const hostUrls = Object.keys(hostUrlToHostMap)
     console.log(`hostUrls: ${JSON.stringify(hostUrls)}`)
-    const allPossibleUrls = uniq([...(urls || []), ...hostUrls])
+    const allPossibleUrls = uniq([...hostUrls])
     const user = serverState.myUsername
     const { myServerId } = serverState
     const myHost = serverState.hosts[myServerId]
     const computerName = hostname()
     const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
+    const canProxy = getAmHosting() ? myHost.protocol === 'http' : false
     const projects = getAmHosting() ? myHost.projects : []
     const diskUsage = getAmHosting() ? myHost.diskUsage : undefined
     const connectionInfo: ConnectionInfo = {
+        serverId: myServerId,
+        canProxy,
         computerName,
         user,
         peers,
@@ -226,6 +229,8 @@ export const handleProbeConnections = async ({ clientId, urls }: ProbeConnection
                         const host = hostUrlToHostMap[url]
                         if (host) {
                             const hostConnectionInfo: ConnectionInfo = {
+                                serverId: host.serverId,
+                                canProxy: host.protocol === 'http',
                                 computerName: host.computerName,
                                 isMyServer: host.serverId === myServerId,
                                 user: host.user,
@@ -294,7 +299,7 @@ const canAccess = async (filePath: string, throwError = false, timeout = 5000): 
     }, filePath, throwError, timeout)
 }
 
-export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<ConnectToUrlResponse> => {
+export const handleConnectToUrl = async ({ url }: { url: string }): Promise<ConnectResponse> => {
     let urlObj: URL
     try {
         urlObj = new URL(url)
@@ -315,7 +320,7 @@ export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<Con
             console.error(`access(${filePath}) error`, e)
             throw new Error(`Connection path '${filePath}' is inaccessible due to error: ` + e.message)
         })
-        return filePath
+        return { connectionUrl: filePath }
     }
     if (urlObj.protocol.startsWith('http')) {
         const response = await axios.get(url).catch((e) => {
@@ -323,7 +328,7 @@ export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<Con
             throw new Error(`Connection URL '${url}' is inaccessible due to error: ` + e.message)
         })
         console.debug(`connectToUrl(${url}) response:`, JSON.stringify(response.data))
-        return url
+        return { connectionUrl: url }
     }
 }
 

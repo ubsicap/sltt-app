@@ -1,5 +1,5 @@
 export const CONNECTIONS_API_PROBE = 'probeConnections'
-export const CONNECTIONS_API_CONNECT_TO_URL = 'connectToUrl'
+export const CONNECTIONS_API_CONNECT = 'connect'
 // not sure if these belong to a different module or not
 export const CONNECTIONS_API_ADD_STORAGE_PROJECT = 'addStorageProject'
 export const CONNECTIONS_API_REMOVE_STORAGE_PROJECT = 'removeStorageProject'
@@ -17,6 +17,8 @@ export type RemoveStorageProjectArgs = { message: 'ok' }
 type DiskUsage = { available: number, free: number, total: number }
 
 export type ConnectionInfo = {
+    serverId: string,
+    canProxy: boolean,
     peers: number,
     computerName: string,
     isMyServer: boolean,
@@ -26,8 +28,8 @@ export type ConnectionInfo = {
     diskUsage: DiskUsage | undefined,
 }
 
-export type ProbeConnectionsArgs = { clientId: string, urls?: string[], username: string }
-export type ProbeConnectionsResponse = { url: string, accessible: boolean, connectionInfo: ConnectionInfo, networkName: string }[]
+export type ProbeConnectionsArgs = { clientId: string, username: string }
+export type ProbeConnectionsResponse = { connectionInfo: ConnectionInfo, accessible: boolean, networkName: string }[]
 
-export type ConnectToUrlArgs = { clientId: string, url: string, project: string }
-export type ConnectToUrlResponse = string
+export type ConnectArgs = { clientId: string, serverId: string, project: string }
+export type ConnectResponse = { connectionUrl: string }

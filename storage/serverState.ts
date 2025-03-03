@@ -6,6 +6,7 @@ type ServerInfo = {
     updatedAt: string,
     computerName: string,
     user: string,
+    protocol: string,
     ip: string,
     port: number,
 }
@@ -25,8 +26,8 @@ export type PeerInfo = ServerInfo & {
     updatedAt: string,
 }
 
-export const createUrl = (ip: string, port: number): string => {
-    return `http://${ip}:${port}`
+export const createUrl = (protocol: string, ip: string, port: number): string => {
+    return `${protocol}://${ip}:${port}`
 }
 
 const hosts: { [serverId: string]: HostInfo } = {}
