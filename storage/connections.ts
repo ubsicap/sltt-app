@@ -318,10 +318,11 @@ export const handleConnectToUrl = async ({ url }: ConnectToUrlArgs): Promise<Con
         return filePath
     }
     if (urlObj.protocol.startsWith('http')) {
-        await axios.get(url).catch((e) => {
+        const response = await axios.get(url).catch((e) => {
             console.error(`axios.get(${url}) error`, e)
             throw new Error(`Connection URL '${url}' is inaccessible due to error: ` + e.message)
         })
+        console.debug(`connectToUrl(${url}) response:`, JSON.stringify(response.data))
         return url
     }
 }
