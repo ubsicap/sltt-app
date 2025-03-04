@@ -16,12 +16,14 @@ import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORE
 import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs } from './vcrs.d'
 import { startUdpClient, broadcastPushHostDataMaybe } from './udp'
-import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING } from './hostFolder.d'
 
 startUdpClient()
+
+export const getServerSettings = getServerConfig
+
 const app = express()
 const serverConfig = getServerConfig()
 const PORT = Number(process.env.PORT) || serverConfig.port
@@ -34,28 +36,10 @@ app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
-const configFilePath = join(electronApp.getPath('userData'), 'servers', `server-${getServerConfig().port}.sltt-config`)
-
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
 const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
-
-loadServerSettings(configFilePath).then(async (settings) => {
-    let needsToSave = false
-    if (!settings.myServerId) {
-        serverState.myServerId = `${hostname()}__${new Date().toISOString()}`
-        needsToSave = true
-    } else {
-        serverState.myServerId = settings.myServerId
-    }
-    serverState.allowHosting = settings.allowHosting
-    setLANStoragePath(settings.myLanStoragePath)
-    if (needsToSave) {
-        await saveServerSettings(configFilePath, serverState)
-    }
-    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
-})
 
 app.get('/status', (req, res) => {
     res.json({ status: 'ok' })
@@ -294,6 +278,23 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHand
     res.json(result)
 }))
 
-app.listen(PORT, () => {
-    console.log(`Storage server is running localhost port ${PORT}`)
-})
+export const startStorageServer = async (configFilePath: string): Promise<void> => {
+    await loadServerSettings(configFilePath).then(async (settings) => {
+        let needsToSave = false
+        if (!settings.myServerId) {
+            serverState.myServerId = `${hostname()}__${new Date().toISOString()}`
+            needsToSave = true
+        } else {
+            serverState.myServerId = settings.myServerId
+        }
+        serverState.allowHosting = settings.allowHosting
+        setLANStoragePath(settings.myLanStoragePath)
+        if (needsToSave) {
+            await saveServerSettings(configFilePath, serverState)
+        }
+        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+        app.listen(PORT, () => {
+            console.log(`Storage server is running localhost port ${PORT}`)
+        })
+    })
+}

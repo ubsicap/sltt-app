@@ -9,7 +9,6 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/main/index.ts') /* Existing main process entry */,
-          storageServer: resolve(__dirname, 'storage/server.ts'),
         },
       }
     }
