@@ -3,6 +3,7 @@ import { basename, join } from 'path'
 import Bottleneck from 'bottleneck'
 import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse, VideoCacheRecord } from './vcrs.d'
 import { getFiles, readJsonCatchMissing } from './utils'
+import { stringify as safeStableStringify } from 'safe-stable-stringify'
 
 const composeVideoCacheRecordFilename = (_id: string): {
     project: string,
@@ -47,6 +48,9 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
             try {
                 const vcrsOrig = readJsonCatchMissing<{ [videoId: string]: VideoCacheRecord }, Record<string, never>>(fullPath, {})
                 const vcrs = { ...vcrsOrig, ...vcrsUpdated }
+                if (safeStableStringify(vcrs) === safeStableStringify(vcrsOrig)) {
+                    return
+                }
                 await writeJson(fullPath, vcrs)
             } catch (error) {
                 console.error('An error occurred:', error.message)
