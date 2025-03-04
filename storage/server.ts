@@ -158,7 +158,13 @@ app.post(`/${CONNECTIONS_API_CONNECT}`, verifyLocalhost, asyncHandler(async (req
 }))
 
 function verifyLocalhostUnlessHosting(req: express.Request, res: express.Response, next: express.NextFunction): void {
-    if (serverState.allowHosting) {
+    if (serverState.allowHosting && !req.headers.host.startsWith('localhost:')) {
+        // look for custom header that indicates intended serverId
+        const serverId = req.headers['x-sltt-app-storage-server-id']
+        if (serverId !== serverState.myServerId) {
+            console.error(`Forbidden: "${req.headers.host}" from "${req.ip}". Expected serverId "${serverState.myServerId}" but got "${serverId}"`)
+            res.status(403).json({ error: 'Forbidden' })
+        }
         next()
         return
     }
