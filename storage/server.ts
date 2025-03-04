@@ -9,12 +9,12 @@ import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientId
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
-import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
+import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveAllBlobIdsArgs, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
 import { handleRegisterClientUser } from './clients'
-import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetStoredLocalClientIdsArgs, RetrieveRemoteDocsArgs, SaveRemoteSpotsArgs, StoreRemoteDocsArgs } from './docs.d'
-import { CLIENTS_API_REGISTER_CLIENT_USER } from './clients.d'
-import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS } from './vcrs.d'
+import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetRemoteSpotsArgs, GetStoredLocalClientIdsArgs, RetrieveLocalClientDocsArgs, RetrieveRemoteDocsArgs, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs } from './docs.d'
+import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs } from './clients.d'
+import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs } from './vcrs.d'
 import { broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
@@ -190,8 +190,8 @@ app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, verifyLocalhostUnlessHost
 }))
 
 app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, username } = req.body
-    const result = await handleRegisterClientUser(getClientsPath(), { clientId, username })
+    const args: RegisterClientUserArgs = req.body
+    const result = await handleRegisterClientUser(getClientsPath(), args)
     res.json(result)
 }))
 
@@ -216,26 +216,26 @@ app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.s
 }))
 
 app.post(`/${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId } = req.body
-    const result = await handleRetrieveAllBlobIds(getBlobsPath(), { clientId })
+    const args: RetrieveAllBlobIdsArgs = req.body
+    const result = await handleRetrieveAllBlobIds(getBlobsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${VIDEO_CACHE_RECORDS_API_STORE_VCR}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, videoCacheRecord } = req.body
-    const result = await storeVcr(getVcrsPath(), { clientId, videoCacheRecord })
+    const args: StoreVcrArgs = req.body
+    const result = await storeVcr(getVcrsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, project } = req.body
-    const result = await listVcrFiles(getVcrsPath(), { clientId, project })
+    const args: ListVcrFilesArgs = req.body
+    const result = await listVcrFiles(getVcrsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, filename } = req.body
-    const result = await retrieveVcrs(getVcrsPath(), { clientId, filename })
+    const args: RetrieveVcrsArgs = req.body
+    const result = await retrieveVcrs(getVcrsPath(), args)
     res.json(result)
 }))
 
@@ -258,38 +258,38 @@ app.post(`/${DOCS_API_SAVE_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHa
 }))
 
 app.post(`/${DOCS_API_GET_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, project } = req.body
-    const result = await handleGetRemoteSpots(getDocsPath(), { clientId, project })
+    const args: GetRemoteSpotsArgs = req.body
+    const result = await handleGetRemoteSpots(getDocsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${DOCS_API_STORE_LOCAL_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, project, docs } = req.body
-    const result = await handleStoreLocalDocs(getDocsPath(), { clientId, project, docs })
+    const args: StoreLocalDocsArgs<IDBModDoc> = req.body
+    const result = await handleStoreLocalDocs(getDocsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { project }: GetStoredLocalClientIdsArgs = req.body
-    const result = await handleGetStoredLocalClientIds(getDocsPath(), { project })
+    const args: GetStoredLocalClientIdsArgs = req.body
+    const result = await handleGetStoredLocalClientIds(getDocsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, localClientId, project, spot } = req.body
-    const result = await handleRetrieveLocalClientDocs(getDocsPath(), { clientId, localClientId, project, spot })
+    const args: RetrieveLocalClientDocsArgs = req.body
+    const result = await handleRetrieveLocalClientDocs(getDocsPath(), args)
     res.json(result)
 }))
 
 app.post(`/${DOCS_API_SAVE_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, project, spots } = req.body
-    await handleSaveLocalSpots(getDocsPath(), { clientId, project, spots })
+    const args: SaveLocalSpotsArgs = req.body
+    await handleSaveLocalSpots(getDocsPath(), args)
     res.json({ message: 'ok' })
 }))
 
 app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const { clientId, project } = req.body
-    const result = await handleGetLocalSpots(getDocsPath(), { clientId, project })
+    const args: GetLocalSpotsArgs = req.body
+    const result = await handleGetLocalSpots(getDocsPath(), args)
     res.json(result)
 }))
 
