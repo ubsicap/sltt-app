@@ -26,7 +26,10 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
         if (error.code === 'ENOENT') {
             return defaultValue
         } else {
-            console.error('An error occurred:', error.message)
+            // read end of file for debugging
+            const { buffer } = await readLastBytes(filePath, 100)
+            const endOfFile = buffer.toString('utf8')
+            console.error('An error occurred:', error.message, 'end of file:', endOfFile)
             throw error
         }
     }
