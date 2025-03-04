@@ -1,6 +1,5 @@
 import dgram from 'dgram'
 import { hostname } from 'os'
-import axios from 'axios'
 import { createUrl, getAmHosting, HostInfo, PeerInfo, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
@@ -23,8 +22,6 @@ type PushHostInfoResponse = {
     hostUpdatedAt: string,
     isClient: boolean,
 }
-
-const MSG_SLTT_STORAGE_SERVER_URL = 'SLTT_STORAGE_SERVER_URL'
 
 /** unlikely that two clients on the same network will start at the same time */
 const startedAt = new Date().toISOString()
@@ -115,22 +112,22 @@ myClient.on('message', async (msg, rinfo) => {
             console.log('Peers count: ', Object.keys(host.peers).length)
         }
     }
-    if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
-        const { ip, port } = JSON.parse(message.json)
-        const serverUrl = createUrl('http', ip, port)
-        console.log(`Discovered storage server at ${serverUrl}`)
-        try {
-            const response = await axios.get(`${serverUrl}/status`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-            console.log('Response from storage server:', response.data);
-        } catch (error) {
-            console.error('Error connecting to storage server:', error);
-        }
-        return
-    }
+    // if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
+    //     const { ip, port } = JSON.parse(message.json)
+    //     const serverUrl = createUrl('http', ip, port)
+    //     console.log(`Discovered storage server at ${serverUrl}`)
+    //     try {
+    //         const response = await axios.get(`${serverUrl}/status`, {
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //         });
+    //         console.log('Response from storage server:', response.data);
+    //     } catch (error) {
+    //         console.error('Error connecting to storage server:', error);
+    //     }
+    //     return
+    // }
 })
 
 type ClientMessage = {
