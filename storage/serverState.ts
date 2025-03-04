@@ -126,6 +126,6 @@ const sortHostsByRelevance = (a: HostInfo, b: HostInfo): number => {
     return 0
 }
 
-export const getHostsByRelavance = (): HostInfo[] => Object.values(
+export const getHostsByRelevance = (): HostInfo[] => Object.values(
     serverState.hosts
 ).sort(sortHostsByRelevance)

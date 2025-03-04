@@ -4,7 +4,7 @@ import { exec } from 'child_process'
 import { promisify } from 'util'
 import { fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectionInfo, ConnectResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
-import { checkHostStoragePath, createUrl, getAmHosting, getHostsByRelavance, getLANStoragePath, HostInfo, serverState, SLTT_APP_LAN_FOLDER } from './serverState'
+import { checkHostStoragePath, createUrl, getAmHosting, getHostsByRelevance, getLANStoragePath, HostInfo, serverState, SLTT_APP_LAN_FOLDER } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
 import { hostname } from 'os'
@@ -134,7 +134,7 @@ const updateWifiConnections = async (): Promise<void> => {
 updateWifiConnections()
 
 export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs): Promise<ProbeConnectionsResponse> => {
-    const hostsByRelevance = getHostsByRelavance()
+    const hostsByRelevance = getHostsByRelevance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
         acc[createUrl(host.protocol, host.ip, host.port)] = host
         // get our host's own peer ip/port which is probably different than localhost
