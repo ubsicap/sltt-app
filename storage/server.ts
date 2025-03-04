@@ -15,12 +15,13 @@ import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetRemoteSpotsArgs, GetStoredLocalClientIdsArgs, RetrieveLocalClientDocsArgs, RetrieveRemoteDocsArgs, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs } from './vcrs.d'
-import { broadcastPushHostDataMaybe } from './udp'
+import { startUdpClient, broadcastPushHostDataMaybe } from './udp'
 import { app as electronApp } from 'electron' // TODO: remove this dependency on electron??
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING } from './hostFolder.d'
 
+startUdpClient()
 const app = express()
 const serverConfig = getServerConfig()
 const PORT = Number(process.env.PORT) || serverConfig.port
