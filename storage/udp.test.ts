@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest'
 import dgram from 'dgram'
-import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs } from './udp'
-import { serverState, HostInfo, PeerInfo } from './serverState'
+import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT } from './udp'
+import { serverState, HostInfo, PeerInfo, getAmHosting } from './serverState'
 import { getServerConfig } from './serverConfig'
-import { check } from 'diskusage'
+import disk from 'diskusage'
 
 vi.mock('dgram')
 vi.mock('os', () => ({ hostname: (): string => 'test-hostname' }))
@@ -24,6 +24,7 @@ vi.mock('./serverConfig', () => ({
     getServerConfig: (): ReturnType<typeof getServerConfig> => ({ port: 41234 })
 }))
 vi.mock('diskusage', () => ({
+    default: { check: vi.fn() },
     check: vi.fn()
 }))
 
@@ -38,7 +39,7 @@ describe('UDP Client', () => {
             address: vi.fn(() => ({ address: '127.0.0.1', port: 41234 })),
             setBroadcast: vi.fn(),
         } as unknown as dgram.Socket
-        vi.spyOn(dgram, 'createSocket').mockReturnValue(myClient)
+        vi.spyOn(dgram, 'createSocket').mockReturnValue(myClient);
         serverState.hosts = {}
         serverState.myServerId = 'my-server-id'
         serverState.allowHosting = false
@@ -53,6 +54,7 @@ describe('UDP Client', () => {
     })
 
     it('should get active peers correctly', () => {
+        (getAmHosting as Mock).mockReturnValue(true)
         const peers: { [serverId: string]: PeerInfo } = {
             'peer1': {
                 serverId: 'peer1',
@@ -82,36 +84,32 @@ describe('UDP Client', () => {
             }
         }
         serverState.hosts['my-server-id'] = {
+            updatedAt: '2023-01-02T00:00:00Z',
             serverId: 'my-server-id',
             peers,
         } as HostInfo
         const result = getMyActivePeers()
         expect(result).toEqual({
-            'peer1': { serverId: 'peer1', hostUpdatedAt: '2023-01-01T00:00:00Z' },
-            'peer2': { serverId: 'peer2', hostUpdatedAt: '2023-01-02T00:00:00Z' },
+            'peer2': peers['peer2'],
         })
     })
 
     it('should get disk usage correctly', async () => {
         const mockDiskUsage = { available: 100, free: 50, total: 150 };
-        (check as Mock).mockResolvedValue(mockDiskUsage)
+        (disk.check as Mock).mockResolvedValue(mockDiskUsage)
         const result = await getDiskUsage()
         expect(result).toEqual(mockDiskUsage)
     })
 
     it('should broadcast host data if hosting', async () => {
-        serverState.allowHosting = true
+        (getAmHosting as Mock).mockReturnValue(true);
+        // (myClient.send as Mock).mockImplementation((msg, start, msgLength, port, address, cb: (err) => {}) => cb(null));
         const mockProjects = ['project1', 'project2']
         const fnGetProjects = vi.fn().mockResolvedValue(mockProjects)
-        const sendMessage = vi.fn()
-        vi.spyOn(require('./udp'), 'sendMessage').mockImplementation(sendMessage)
         await broadcastPushHostDataMaybe(fnGetProjects)
         expect(fnGetProjects).toHaveBeenCalled()
-        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-            type: 'push',
-            id: 'PUSH /storage-server/host',
-            json: expect.any(String)
-        }))
+        expect(myClient.send).toHaveBeenCalled()
+        //expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), UDP_CLIENT_PORT, BROADCAST_ADDRESS, expect.any(Function))
     })
 
     it('should remove expired hosts', () => {

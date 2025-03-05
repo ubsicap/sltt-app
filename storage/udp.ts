@@ -4,8 +4,8 @@ import { createUrl, getAmHosting, HostInfo, PeerInfo, serverState } from './serv
 import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
 
-const BROADCAST_ADDRESS = '255.255.255.255'
-const UDP_CLIENT_PORT = 41234
+export const BROADCAST_ADDRESS = '255.255.255.255'
+export const UDP_CLIENT_PORT = 41234
 
 const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
 const MSG_PUSH_HOST_INFO = 'PUSH /storage-server/host'
