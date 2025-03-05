@@ -232,6 +232,12 @@ export const broadcastPushHostDataMaybe = async (fnGetProjects: () => Promise<st
 export const hostUpdateIntervalMs = 1000 * 10 // 10 seconds
 const peerExpirationMs = hostUpdateIntervalMs * 2 // 20 seconds (2x the host update interval)
 
+export const startPushHostDataUpdating = (fnGetProjects: () => Promise<string[]>) => {
+    setInterval(() => {
+        broadcastPushHostDataMaybe(fnGetProjects)
+    }, hostUpdateIntervalMs)
+}
+
 export const startPeerExpirationTimer = (intervalMs: number = 1000): void => {
     setInterval(() => {
         pruneExpiredHosts()

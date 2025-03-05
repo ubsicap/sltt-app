@@ -6,11 +6,10 @@ import { fileURLToPath } from 'url'
 import { AddStorageProjectArgs, ConnectionInfo, ConnectResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { checkHostStoragePath, createUrl, getAmHosting, getHostsByRelevance, getLANStoragePath, HostInfo, serverState, SLTT_APP_LAN_FOLDER } from './serverState'
 import axios from 'axios'
-import { broadcastPushHostDataMaybe, hostUpdateIntervalMs } from './udp'
+import { broadcastPushHostDataMaybe } from './udp'
 import { hostname } from 'os'
 import { uniq } from 'lodash'
 import wifi from 'node-wifi'
-import { MY_CLIENT_ID } from './serverConfig'
 
 wifi.init({
     iface: null
@@ -337,41 +336,36 @@ export const handleConnectToUrl = async ({ url }: { url: string }): Promise<Conn
     throw new Error(`Connection URL '${url}' is invalid`)
 }
 
-
-setInterval(() => {
-    if (getAmHosting()) {
-        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
-    }
-}, hostUpdateIntervalMs)
-
 let tryingToConnectToSamba = false
-setInterval(async () => {
 
-    if (tryingToConnectToSamba || !newSambaIpAddressMaybe || newSambaIpAddressMaybe === lastSambaIP) {
-        return
-    }
-    console.log(`Connecting to Samba drive (${newSambaIpAddressMaybe})...`)
-    tryingToConnectToSamba = true
-    try {
-        // keep trying until we connect once (per reboot)
-        const isConnected = await connectToSamba(newSambaIpAddressMaybe)
-        if (isConnected) {
-            lastSambaIP = newSambaIpAddressMaybe
-        } else {
-            // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
-            // which can occur when there are too many existing connections to the same folder
-            // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
-            //
-            // The error:
-            // System error 1219 has occurred.
-            // Multiple connections to a server or shared resource by the same user, 
-            // using more than one user name, are not allowed. Disconnect all previous 
-            // connections to the server or shared resource and try again.
-            console.log(`Try closing other windows that may be connected to the smb folder ${newSambaIpAddressMaybe}\\\\${SHARE_NAME} and try again.`)
+export const startSambaIPDetection = async (intervalMs: number = 30000) => {
+    setInterval(async () => {
+        if (tryingToConnectToSamba || !newSambaIpAddressMaybe || newSambaIpAddressMaybe === lastSambaIP) {
+            return
         }
-    } catch (error: unknown) {
-        console.error(`Error connecting to Samba drive (${newSambaIpAddressMaybe}): ${(error as Error).message}`)
-    } finally {
-        tryingToConnectToSamba = false
-    }
-}, 30000)
+        console.log(`Connecting to Samba drive (${newSambaIpAddressMaybe})...`)
+        tryingToConnectToSamba = true
+        try {
+            // keep trying until we connect once (per reboot)
+            const isConnected = await connectToSamba(newSambaIpAddressMaybe)
+            if (isConnected) {
+                lastSambaIP = newSambaIpAddressMaybe
+            } else {
+                // NOTE: one of the reasons `isConnected` can be `false` is due to the following Windows error
+                // which can occur when there are too many existing connections to the same folder
+                // e.g. if \\192.168.8.1\sltt-local-team-storage is open in the File Explorer.
+                //
+                // The error:
+                // System error 1219 has occurred.
+                // Multiple connections to a server or shared resource by the same user, 
+                // using more than one user name, are not allowed. Disconnect all previous 
+                // connections to the server or shared resource and try again.
+                console.log(`Try closing other windows that may be connected to the smb folder ${newSambaIpAddressMaybe}\\\\${SHARE_NAME} and try again.`)
+            }
+        } catch (error: unknown) {
+            console.error(`Error connecting to Samba drive (${newSambaIpAddressMaybe}): ${(error as Error).message}`)
+        } finally {
+            tryingToConnectToSamba = false
+        }
+    }, intervalMs)
+}
