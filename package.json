@@ -38,9 +38,9 @@
     "build:win:release:metadata": "cross-env LATEST_YAML_PATH=./dist/latest.yml node build/updateReleaseMetadata.js",
     
     "copy:mac:client": "rm -rf out/client; cp -R $SLTT_CLIENT_DIR/build out/client",
-    "build:mac:norelease": "electron-vite build && electron-builder --mac --config --publish never",
+    "build:mac:norelease": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish never",
     "build:mac": "electron-vite build && electron-builder --mac --config",
-    "build:mac:release": "electron-vite build && electron-builder --mac --config --publish always",
+    "build:mac:release": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
     
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },
