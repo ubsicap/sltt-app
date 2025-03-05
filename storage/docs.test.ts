@@ -459,7 +459,7 @@ describe('handleRetrieveLocalClientDocs', () => {
           { clientId: 'tsc2', doc: { _id: 'doc1', modDate: '2024/09/17 10:30:33', creator: 'bob@example.com', modBy: 'bob@example.com' } },
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
+      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 242, modDate: '2024/09/17 12:30:34' }, 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
     {
       testCase: 'retrieve local docs correctly - spot - tsc2',
@@ -473,7 +473,7 @@ describe('handleRetrieveLocalClientDocs', () => {
       expectedDocs: [
           { clientId: 'tsc2', doc: { _id: 'doc3', modDate: '2024/09/17 11:30:34', creator: 'alice@example.com', modBy: 'bob@example.com' } },
       ],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
+      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 242, modDate: '2024/09/17 12:30:34' }, 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
     {
       testCase: 'retrieve no local docs - spot - tsc2',
@@ -485,7 +485,7 @@ describe('handleRetrieveLocalClientDocs', () => {
         spotsContent: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' } },
       }],
       expectedDocs: [],
-      expectedSpots: { 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
+      expectedSpots: { 'tsc1': { clientId: 'tsc1', bytePosition: 242, modDate: '2024/09/17 12:30:34' }, 'tsc2': { clientId: 'tsc2', bytePosition: 238, modDate: '2024/09/17 11:30:34' }}
     },
   ])('$testCase', async (
     { clientId, localClientIds, project, spots, expectedDocs, expectedSpots }: 

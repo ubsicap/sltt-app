@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, rmdirSync, readFileSync } from 'fs'
+import { mkdtempSync, rmdirSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { handleRegisterClientUser } from './clients' // Adjust the import path as needed
-import { RegisterClientUserArgs, RegisterClientUserResponse } from './clients.d' // Adjust the import path as needed
+import { RegisterClientUserArgs } from './clients.d' // Adjust the import path as needed
 import { ensureDir, writeJson, readJson } from 'fs-extra' // Ensure these functions are imported correctly
 
 let tempDir: string
