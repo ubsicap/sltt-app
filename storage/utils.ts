@@ -1,6 +1,6 @@
 import { readJson, read, Stats, ensureFile, readdir } from 'fs-extra'
 import { promisify } from 'util'
-import { stat, open } from 'fs/promises'
+import { stat, open, readFile, writeFile } from 'fs/promises'
 import { resolve } from 'path'
 
 export function isNodeError(error: unknown): error is NodeJS.ErrnoException {
@@ -30,10 +30,13 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
         if (isNodeError(error) && error.code === 'ENOENT') {
             return defaultValue
         } else {
-            // read end of file for debugging
-            const { buffer } = await readLastBytes(filePath, 100)
-            const endOfFile = buffer.toString('utf8')
-            console.error('An error occurred:', (error as Error).message, 'end of file:', endOfFile)
+            // read file contents to help debug
+            const contents = await readFile(filePath, 'utf8')
+            console.error('An error occurred:', (error as Error).message, 'contents:', contents)
+            // write file contents to help debug
+            const dumpFilePath = filePath + '-error'
+            await writeFile(dumpFilePath, contents)
+            console.error('Wrote file contents to: ', dumpFilePath)
             throw error
         }
     }
