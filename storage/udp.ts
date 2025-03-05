@@ -7,14 +7,17 @@ import disk from 'diskusage'
 export const BROADCAST_ADDRESS = '255.255.255.255'
 export const UDP_CLIENT_PORT = 41234
 
-const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
-const MSG_PUSH_HOST_INFO = 'PUSH /storage-server/host'
+export const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
+export const MSG_PUSH_HOST_INFO = 'PUSH /storage-server/host'
 
-let startedAt: string
-let myComputerName: string
-let myUdpIpAddress: string
+type UdpState = {
+    startedAt: string
+    myComputerName: string
+    myUdpIpAddress: string
+    myClient: ReturnType<typeof dgram.createSocket>
+}
 
-let myClient: ReturnType<typeof dgram.createSocket>
+let udpState: UdpState
 
 type PushHostInfoBroadcast = {
     port: number,
@@ -46,8 +49,9 @@ type ClientMessage = {
 }
 
 const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>): Buffer => {
+    if (!udpState) throw new Error('UDP client not started')
     const payload: ClientMessage = {
-        client: { serverId: serverState.myServerId, startedAt, computerName: myComputerName, user: serverState.myUsername },
+        client: { serverId: serverState.myServerId, startedAt: udpState.startedAt, computerName: udpState.myComputerName, user: serverState.myUsername },
         message: {
             createdAt: new Date().toISOString(),
             type,
@@ -58,123 +62,26 @@ const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'cre
     return Buffer.from(JSON.stringify(payload))
 }
 
-const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>, port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
+export const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>, port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
+    if (!udpState) throw new Error('UDP client not started')
     const msg = formatClientMsg({ type, id, json })
-    myClient.send(msg, 0, msg.length, port, address, (err) => {
+    udpState.myClient.send(msg, 0, msg.length, port, address, (err) => {
         if (err) console.error(err)
         else console.log(`Message sent to '${address}:${port}': ${id}`)
     })
 }
 
-export const startUdpClient = (): void => {
+export const startUdpClient = (): UdpState => {
 
     /** unlikely that two clients on the same network will start at the same time */
-    startedAt = new Date().toISOString()
-    myComputerName = hostname()
+    const startedAt = new Date().toISOString()
+    const myComputerName = hostname()
     console.log('My computer name:', myComputerName)
     console.log('UDP started at:', startedAt)
-    myUdpIpAddress = ''
+    const myUdpIpAddress = ''
 
-    myClient = dgram.createSocket('udp4')
-
-    myClient.on('message', async (msg, rinfo) => {
-        const clientData: ClientMessage = JSON.parse(msg.toString())
-        const { message, client } = clientData
-        if (client.computerName === myComputerName &&
-            client.startedAt === startedAt && message.id !== MSG_PUSH_HOST_INFO
-        ) {
-            if (myUdpIpAddress !== rinfo.address) {
-                myUdpIpAddress = rinfo.address
-                console.log('My UDP IP address:', myUdpIpAddress)
-            }
-            if (message.type === 'request' && message.id === MSG_DISCOVER_MY_UDP_IP_ADDRESS) {
-                sendMessage({ type: 'response', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS, json: '{}' }, rinfo.port, rinfo.address)
-                return
-            }
-            console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
-            return
-        }
-        console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
-        if (message.id === MSG_PUSH_HOST_INFO) {
-            if (message.type === 'push') {
-                const { port, projects, peers, diskUsage }: PushHostInfoBroadcast = JSON.parse(message.json)
-                const hostServerId = client.serverId
-                const hostUpdatedAt = message.createdAt
-                const protocol = 'http'
-                const updatedHost: HostInfo = {
-                    serverId: hostServerId,
-                    protocol,
-                    ip: rinfo.address,
-                    port,
-                    user: client.user,
-                    startedAt: client.startedAt,
-                    updatedAt: hostUpdatedAt,
-                    computerName: client.computerName,
-                    peers,
-                    projects,
-                    diskUsage,
-                }
-                serverState.hosts[client.serverId] = updatedHost
-                serverState.hostProjects = new Set(projects)
-                console.log(`Host URL is: ${createUrl(protocol, rinfo.address, port)}`)
-                console.log('Host serverId:', updatedHost.serverId)
-                console.log('Host computer name:', updatedHost.computerName)
-                console.log('Host started at:', updatedHost.startedAt)
-                console.log('Host projects:', projects)
-                console.log('Host peers:', JSON.stringify(peers, null, 2))
-                // respond (as a peer) with our own local ip address and port information
-                const payload: PushHostInfoResponse = {
-                    port: getServerConfig().port, hostServerId, hostUpdatedAt,
-                    isClient: serverState.proxyServerId === hostServerId,
-                }
-                sendMessage({
-                    type: 'response', id: MSG_PUSH_HOST_INFO,
-                    json: JSON.stringify(payload)
-                }, rinfo.port, rinfo.address)
-                return
-            }
-            if (message.type === 'response') {
-                const { port, hostServerId, hostUpdatedAt, isClient }: PushHostInfoResponse = JSON.parse(message.json)
-                // the host should store each peer's data
-                const { startedAt, computerName, user } = client
-                const host = serverState.hosts[hostServerId]
-                const existingPeer = host.peers[client.serverId]
-                const peerUpdatedAt = message.createdAt
-                const updatedPeer: PeerInfo = {
-                    serverId: client.serverId,
-                    computerName,
-                    startedAt,
-                    user,
-                    protocol: 'http',
-                    ip: rinfo.address,
-                    port,
-                    hostPeersAt: existingPeer ? existingPeer.hostPeersAt : new Date().toISOString(),
-                    hostUpdatedAt,
-                    isClient,
-                    updatedAt: peerUpdatedAt,
-                }
-                host.peers[client.serverId] = updatedPeer
-                console.log('Peers count: ', Object.keys(host.peers).length)
-            }
-        }
-        // if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
-        //     const { ip, port } = JSON.parse(message.json)
-        //     const serverUrl = createUrl('http', ip, port)
-        //     console.log(`Discovered storage server at ${serverUrl}`)
-        //     try {
-        //         const response = await axios.get(`${serverUrl}/status`, {
-        //             headers: {
-        //                 'Content-Type': 'application/json',
-        //             },
-        //         });
-        //         console.log('Response from storage server:', response.data);
-        //     } catch (error) {
-        //         console.error('Error connecting to storage server:', error);
-        //     }
-        //     return
-        // }
-    })
-
+    const myClient = dgram.createSocket('udp4')
+    myClient.on('message', handleMessages)
     myClient.on('listening', () => {
         const address = myClient.address()
         console.log(`Client listening on ${address.address}:${address.port}`)
@@ -183,6 +90,107 @@ export const startUdpClient = (): void => {
     })
 
     myClient.bind(UDP_CLIENT_PORT)
+
+    udpState = { myClient, myUdpIpAddress, startedAt, myComputerName }
+    return udpState
+}
+
+export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
+    const clientData: ClientMessage = JSON.parse(msg.toString())
+    const { message, client } = clientData
+    if (client.computerName === udpState.myComputerName &&
+        client.startedAt === udpState.startedAt && message.id !== MSG_PUSH_HOST_INFO
+    ) {
+        if (udpState.myUdpIpAddress !== rinfo.address) {
+            udpState.myUdpIpAddress = rinfo.address
+            console.log('My UDP IP address:', udpState.myUdpIpAddress)
+        }
+        if (message.type === 'request' && message.id === MSG_DISCOVER_MY_UDP_IP_ADDRESS) {
+            sendMessage({ type: 'response', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS, json: '{}' }, rinfo.port, rinfo.address)
+            return
+        }
+        console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
+        return
+    }
+    console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
+    if (message.id === MSG_PUSH_HOST_INFO) {
+        if (message.type === 'push') {
+            const { port, projects, peers, diskUsage }: PushHostInfoBroadcast = JSON.parse(message.json)
+            const hostServerId = client.serverId
+            const hostUpdatedAt = message.createdAt
+            const protocol = 'http'
+            const updatedHost: HostInfo = {
+                serverId: hostServerId,
+                protocol,
+                ip: rinfo.address,
+                port,
+                user: client.user,
+                startedAt: client.startedAt,
+                updatedAt: hostUpdatedAt,
+                computerName: client.computerName,
+                peers,
+                projects,
+                diskUsage,
+            }
+            serverState.hosts[client.serverId] = updatedHost
+            serverState.hostProjects = new Set(projects)
+            console.log(`Host URL is: ${createUrl(protocol, rinfo.address, port)}`)
+            console.log('Host serverId:', updatedHost.serverId)
+            console.log('Host computer name:', updatedHost.computerName)
+            console.log('Host started at:', updatedHost.startedAt)
+            console.log('Host projects:', projects)
+            console.log('Host peers:', JSON.stringify(peers, null, 2))
+            // respond (as a peer) with our own local ip address and port information
+            const payload: PushHostInfoResponse = {
+                port: getServerConfig().port, hostServerId, hostUpdatedAt,
+                isClient: serverState.proxyServerId === hostServerId,
+            }
+            sendMessage({
+                type: 'response', id: MSG_PUSH_HOST_INFO,
+                json: JSON.stringify(payload)
+            }, rinfo.port, rinfo.address)
+            return
+        }
+        if (message.type === 'response') {
+            const { port, hostServerId, hostUpdatedAt, isClient }: PushHostInfoResponse = JSON.parse(message.json)
+            // the host should store each peer's data
+            const { startedAt, computerName, user } = client
+            const host = serverState.hosts[hostServerId]
+            const existingPeer = host.peers[client.serverId]
+            const peerUpdatedAt = message.createdAt
+            const updatedPeer: PeerInfo = {
+                serverId: client.serverId,
+                computerName,
+                startedAt,
+                user,
+                protocol: 'http',
+                ip: rinfo.address,
+                port,
+                hostPeersAt: existingPeer ? existingPeer.hostPeersAt : new Date().toISOString(),
+                hostUpdatedAt,
+                isClient,
+                updatedAt: peerUpdatedAt,
+            }
+            host.peers[client.serverId] = updatedPeer
+            console.log('Peers count: ', Object.keys(host.peers).length)
+        }
+    }
+    // if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
+    //     const { ip, port } = JSON.parse(message.json)
+    //     const serverUrl = createUrl('http', ip, port)
+    //     console.log(`Discovered storage server at ${serverUrl}`)
+    //     try {
+    //         const response = await axios.get(`${serverUrl}/status`, {
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //         });
+    //         console.log('Response from storage server:', response.data);
+    //     } catch (error) {
+    //         console.error('Error connecting to storage server:', error);
+    //     }
+    //     return
+    // }
 }
 
 /** if peerHostUpdatedAt does not match host.updatedAt, then remove peer as obsoleted */

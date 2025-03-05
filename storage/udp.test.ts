@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest'
 import dgram from 'dgram'
-import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT, pruneExpiredHosts } from './udp'
+import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT, pruneExpiredHosts, handleMessages, MSG_PUSH_HOST_INFO, MSG_DISCOVER_MY_UDP_IP_ADDRESS } from './udp'
 import { serverState, HostInfo, PeerInfo, getAmHosting } from './serverState'
 import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
@@ -21,7 +21,7 @@ vi.mock('./serverState', () => ({
     },
 }))
 vi.mock('./serverConfig', () => ({
-    getServerConfig: (): ReturnType<typeof getServerConfig> => ({ port: 41234 })
+    getServerConfig: (): ReturnType<typeof getServerConfig> => ({ port: UDP_CLIENT_PORT })
 }))
 vi.mock('diskusage', () => ({
     default: { check: vi.fn() },
@@ -30,6 +30,7 @@ vi.mock('diskusage', () => ({
 
 describe('UDP Client', () => {
     let myClient: dgram.Socket
+    let udpState: ReturnType<typeof startUdpClient>
 
     beforeEach(() => {
         const createdAt = new Date().toISOString()
@@ -41,7 +42,7 @@ describe('UDP Client', () => {
                 console.log(`[${createdAt}] Sent message: ${msg.toString()} to ${address}:${port}`, start, msgLength)
             }),
             bind: vi.fn(),
-            address: vi.fn(() => ({ address: '127.0.0.1', port: 41234 })),
+            address: vi.fn(() => ({ address: '127.0.0.1', port: UDP_CLIENT_PORT })),
             setBroadcast: vi.fn(),
         } as unknown as dgram.Socket
         vi.spyOn(dgram, 'createSocket').mockReturnValue(myClient);
@@ -49,13 +50,13 @@ describe('UDP Client', () => {
         serverState.myServerId = 'my-server-id'
         serverState.allowHosting = false
         serverState.myLanStoragePath = ''
-        startUdpClient()
+        udpState = startUdpClient()
     })
 
     it('should initialize UDP client and send discovery message', () => {
         expect(myClient.on).toHaveBeenCalledWith('message', expect.any(Function))
         expect(myClient.on).toHaveBeenCalledWith('listening', expect.any(Function))
-        expect(myClient.bind).toHaveBeenCalledWith(41234)
+        expect(myClient.bind).toHaveBeenCalledWith(UDP_CLIENT_PORT)
     })
 
     it('should get active peers correctly', () => {
@@ -164,5 +165,84 @@ describe('UDP Client', () => {
                 }
             }
         })
+    })
+
+    it('should handle discovery message and respond with UDP IP address', async () => {
+        const msg = Buffer.from(JSON.stringify({
+            client: {
+                serverId: 'my-server-id',
+                startedAt: udpState.startedAt,
+                computerName: udpState.myComputerName,
+                user: 'test-user',
+            },
+            message: {
+                createdAt: new Date().toISOString(),
+                type: 'request',
+                id: MSG_DISCOVER_MY_UDP_IP_ADDRESS,
+                json: '{}',
+            },
+        }))
+        const rinfo = { address: '123.4.5.6', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
+        await handleMessages(msg, rinfo)
+        expect(udpState.myUdpIpAddress).toBe(rinfo.address)
+        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), rinfo.port, rinfo.address, expect.any(Function))
+    })
+    
+    it('should handle push host info message and update server state', async () => {
+        const msg = Buffer.from(JSON.stringify({
+            client: {
+                serverId: 'peer1',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'computer1',
+                user: 'user1',
+            },
+            message: {
+                createdAt: new Date().toISOString(),
+                type: 'push',
+                id: MSG_PUSH_HOST_INFO,
+                json: JSON.stringify({
+                    port: UDP_CLIENT_PORT,
+                    projects: ['project1', 'project2'],
+                    peers: {},
+                    diskUsage: { available: 100, free: 50, total: 150 },
+                }),
+            },
+        }))
+        const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
+        await handleMessages(msg, rinfo)
+        expect(serverState.hosts['peer1']).toBeDefined()
+        expect(serverState.hosts['peer1'].projects).toEqual(['project1', 'project2'])
+        expect(serverState.hosts['peer1'].diskUsage).toEqual({ available: 100, free: 50, total: 150 })
+        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), rinfo.port, rinfo.address, expect.any(Function))
+    })
+    
+    it('should handle push host info response and update peer info', async () => {
+        serverState.hosts['peer1'] = {
+            serverId: 'peer1',
+            peers: {},
+        } as HostInfo
+        const msg = Buffer.from(JSON.stringify({
+            client: {
+                serverId: 'peer2',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'computer2',
+                user: 'user2',
+            },
+            message: {
+                createdAt: new Date().toISOString(),
+                type: 'response',
+                id: MSG_PUSH_HOST_INFO,
+                json: JSON.stringify({
+                    port: UDP_CLIENT_PORT,
+                    hostServerId: 'peer1',
+                    hostUpdatedAt: new Date().toISOString(),
+                    isClient: false,
+                }),
+            },
+        }))
+        const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
+        await handleMessages(msg, rinfo)
+        expect(serverState.hosts['peer1'].peers['peer2']).toBeDefined()
+        expect(serverState.hosts['peer1'].peers['peer2'].computerName).toBe('computer2')
     })
 })
