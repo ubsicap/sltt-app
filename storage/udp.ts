@@ -232,7 +232,13 @@ export const broadcastPushHostDataMaybe = async (fnGetProjects: () => Promise<st
 export const hostUpdateIntervalMs = 1000 * 10 // 10 seconds
 const peerExpirationMs = hostUpdateIntervalMs * 2 // 20 seconds (2x the host update interval)
 
-setInterval(() => {
+export const startPeerExpirationTimer = (intervalMs: number = 1000): void => {
+    setInterval(() => {
+        pruneExpiredHosts()
+    }, intervalMs)
+}
+
+export const pruneExpiredHosts = () => {
     const now = new Date().getTime()
     // for each host, check if updatedAt is expired
     // instead of host.updatedAt, find my host peer updatedAt, since it uses my clock
@@ -243,4 +249,4 @@ setInterval(() => {
             delete serverState.hosts[host.serverId]
         }
     }
-}, 1000)
+}

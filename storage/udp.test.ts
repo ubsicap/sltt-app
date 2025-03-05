@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest'
 import dgram from 'dgram'
-import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT } from './udp'
+import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT, pruneExpiredHosts } from './udp'
 import { serverState, HostInfo, PeerInfo, getAmHosting } from './serverState'
 import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
@@ -108,7 +108,6 @@ describe('UDP Client', () => {
 
     it('should broadcast host data if hosting', async () => {
         (getAmHosting as Mock).mockReturnValue(true);
-        // (myClient.send as Mock).mockImplementation((msg, start, msgLength, port, address, cb: (err) => {}) => cb(null));
         const mockProjects = ['project1', 'project2']
         const fnGetProjects = vi.fn().mockResolvedValue(mockProjects)
         await broadcastPushHostDataMaybe(fnGetProjects)
@@ -156,16 +155,14 @@ describe('UDP Client', () => {
             serverId: 'host2',
             peers: host2Peers
         } as HostInfo
-        vi.useFakeTimers()
-        vi.advanceTimersByTime(1000)
+        pruneExpiredHosts()
         expect(serverState.hosts).toEqual({
             'host2': {
                 serverId: 'host2',
                 peers: {
-                    'my-server-id': { updatedAt: new Date(now - hostUpdateIntervalMs).toISOString() }
+                    'my-server-id': host2Peers['my-server-id']
                 }
             }
         })
-        vi.useRealTimers()
     })
 })
