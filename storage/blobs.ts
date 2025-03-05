@@ -2,7 +2,7 @@ import { ensureDir } from 'fs-extra'
 import { copyFile, readFile } from 'fs/promises'
 import { dirname, basename, join, posix } from 'path'
 import { RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
-import { getFiles } from './utils'
+import { getFiles, isNodeError } from './utils'
 
 
 export const handleRetrieveBlob = async (blobsPath, { blobId }: RetrieveBlobArgs ): Promise<RetrieveBlobResponse> => {
@@ -12,12 +12,12 @@ export const handleRetrieveBlob = async (blobsPath, { blobId }: RetrieveBlobArgs
     const fullPath = join(fullFolder, fileName)
     try {
         return await readFile(fullPath)
-    } catch (error) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             return null
         } else {
             // Handle other possible errors
-            console.error('An error occurred:', error.message)
+            console.error('An error occurred:', (error as Error).message)
             throw error
         }
     }
@@ -30,10 +30,10 @@ export const handleStoreBlob = async (blobsPath, { blobId, file }: { blobId: Sto
     await ensureDir(fullFolder)
     const fullPath = join(fullFolder, fileName)
     try {
-        await copyFile(file.path, fullPath)
+        await copyFile((file as unknown /* Express.Multer.File */ as { path: string }).path, fullPath)
         return { fullPath }
-    } catch (error) {
-        console.error('An error occurred:', error.message)
+    } catch (error: unknown) {
+        console.error('An error occurred:', (error as Error).message)
         throw error
     }
 }
@@ -60,12 +60,12 @@ export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: { client
         const blobFilePaths = filterBlobFiles(allPosixFilePaths)
         const blobIds = transformBlobFilePathsToBlobIds(blobsPath, blobFilePaths)
         return blobIds
-    } catch (error) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             return []
         } else {
             // Handle other possible errors
-            console.error('An error occurred:', error.message)
+            console.error('An error occurred:', (error as Error).message)
             throw error
         }
     }

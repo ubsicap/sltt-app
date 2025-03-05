@@ -41,7 +41,7 @@ type ClientMessage = {
         createdAt: string,
         type: 'request' | 'response' | 'push',
         id: string,
-        json?: string,
+        json: string,
     }
 }
 
@@ -88,7 +88,7 @@ export const startUdpClient = (): void => {
                 console.log('My UDP IP address:', myUdpIpAddress)
             }
             if (message.type === 'request' && message.id === MSG_DISCOVER_MY_UDP_IP_ADDRESS) {
-                sendMessage({ type: 'response', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS }, rinfo.port, rinfo.address)
+                sendMessage({ type: 'response', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS, json: '{}' }, rinfo.port, rinfo.address)
                 return
             }
             console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
@@ -179,7 +179,7 @@ export const startUdpClient = (): void => {
         const address = myClient.address()
         console.log(`Client listening on ${address.address}:${address.port}`)
         myClient.setBroadcast(true)
-        sendMessage({ type: 'request', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS })
+        sendMessage({ type: 'request', id: MSG_DISCOVER_MY_UDP_IP_ADDRESS, json: '{}' })
     })
 
     myClient.bind(UDP_CLIENT_PORT)
@@ -187,7 +187,7 @@ export const startUdpClient = (): void => {
 
 /** if peerHostUpdatedAt does not match host.updatedAt, then remove peer as obsoleted */
 export const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
-    if (!getAmHosting()) return
+    if (!getAmHosting()) return {}
     const myHost = serverState.hosts[serverState.myServerId]
     if (!myHost) return {}
     const activePeers: { [serverId: string]: PeerInfo } = {}
@@ -207,7 +207,7 @@ export const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.che
         const endAt = new Date()
         console.debug('Disk usage finished in', endAt.getTime() - startAt.getTime(), 'ms')
         return result
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Error getting disk usage:', error)
     }
     return undefined

@@ -9,5 +9,6 @@
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "javascript.format.semicolons": "remove",
-  "typescript.format.semicolons": "remove"
+  "typescript.format.semicolons": "remove",
+  "typescript.tsdk": "node_modules\\typescript\\lib"
 }

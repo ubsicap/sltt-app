@@ -29,8 +29,21 @@ module.exports = {
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
     '@typescript-eslint/no-explicit-any': 'error',
+    '@typescript-eslint/no-implicit-any-catch': ['error', {
+      allowExplicitAny: false
+    }],
     '@typescript-eslint/no-non-null-assertion': 'off',
-    '@typescript-eslint/no-var-requires': 'off'
+    '@typescript-eslint/no-var-requires': 'off',
+    '@typescript-eslint/no-unnecessary-condition': ['error', {
+      allowExplicitAny: false
+    }],
+    '@typescript-eslint/strict-boolean-expressions': ['error', {
+      allowNullableObject: false,
+      allowNullableBoolean: false,
+      allowNullableString: false,
+      allowNullableNumber: false,
+      allowAny: false
+    }]
   },
   overrides: [
     {

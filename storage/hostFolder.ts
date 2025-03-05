@@ -5,13 +5,14 @@ import { platform } from 'os'
 import { checkHostStoragePath, serverState, setLANStoragePath, SLTT_APP_LAN_FOLDER } from './serverState'
 import { normalize } from 'path'
 import disk from 'diskusage'
+import { isNodeError } from './utils'
 
 
 export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
     const defaultFolder = platform() === 'win32' ? 'C:\\sltt-app\\lan' : '/Users/Shared/sltt-app/lan'
     const requiredEnd = normalize(SLTT_APP_LAN_FOLDER)
     const hostFolder = serverState.myLanStoragePath
-    let diskUsage: Awaited<ReturnType<typeof disk.check>>
+    let diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined = undefined
     try {
         await disk.check(hostFolder || defaultFolder)
     } catch (err) {
@@ -34,13 +35,13 @@ const finalizeHostFolder = (hostFolder: string): string => {
     const normalizedHostFolder = normalize(hostFolder.trim()).replace(/[\\/]+$/, '')
     const normalizedEnd = normalize(SLTT_APP_LAN_FOLDER)
     const requiredParts = normalizedEnd.split(path.sep).filter(s => s)
-    const appendToEnd = []
+    const appendToEnd: string[] = []
     while (requiredParts.length) {
         const endMaybe = requiredParts.join(path.sep)
         const requiredPart = requiredParts.pop()
         if (normalizedHostFolder.endsWith(endMaybe)) {
             break
-        } else {
+        } else if (requiredPart !== undefined) {
             appendToEnd.unshift(requiredPart)
         }
     }
@@ -73,7 +74,7 @@ const createTempFile = async (folderPath: string): Promise<void> => {
  * if the folder exists, then write a file to it and delete it
  */
 const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderResponse> => {
-    let diskUsage: Awaited<ReturnType<typeof disk.check>>
+    let diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined = undefined
     try {
         const normalizedFolder = normalize(folderPath.trim())
         console.log(`canWriteToFolder: "${folderPath}" -> "${normalizedFolder}"`)
@@ -91,8 +92,8 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
         try {
             checkHostStoragePath(normalizedFolder, false)
             diskUsage = await disk.check(normalizedFolder)
-        } catch(err) {
-            return { error: err.message, diskUsage }
+        } catch(err: unknown) {
+            return { error: (err as Error).message, diskUsage }
         }
 
         // Check if the folder exists
@@ -105,8 +106,8 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
             console.error(`Path exists but is not a directory: ${folderPath}`)
             return { error: `Path exists but is not a directory.`, diskUsage }
         }
-    } catch (err) {
-        if (err.code === 'ENOENT') {
+    } catch (err: unknown) {
+        if (isNodeError(err) && err.code === 'ENOENT') {
             // Folder does not exist, check if we can create it
             try {
                 await mkdir(folderPath, { recursive: true })

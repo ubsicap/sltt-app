@@ -25,8 +25,8 @@ export const saveServerSettings = async (configPath: string, {
             allowHosting,
             myLanStoragePath,
         })
-    } catch (error) {
-        console.error(`Error saving server settings: ${error.message}`)
+    } catch (error: unknown) {
+        console.error(`Error saving server settings: ${(error as Error).message}`)
         throw error
     }
 }
@@ -40,8 +40,8 @@ export const loadServerSettings = async (configPath: string): Promise<ServerSett
         }
         const settings = await readJson(configPath)
         return settings as ServerSettings
-    } catch (error) {
-        console.error(`Error loading server settings: ${error.message}`)
+    } catch (error: unknown) {
+        console.error(`Error loading server settings: ${(error as Error).message}`)
         throw error
     }
 }

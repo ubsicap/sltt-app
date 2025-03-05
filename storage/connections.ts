@@ -22,12 +22,12 @@ const execPromise = promisify(exec)
 
 async function connectToSambaWithCommand(command: string): Promise<boolean> {
     try {
-        const { stdout, stderr } = await execPromise(command)
+        const { stdout } = await execPromise(command)
         console.log(`Successfully connected to Samba drive (${command})`)
         console.log(stdout)
         return true
-    } catch (error) {
-        console.error(`Error connecting to Samba drive (${command}): ${error.message}`)
+    } catch (error: unknown) {
+        console.error(`Error connecting to Samba drive (${command}): ${(error as Error).message}`)
         return false
     }
 }
@@ -177,17 +177,17 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                     let urlObj: URL
                     try {
                         urlObj = new URL(url)
-                    } catch (e) {
+                    } catch (e: unknown) {
                         console.error(`new URL(${url}) error`, e)
-                        return { url, accessible: false, error: e.message, connectionInfo, networkName }
+                        return { url, accessible: false, error: (e as Error).message, connectionInfo, networkName }
                     }
                     if (urlObj.protocol === 'file:') {
                         let filePath = ''
                         try {
                             filePath = fileURLToPath(url)
-                        } catch (e) {
+                        } catch (e: unknown) {
                             console.error(`fileURLToPath(${url}) error`, e)
-                            return { url, accessible: false, error: e.message, connectionInfo, networkName }
+                            return { url, accessible: false, error: (e as Error).message, connectionInfo, networkName }
                         }
                         console.log(`Probing access to '${url}'...`)
                         if (urlObj.hostname /** starts with ip address */) {
@@ -207,9 +207,9 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                                         projects
                                     }
                                     return { url, accessible: true, connectionInfo: newConnectionInfo, networkName }
-                                } catch (error) {
+                                } catch (error: unknown) {
                                     console.error(`ensureDir(${filePath}) error`, error)
-                                    return { url, accessible: false, error: error.message, connectionInfo, networkName }
+                                    return { url, accessible: false, error: (error as Error).message, connectionInfo, networkName }
                                 }
                             }
                         }
@@ -257,6 +257,7 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                             }
                         }
                     }
+                    return { url, accessible: false, error: 'Invalid URL', connectionInfo, networkName }
                 }
         )
     )
@@ -277,8 +278,8 @@ const asyncPathOperationUntilTimeout = async (opName: string, fnPathOperation: (
             timeoutPromise
         ])
         return true
-    } catch (error) {
-        if (error.message === MSG_OPERATION_TIMED_OUT) {
+    } catch (error: unknown) {
+        if ((error as Error).message === MSG_OPERATION_TIMED_OUT) {
             console.error(`${opName}(${path}) timed out`)
         } else {
             console.error(`${opName}(${path}) error`, error)
@@ -306,18 +307,18 @@ export const handleConnectToUrl = async ({ url }: { url: string }): Promise<Conn
     let urlObj: URL
     try {
         urlObj = new URL(url)
-    } catch (e) {
+    } catch (e: unknown) {
         console.error(`new URL(${url}) error`, e)
-        throw new Error(`Connection URL '${url}' is invalid due to error: ` + e.message)
+        throw new Error(`Connection URL '${url}' is invalid due to error: ` + (e as Error).message)
     }
     if (urlObj.protocol === 'file:') {
         let filePath = ''
         try {
             filePath = fileURLToPath(url)
         }
-        catch (e) {
+        catch (e: unknown) {
             console.error(`fileURLToPath(${url}) error`, e)
-            throw new Error(`Connection path '${url}' is invalid due to error: ` + e.message)
+            throw new Error(`Connection path '${url}' is invalid due to error: ` + (e as Error).message)
         }
         await canAccess(filePath, true).catch((e) => {
             console.error(`access(${filePath}) error`, e)
@@ -333,6 +334,7 @@ export const handleConnectToUrl = async ({ url }: { url: string }): Promise<Conn
         console.debug(`connectToUrl(${url}) response:`, JSON.stringify(response.data))
         return { connectionUrl: url }
     }
+    throw new Error(`Connection URL '${url}' is invalid`)
 }
 
 
@@ -367,8 +369,8 @@ setInterval(async () => {
             // connections to the server or shared resource and try again.
             console.log(`Try closing other windows that may be connected to the smb folder ${newSambaIpAddressMaybe}\\\\${SHARE_NAME} and try again.`)
         }
-    } catch (error) {
-        console.error(`Error connecting to Samba drive (${newSambaIpAddressMaybe}): ${error.message}`)
+    } catch (error: unknown) {
+        console.error(`Error connecting to Samba drive (${newSambaIpAddressMaybe}): ${(error as Error).message}`)
     } finally {
         tryingToConnectToSamba = false
     }

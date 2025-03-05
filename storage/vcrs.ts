@@ -2,7 +2,7 @@ import { ensureDir, writeJson } from 'fs-extra'
 import { basename, join } from 'path'
 import Bottleneck from 'bottleneck'
 import { ListVcrFilesArgs, ListVcrFilesResponse, RetrieveVcrsArgs, RetrieveVcrsResponse, StoreVcrArgs, StoreVcrResponse, VideoCacheRecord } from './vcrs.d'
-import { getFiles, readJsonCatchMissing } from './utils'
+import { getFiles, isNodeError, readJsonCatchMissing } from './utils'
 import { stringify as safeStableStringify } from 'safe-stable-stringify'
 
 const composeVideoCacheRecordFilename = (_id: string): {
@@ -52,8 +52,8 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
                     return
                 }
                 await writeJson(fullPath, vcrs)
-            } catch (error) {
-                console.error('An error occurred:', error.message)
+            } catch (error: unknown) {
+                console.error('An error occurred:', (error as Error).message)
                 throw error
             }
         })
@@ -62,6 +62,9 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
     }
 
     const batcher = pathBatchers.get(fullPath)
+    if (!batcher) {
+        throw new Error('Batcher not found')
+    }
 
     // Add the update to the batcher
     batcher.add({ fullPath, videoId, videoCacheRecord })
@@ -78,11 +81,11 @@ export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, pr
         const result = filenames.filter(filename => filename.endsWith('.sltt-vcrs')).map(filename => basename(filename))
         result.sort() // just in case it's not yet by name
         return result
-    } catch (error) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             return []
         } else {
-            console.error('An error occurred:', error.message)
+            console.error('An error occurred:', (error as Error).message)
             throw error
         }
     }
@@ -91,5 +94,5 @@ export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, pr
 export async function retrieveVcrs(videoCacheRecordsPath: string, { clientId, filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
     const [project] = filename.split('__')
     const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
-    return readJsonCatchMissing<RetrieveVcrsResponse, null>(fullPath, null)
+    return readJsonCatchMissing<RetrieveVcrsResponse, Record<string, never>>(fullPath, {})
 }

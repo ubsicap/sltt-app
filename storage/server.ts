@@ -22,7 +22,7 @@ import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_AP
 
 startUdpClient()
 
-export const getServerSettings = getServerConfig
+let configSettingsPath: string
 
 const app = express()
 const serverConfig = getServerConfig()
@@ -41,7 +41,7 @@ const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
 
-app.get('/status', (req, res) => {
+app.get('/status', (_, res) => {
     res.json({ status: 'ok' })
 })
 
@@ -64,7 +64,7 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
     res.status(403).json({ error: 'Forbidden' })
 }
 
-app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
+app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (_, res) => {
     const response = await loadHostFolder()
     res.json(response)
 }))
@@ -72,7 +72,7 @@ app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(a
 app.post(`/${HOST_FOLDER_API_SAVE_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SaveHostFolderArgs = req.body
     const response: SaveHostFolderResponse = await saveHostFolder(args.hostFolder)
-    await saveServerSettings(configFilePath, serverState)
+    await saveServerSettings(configSettingsPath, serverState)
     res.json(response)
 }))
     
@@ -86,7 +86,7 @@ app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandle
     res.json(result)
 }))
 
-app.post(`/${HOST_FOLDER_API_GET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (req, res) => {
+app.post(`/${HOST_FOLDER_API_GET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (_, res) => {
     const response: { allowHosting: boolean } = { allowHosting: serverState.allowHosting }
     res.json(response)
 }))
@@ -94,7 +94,7 @@ app.post(`/${HOST_FOLDER_API_GET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
 app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SetAllowHostingArgs = req.body
     serverState.allowHosting = args.allowHosting
-    await saveServerSettings(configFilePath, {
+    await saveServerSettings(configSettingsPath, {
         myServerId: serverState.myServerId,
         allowHosting: args.allowHosting,
         myLanStoragePath: serverState.myLanStoragePath,
@@ -280,6 +280,7 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHand
 
 export const startStorageServer = async (configFilePath: string): Promise<void> => {
     await loadServerSettings(configFilePath).then(async (settings) => {
+        configSettingsPath = configFilePath
         let needsToSave = false
         if (!settings.myServerId) {
             serverState.myServerId = `${hostname()}__${new Date().toISOString()}`
