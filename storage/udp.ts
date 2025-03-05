@@ -213,9 +213,9 @@ export const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.che
     return undefined
 }
 
-export const broadcastPushHostDataMaybe = (fnGetProjects: () => Promise<string[]>): void => {
+export const broadcastPushHostDataMaybe = async (fnGetProjects: () => Promise<string[]>): Promise<void> => {
     if (!getAmHosting()) return
-    fnGetProjects().then(async (projects) => {
+    await fnGetProjects().then(async (projects) => {
         const activePeers = getMyActivePeers()
         const diskUsage = await getDiskUsage()
         const peers = activePeers

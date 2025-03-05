@@ -32,9 +32,14 @@ describe('UDP Client', () => {
     let myClient: dgram.Socket
 
     beforeEach(() => {
+        const createdAt = new Date().toISOString()
         myClient = {
+            createdAt,
             on: vi.fn(),
-            send: vi.fn(),
+            send: vi.fn((msg, start, msgLength, port, address, cb: (err) => {}) => {
+                cb(null)
+                console.log(`[${createdAt}] Sent message: ${msg.toString()} to ${address}:${port}`, start, msgLength)
+            }),
             bind: vi.fn(),
             address: vi.fn(() => ({ address: '127.0.0.1', port: 41234 })),
             setBroadcast: vi.fn(),
@@ -108,8 +113,7 @@ describe('UDP Client', () => {
         const fnGetProjects = vi.fn().mockResolvedValue(mockProjects)
         await broadcastPushHostDataMaybe(fnGetProjects)
         expect(fnGetProjects).toHaveBeenCalled()
-        expect(myClient.send).toHaveBeenCalled()
-        //expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), UDP_CLIENT_PORT, BROADCAST_ADDRESS, expect.any(Function))
+        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), UDP_CLIENT_PORT, BROADCAST_ADDRESS, expect.any(Function))
     })
 
     it('should remove expired hosts', () => {
