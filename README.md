@@ -120,6 +120,12 @@ The installer will be located in the `dist` directory. For example, `dist/sltt-a
 
 $ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&description=sltt-app}
 
+nlm - I was not able to auto generate the PAT as above.
+I had to
+- go to the link above in my browser
+- authenticate to github
+- add a line to my .zshrc: export GH_TOKEN="ghp_pixfz5Z..."
+
 2. Run the `build:win:release script` For example:
 
 ```bash
