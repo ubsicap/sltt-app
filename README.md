@@ -55,7 +55,7 @@ $ git clone https://github.com/ubsicap/sltt.git sltt
 2. Build the `sltt` client source pages
 ```bash
 $ cd sltt/client
-$ git checkout dev; git pull     # OR main
+$ git checkout dev; git pull     # OR git checkout main   
 $ npm install        # DON'T use yarn install
 $ yarn build:dev:sltt-app:client # or build:prd:sltt-app:client
 ```
@@ -129,7 +129,7 @@ I had to
 2. Run the `build:win:release script` For example:
 
 ```bash
-$ yarn build:win:release   
+$ yarn build:win:release   # OR yarn build:mac:release
 yarn run v1.22.19
 warning package.json: No license field
 $ npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always
@@ -183,6 +183,4 @@ vite v4.3.3 building for production...
 Done in 55.90s.
 ```
 
-# Building Releases for Mac
-
-Discussion of process [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)
+Notes on Building Releases for Mac: [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)
