@@ -11,17 +11,37 @@ vi.mock('./serverState')
 vi.mock('axios')
 vi.mock('./udp')
 
+class MockedNodeError extends Error {
+    code: string
+    constructor(code: string) {
+        super()
+        this.code = code
+    }
+}
+
 describe('handleGetStorageProjects', () => {
-    it('should return the list of storage projects', async () => {
+    it.each([
+        { case: 'no whitelist', whitelistContent: undefined, expectedProjects: [] },
+        { case: 'empty whitelist', whitelistContent: '', expectedProjects: [] },
+        { case: 'added project1', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\n', expectedProjects: ['project1'] },
+        { case: 'removed project1', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\ntimestamp\t-\tproject1\tadminEmail\n', expectedProjects: [] },
+        { case: 'added project1, project2', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\ntimestamp\t+\tproject2\tadminEmail\n', expectedProjects: ['project1', 'project2'] },
+        { case: 'removed project1, added project2', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\ntimestamp\t-\tproject1\tadminEmail\ntimestamp\t+\tproject2\tadminEmail\n', expectedProjects: ['project2'] },
+    ])('should return the list of storage projects - $case', async ({
+        whitelistContent,
+        expectedProjects
+    }: { whitelistContent: string, expectedProjects: string[] }) => {
         const clientId = 'test-client'
         const lanStoragePath = 'test-path'
-        const whitelistContent = 'timestamp\t+\tproject1\tadminEmail\n'
         vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
-        vi.mocked(readFile).mockResolvedValue(whitelistContent)
-
+        if (whitelistContent !== undefined) {
+            vi.mocked(readFile).mockResolvedValue(whitelistContent)
+        } else {
+            vi.mocked(readFile).mockRejectedValue(new MockedNodeError('ENOENT'))
+        }
         const result = await handleGetStorageProjects({ clientId })
 
-        expect(result).toEqual(['project1'])
+        expect(result).toEqual(expectedProjects)
         expect(readFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, 'utf-8')
     })
 })
@@ -33,11 +53,28 @@ describe('handleAddStorageProject', () => {
         const adminEmail = 'admin@example.com'
         const lanStoragePath = 'test-path'
         vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
+        vi.mocked(readFile).mockRejectedValue(new MockedNodeError('ENOENT'))
 
         await handleAddStorageProject({ clientId, project, adminEmail })
 
+        expect(readFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, 'utf-8')
         expect(appendFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, expect.stringContaining(`\t+\t${project}\t${adminEmail}\n`))
         expect(broadcastPushHostDataMaybe).toHaveBeenCalled()
+    })
+
+    it('should not add an existing storage project', async () => {
+        const clientId = 'test-client'
+        const project = 'existing-project'
+        const adminEmail = 'admin@example.com'
+        const lanStoragePath = 'test-path'
+        vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
+        vi.mocked(readFile).mockResolvedValue('timestamp\t+\texisting-project\n')
+
+        await handleAddStorageProject({ clientId, project, adminEmail })
+
+        expect(readFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, 'utf-8')
+        expect(appendFile).not.toHaveBeenCalled()
+        expect(broadcastPushHostDataMaybe).not.toHaveBeenCalled()
     })
 })
 
@@ -47,9 +84,8 @@ describe('handleRemoveStorageProject', () => {
         const project = 'existing-project'
         const adminEmail = 'admin@example.com'
         const lanStoragePath = 'test-path'
-        const existingProjects = [project]
         vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
-        vi.mocked(handleGetStorageProjects).mockResolvedValue(existingProjects)
+        vi.mocked(readFile).mockResolvedValue('timestamp\t+\texisting-project\n')
 
         await handleRemoveStorageProject({ clientId, project, adminEmail })
 

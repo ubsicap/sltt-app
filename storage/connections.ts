@@ -10,6 +10,7 @@ import { broadcastPushHostDataMaybe } from './udp'
 import { hostname } from 'os'
 import { uniq } from 'lodash'
 import wifi from 'node-wifi'
+import { isNodeError } from './utils'
 
 wifi.init({
     iface: null
@@ -68,11 +69,16 @@ async function getStorageProjects(clientId: string, lanStoragePath: string): Pro
                 projectsRemoved.add(project)
             }
         })
-    } catch (error) {
-        console.error(`readFile(${whitelistPath}) error`, error)
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
+            console.warn(`Whitelist file not found at ${whitelistPath}, assuming no projects are added or removed yet.`)
+        } else {
+            console.error(`readFile(${whitelistPath}) error`, error)
+            throw error
+        }
     }
     console.log(`handleGetStorageProjects[${clientId}]: projects added: [${[...projectsAdded]}], projects removed: [${[...projectsRemoved]}]`)
-    return [...projectsAdded]
+    return [...projectsAdded].reverse()
 }
 
 export const handleAddStorageProject = async ({ clientId, project, adminEmail }: AddStorageProjectArgs): Promise<void> => {
