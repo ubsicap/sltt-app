@@ -236,8 +236,8 @@ describe('retrieveVcrs', () => {
 
         const result = await retrieveVcrs(tempDir, { clientId, filename })
 
-        // Check that the result is null
-        expect(result).toBeNull()
+        // Check that the result is empty
+        expect(result).toEqual({})
     })
 
 })
