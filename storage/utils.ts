@@ -31,13 +31,22 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
             return defaultValue
         } else {
             // read file contents to help debug
-            const contents = await readFile(filePath, 'utf8')
-            console.error('An error occurred:', (error as Error).message, 'contents:', contents)
-            // write file contents to help debug
+            const rawContents = await readFile(filePath, 'utf8')
+            console.error('An error occurred:', (error as Error).message, 'contents:', rawContents)
+            // write the error message to help debug
+            const errorMsgPath = filePath + '-error-msg'
+            await writeFile(errorMsgPath, (error as Error).message)
+            // write file contents to help debug            
             const dumpFilePath = filePath + '-error'
-            await writeFile(dumpFilePath, contents)
+            await writeFile(dumpFilePath, rawContents)
             console.error('Wrote file contents to: ', dumpFilePath)
-            throw error
+            try {
+                // try one more time to read the file as json
+                return await readJson(dumpFilePath)
+            } catch (readError: unknown) {
+                console.error(`Error reading json file "${dumpFilePath}":`, (readError as Error).message)
+                return defaultValue
+            }
         }
     }
 }
