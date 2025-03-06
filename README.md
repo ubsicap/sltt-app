@@ -114,7 +114,7 @@ $ npm run build:mac:norelease
 
 The installer will be located in the `dist` directory. For example, `dist/sltt-app Setup 206311.4.5.exe`.
 
-### Publish release to Github
+### Publish release to Github (WINDOWS)
 
 1. Set the personal access token (PAT) for the Github account
 
@@ -182,5 +182,24 @@ vite v4.3.3 building for production...
     [====================] 100% 0.0s | sltt-app-Setup-206311.4.5.exe to github
 Done in 55.90s.
 ```
+
+### Publish release to Github (MAC)
+
+If the corresponding Windows release HAS NOT already been published in GitHub:
+
+- Run 'yarn build:mac:release'
+- Users will have to manually download the draft release.
+
+If the corresponding Windows release HAS already been published in GitHub:
+
+- Go to the 'Code' tab. Find the 'Releases' section (lower right). Click the "Latest" button.
+- Click the 'Edit' (pencil) icon. Find the section "Attach binaries by dropping them here"
+- Drag/drop the following files
+    - dist/latest-mac.yml
+    - dist/sltt-app-XXXXXX.X.X-mac.zip
+    - dist/sltt-app-XXXXXX.X.X-mac.zip.blockmap
+    - dist/sltt-app-XXXXXX.X.X.dmg
+    - dist/sltt-app-XXXXXX.X.X.dmg.blockmap
+- Click 'Update release'
 
 Notes on Building Releases for Mac: [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)
