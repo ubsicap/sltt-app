@@ -104,7 +104,11 @@ describe('handleProbeConnections', () => {
         const clientId = 'test-client'
         const username = 'user1'
         const hostsByRelevance: HostInfo[] = [
-            { serverId: 'server1', protocol: 'http', ip: '123.4.5.6', port: 12345, peers: {}, projects: [], diskUsage: { available: availableMb * 1024 * 1024, free: (availableMb + 50) * 1024 * 1024, total: 1000 * 1024 * 1024 }, computerName: 'computer1', user: 'user1', startedAt: '2021-01-01', updatedAt: '2021-01-01' },
+            {
+                serverId: 'server1', protocol: 'http', ip: '123.4.5.6', port: 12345, peers: {}, projects: [],
+                computerName: 'computer1', user: 'user1', startedAt: '2021-01-01', updatedAt: '2021-01-01',
+                diskUsage: { available: availableMb * 1024 * 1024, free: (availableMb + 50) * 1024 * 1024, total: 1000 * 1024 * 1024 },
+            },
         ]
         vi.mocked(createUrl).mockImplementation((protocol, ip, port) => `${protocol}://${ip}:${port}`)
         vi.mocked(getHostsByRelevance).mockReturnValue(hostsByRelevance)
