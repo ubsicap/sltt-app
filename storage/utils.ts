@@ -32,7 +32,7 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
         } else {
             // read file contents to help debug
             const rawContents = await readFile(filePath, 'utf8')
-            console.error('An error occurred:', (error as Error).message, 'contents:', rawContents)
+            console.error('An error occurred:', (error as Error).message, '\ncontents:\n', rawContents)
             // write the error message to help debug
             const errorMsgPath = filePath + '-error-msg'
             await writeFile(errorMsgPath, (error as Error).message)
@@ -42,7 +42,9 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
             console.error('Wrote file contents to: ', dumpFilePath)
             try {
                 // try one more time to read the file as json
-                return await readJson(dumpFilePath)
+                const lastTryContents = await readJson(dumpFilePath)
+                console.error('Successfully read json file:', dumpFilePath)
+                return lastTryContents
             } catch (readError: unknown) {
                 console.error(`Error reading json file "${dumpFilePath}":`, (readError as Error).message)
                 return defaultValue
