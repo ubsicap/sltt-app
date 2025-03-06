@@ -16,6 +16,8 @@ wifi.init({
     iface: null
 })
 
+export const MIN_DISK_SPACE_MB = 50
+
 const wifiGetCurrentConnections = promisify(wifi.getCurrentConnections)
 
 const execPromise = promisify(exec)
@@ -247,7 +249,7 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                                 diskUsage: host.diskUsage
                             }
                             const accessible = host.diskUsage !== undefined && (
-                                host.diskUsage.available > 50 * 1024 * 1024 /* 50 MB */
+                                host.diskUsage.available >= MIN_DISK_SPACE_MB * 1024 * 1024 /* MB */
                             )
                             return {
                                 url, accessible,

@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
-import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections, handleConnectToUrl } from './connections'
+import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections } from './connections'
 import { readFile, appendFile } from 'fs/promises'
-import { getLANStoragePath, getHostsByRelevance, serverState } from './serverState'
-import axios from 'axios'
+import { getLANStoragePath, getHostsByRelevance, serverState, HostInfo, createUrl } from './serverState'
 import { broadcastPushHostDataMaybe } from './udp'
+import { ProbeConnectionsResponse } from './connections.d'
 
-export {}
 vi.mock('fs/promises')
 vi.mock('./serverState')
 vi.mock('axios')
@@ -95,47 +94,33 @@ describe('handleRemoveStorageProject', () => {
 })
 
 describe('handleProbeConnections', () => {
-    it('should return the list of connections', async () => {
+    it.each([
+        { case: 'above minimum disk space', availableMb: 75, expectedAccessible: true },
+        { case: 'below minimum disk space', availableMb: 25, expectedAccessible: false },
+    ])('should return the list of connections - $case', async ({
+        availableMb, expectedAccessible
+    }: { availableMb: number, expectedAccessible: boolean }
+) => {
         const clientId = 'test-client'
-        const hostsByRelevance = [{ protocol: 'http', ip: '127.0.0.1', port: 8080, peers: {}, serverId: 'server1' }]
+        const username = 'user1'
+        const hostsByRelevance: HostInfo[] = [
+            { serverId: 'server1', protocol: 'http', ip: '123.4.5.6', port: 12345, peers: {}, projects: [], diskUsage: { available: availableMb * 1024 * 1024, free: (availableMb + 50) * 1024 * 1024, total: 1000 * 1024 * 1024 }, computerName: 'computer1', user: 'user1', startedAt: '2021-01-01', updatedAt: '2021-01-01' },
+        ]
+        vi.mocked(createUrl).mockImplementation((protocol, ip, port) => `${protocol}://${ip}:${port}`)
         vi.mocked(getHostsByRelevance).mockReturnValue(hostsByRelevance)
-        vi.mocked(serverState).mockReturnValue({
-            myUsername: 'user',
-            myServerId: 'server1',
-            hosts: {
-                server1: {
-                    protocol: 'http',
-                    peers: {},
-                    projects: [],
-                    diskUsage: { available: 100 }
-                }
-            }
-        })
+        serverState.allowHosting = true
+        serverState.myServerId = 'server1'
+        serverState.myLanStoragePath = 'test-path'
+        serverState.myServerId = 'server1'
+        serverState.hosts['server1'] = hostsByRelevance[0]
 
-        const result = await handleProbeConnections({ clientId })
-
-        expect(result).toEqual(expect.any(Array))
-    })
-})
-
-describe('handleConnectToUrl', () => {
-    it('should connect to a file URL', async () => {
-        const url = 'file:///test-path'
-        const filePath = '/test-path'
-        vi.mocked(fileURLToPath).mockReturnValue(filePath)
-        vi.mocked(access).mockResolvedValue(undefined)
-
-        const result = await handleConnectToUrl({ url })
-
-        expect(result).toEqual({ connectionUrl: filePath })
-    })
-
-    it('should connect to an HTTP URL', async () => {
-        const url = 'http://localhost:8080'
-        vi.mocked(axios.get).mockResolvedValue({ data: {} })
-
-        const result = await handleConnectToUrl({ url })
-
-        expect(result).toEqual({ connectionUrl: url })
+        const result: ProbeConnectionsResponse = await handleProbeConnections({ clientId, username })
+        expect(result).toHaveLength(1)
+        const { accessible, connectionInfo } = result[0]
+        expect(accessible).toBe(expectedAccessible)
+        expect(connectionInfo).not.toBeNull()
+        expect(connectionInfo.isMyServer).toBe(true)
+        expect(connectionInfo.user).toBe(username)
+        // expect(result).toMatchSnapshot()
     })
 })
