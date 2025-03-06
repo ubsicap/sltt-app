@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections } from './connections'
 import { readFile, appendFile } from 'fs/promises'
 import { getLANStoragePath, getHostsByRelevance, serverState, HostInfo, createUrl } from './serverState'
@@ -17,6 +17,15 @@ class MockedNodeError extends Error {
         this.code = code
     }
 }
+
+beforeEach(() => {
+    vi.resetAllMocks()
+    serverState.hosts = {}
+    serverState.hostProjects = new Set()
+    serverState.allowHosting = false
+    serverState.myServerId = ''
+    serverState.myLanStoragePath = ''
+})
 
 describe('handleGetStorageProjects', () => {
     it.each([
