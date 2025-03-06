@@ -46,7 +46,7 @@ export async function storeVcr(videoCacheRecordsPath: string, { clientId, videoC
 
             // Process the updates for this fullPath
             try {
-                const vcrsOrig = readJsonCatchMissing<{ [videoId: string]: VideoCacheRecord }, Record<string, never>>(fullPath, {})
+                const vcrsOrig = await readJsonCatchMissing<{ [videoId: string]: VideoCacheRecord }, Record<string, never>>(fullPath, {})
                 const vcrs = { ...vcrsOrig, ...vcrsUpdated }
                 if (safeStableStringify(vcrs) === safeStableStringify(vcrsOrig)) {
                     return
@@ -94,5 +94,5 @@ export async function listVcrFiles(videoCacheRecordsPath: string, { clientId, pr
 export async function retrieveVcrs(videoCacheRecordsPath: string, { clientId, filename }: RetrieveVcrsArgs): Promise<RetrieveVcrsResponse> {
     const [project] = filename.split('__')
     const fullPath = join(videoCacheRecordsPath, clientId, project, filename)
-    return readJsonCatchMissing<RetrieveVcrsResponse, Record<string, never>>(fullPath, {})
+    return await readJsonCatchMissing<RetrieveVcrsResponse, Record<string, never>>(fullPath, {})
 }

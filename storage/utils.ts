@@ -22,6 +22,9 @@ export async function getFiles(dir: string, useForwardSlashes = false): Promise<
     return Array.prototype.concat(...files).map(file => useForwardSlashes ? file.replace(/\\/g, '/'): file)
 }
 
+/** NOTE: Please use await readJsonCatchMissing. Failing to do so can lead to 
+ * "Unexpected end of JSON input" errors when reading the json file contents.
+ */
 export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault): Promise<T|TDefault> {
     try {
         const contents = await readJson(filePath)
@@ -30,18 +33,24 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
         if (isNodeError(error) && error.code === 'ENOENT') {
             return defaultValue
         } else {
-            // read file contents to help debug
+            // NOTE: In the case of ""Unexpected end of JSON input" error
+            // if the file content is found to actually be json,
+            // it's possible that the caller did not await readJsonCatchMissing
+            // and that it resolved later.
+            // Hopefully when we fix that, we will not need the following code
+            // which may only work due to timing of resolved promises
+            // 1. read file contents to help debug
             const rawContents = await readFile(filePath, 'utf8')
             console.error('An error occurred:', (error as Error).message, '\ncontents:\n', rawContents)
-            // write the error message to help debug
+            // 2. write the error message to help debug
             const errorMsgPath = filePath + '-error-msg'
             await writeFile(errorMsgPath, (error as Error).message)
-            // write file contents to help debug            
+            // 3. write file contents to help debug            
             const dumpFilePath = filePath + '-error'
             await writeFile(dumpFilePath, rawContents)
             console.error('Wrote file contents to: ', dumpFilePath)
             try {
-                // try one more time to read the file as json
+                // 4. try one more time to read the file as json
                 const lastTryContents = await readJson(dumpFilePath)
                 console.error('Successfully read json file:', dumpFilePath)
                 return lastTryContents
