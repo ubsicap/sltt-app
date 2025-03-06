@@ -115,7 +115,11 @@ app.whenReady().then(() => {
 
   createWindow()
 
-  Menu.setApplicationMenu(null)
+  autoUpdater.forceDevUpdateConfig = true;
+
+  // Uncomment next 2 lines to step thru the autoUpdater logic in the debugger
+  // autoUpdater.checkForUpdatesAndNotify()
+  // Menu.setApplicationMenu(null)
 
   // Unregister the shortcut when the app is about to quit
   app.on('will-quit', () => {
