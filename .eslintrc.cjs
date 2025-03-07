@@ -34,6 +34,7 @@ module.exports = {
     }],
     '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/no-var-requires': 'off',
+    'no-unused-vars': ['error', { 'args': 'none' }],
     '@typescript-eslint/no-unnecessary-condition': ['error', {
       allowExplicitAny: false
     }],

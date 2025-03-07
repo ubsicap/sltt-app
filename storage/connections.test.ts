@@ -38,7 +38,7 @@ describe('handleGetStorageProjects', () => {
     ])('should return the list of storage projects - $case', async ({
         whitelistContent,
         expectedProjects
-    }: { whitelistContent: string, expectedProjects: string[] }) => {
+    }: { whitelistContent: string | undefined, expectedProjects: string[] }) => {
         const clientId = 'test-client'
         const lanStoragePath = 'test-path'
         vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)

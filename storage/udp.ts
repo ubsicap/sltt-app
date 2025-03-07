@@ -14,7 +14,7 @@ type UdpState = {
     startedAt: string
     myComputerName: string
     myUdpIpAddress: string
-    myClient: ReturnType<typeof dgram.createSocket>
+    myClient: ReturnType<typeof dgram.createSocket> | undefined
 }
 
 let udpState: UdpState
@@ -63,7 +63,7 @@ const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'cre
 }
 
 export const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>, port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
-    if (!udpState) throw new Error('UDP client not started')
+    if (!udpState || !udpState.myClient) throw new Error('UDP client not started')
     const msg = formatClientMsg({ type, id, json })
     udpState.myClient.send(msg, 0, msg.length, port, address, (err) => {
         if (err) console.error(err)
