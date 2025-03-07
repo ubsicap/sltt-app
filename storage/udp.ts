@@ -71,11 +71,9 @@ export const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], '
     })
 }
 
-let startedUdpClient = false
-
 export const startUdpClient = (): UdpState => {
-    if (startedUdpClient) return udpState
-    startedUdpClient = true
+    if (udpState) return udpState
+    udpState = { myClient: undefined, myUdpIpAddress: '', startedAt: '', myComputerName: '' }
 
     /** unlikely that two clients on the same network will start at the same time */
     const startedAt = new Date().toISOString()
