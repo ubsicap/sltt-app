@@ -185,12 +185,7 @@ Done in 55.90s.
 
 ### Publish release to Github (Mac)
 
-If the corresponding Windows release HAS NOT already been published in GitHub:
-
-- Run 'yarn build:mac:release'
-- Users will have to manually download the draft release.
-
-If the corresponding Windows release HAS already been published in GitHub:
+Assumes that the corresponding Windows release HAS already been published in GitHub:
 
 ```bash
 $ cd sltt/client
@@ -199,17 +194,20 @@ $ npm install        # DON'T use yarn install
 $ yarn build:dev:sltt-app:client # or build:prd:sltt-app:client
 
 $ cd sltt-app
+$ yarn copy:mac:client
 $ yarn list:release  # find tag for current release
 
-# very "version" in package.json is set to current release
+# verify "version" in package.json is set to current release
 
 $ yarn show:release   # verify version is set to current release
-$ yarn build:mac:norelease
+$ yarn build:mac:norelease  # build installer but don't upload
 
 # install dist/sltt-app-${version}.dmg and test
 
 $ yarn upload:mac:release
 $ yarn show:release   # verify files uploaded correctly
+
+# should trigger auto update process for users
 ```
 
 
