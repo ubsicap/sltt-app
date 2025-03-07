@@ -223,6 +223,10 @@ export const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.che
 
 export const broadcastPushHostDataMaybe = async (fnGetProjects: () => Promise<string[]>): Promise<void> => {
     if (!getAmHosting()) return
+    if (!udpState || !udpState.myClient) {
+        console.warn('broadcastPushHostDataMaybe: UDP client not (yet) started')
+        return
+    }
     await fnGetProjects().then(async (projects) => {
         const activePeers = getMyActivePeers()
         const diskUsage = await getDiskUsage()
@@ -240,14 +244,20 @@ export const broadcastPushHostDataMaybe = async (fnGetProjects: () => Promise<st
 export const hostUpdateIntervalMs = 1000 * 10 // 10 seconds
 const peerExpirationMs = hostUpdateIntervalMs * 2 // 20 seconds (2x the host update interval)
 
+let hostUpdateTimerRef: ReturnType<typeof setInterval> | undefined = undefined
+
 export const startPushHostDataUpdating = (fnGetProjects: () => Promise<string[]>) => {
-    setInterval(() => {
+    if (hostUpdateTimerRef) return
+    hostUpdateTimerRef = setInterval(() => {
         broadcastPushHostDataMaybe(fnGetProjects)
     }, hostUpdateIntervalMs)
 }
 
-export const startPeerExpirationTimer = (intervalMs: number = 1000): void => {
-    setInterval(() => {
+let hostExpirationTimerRef: ReturnType<typeof setInterval> | undefined = undefined
+
+export const startHostExpirationTimer = (intervalMs: number = 1000): void => {
+    if (hostExpirationTimerRef) return
+    hostExpirationTimerRef = setInterval(() => {
         pruneExpiredHosts()
     }, intervalMs)
 }

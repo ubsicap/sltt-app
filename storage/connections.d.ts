@@ -1,9 +1,13 @@
+export const CONNECTIONS_START_UDP = 'startUdp'
 export const CONNECTIONS_API_PROBE = 'probeConnections'
 export const CONNECTIONS_API_CONNECT = 'connect'
 // not sure if these belong to a different module or not
 export const CONNECTIONS_API_ADD_STORAGE_PROJECT = 'addStorageProject'
 export const CONNECTIONS_API_REMOVE_STORAGE_PROJECT = 'removeStorageProject'
 export const CONNECTIONS_API_GET_STORAGE_PROJECTS = 'getStorageProjects'
+
+export type StartUdpArgs = { clientId: string }
+export type StartUdpResponse = { message: 'ok' }
 
 export type GetStorageProjectsArgs = { clientId: string }
 export type GetStorageProjectsResponse = string[]

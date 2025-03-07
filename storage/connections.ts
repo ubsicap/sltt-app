@@ -161,11 +161,11 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
     const { myServerId } = serverState
     const myHost = serverState.hosts[myServerId]
     const computerName = hostname()
-    const peers = getAmHosting() ? Object.keys(myHost.peers).length : 0
-    const clients = getAmHosting() ? Object.values(myHost.peers).filter(peer => peer.isClient).length : 0
-    const canProxy = getAmHosting() ? myHost.protocol === 'http' : false
-    const projects = getAmHosting() ? myHost.projects : []
-    const diskUsage = getAmHosting() ? myHost.diskUsage : undefined
+    const peers = getAmHosting() && myHost ? Object.keys(myHost.peers).length : 0
+    const clients = getAmHosting() && myHost ? Object.values(myHost.peers).filter(peer => peer.isClient).length : 0
+    const canProxy = getAmHosting() && myHost ? myHost.protocol === 'http' : false
+    const projects = getAmHosting() && myHost ? myHost.projects : []
+    const diskUsage = getAmHosting() && myHost ? myHost.diskUsage : undefined
     const connectionInfo: ConnectionInfo = {
         serverId: myServerId,
         canProxy,
@@ -345,9 +345,11 @@ export const handleConnectToUrl = async ({ url }: { url: string }): Promise<Conn
 }
 
 let tryingToConnectToSamba = false
+let sambaIpDetectionIntervalRef: ReturnType<typeof setInterval> | undefined = undefined
 
 export const startSambaIPDetection = async (intervalMs: number = 30000) => {
-    setInterval(async () => {
+    if (sambaIpDetectionIntervalRef) return
+    sambaIpDetectionIntervalRef = setInterval(async () => {
         if (tryingToConnectToSamba || !newSambaIpAddressMaybe || newSambaIpAddressMaybe === lastSambaIP) {
             return
         }

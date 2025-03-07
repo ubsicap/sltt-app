@@ -7,7 +7,7 @@ import { hostname, tmpdir } from 'os'
 import { createUrl, getAmHosting, getLANStoragePath, serverState, setLANStoragePath, setProxy } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs } from './connections.d'
+import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, CONNECTIONS_START_UDP, StartUdpArgs, StartUdpResponse } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
 import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveAllBlobIdsArgs, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
@@ -15,14 +15,17 @@ import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetRemoteSpotsArgs, GetStoredLocalClientIdsArgs, RetrieveLocalClientDocsArgs, RetrieveRemoteDocsArgs, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs } from './clients.d'
 import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs } from './vcrs.d'
-import { startUdpClient, broadcastPushHostDataMaybe, startPeerExpirationTimer, startPushHostDataUpdating } from './udp'
+import { startUdpClient, broadcastPushHostDataMaybe, startHostExpirationTimer, startPushHostDataUpdating } from './udp'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING } from './hostFolder.d'
 
-startUdpClient()
-startPeerExpirationTimer()
-startPushHostDataUpdating(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+
+const startAllUdpMessaging = () => {
+    startUdpClient()
+    startHostExpirationTimer()
+    startPushHostDataUpdating(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+}
 
 let configSettingsPath: string
 
@@ -32,7 +35,7 @@ const PORT = Number(process.env.PORT) || serverConfig.port
 
 const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUpload` })
 
-console.log('Starting UDP client on port', PORT)
+console.log('UDP client port', PORT)
 
 app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
@@ -57,7 +60,14 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
     }
 }
 
+function logRequest(req: express.Request): void {
+    const clientId = req.body['clientId']
+    console.log(`req [${req.ip} ${clientId ?? 'xxxx'}] (${req.headers.host}) ${req.method} ${req.originalUrl}`)
+}
+
+
 function verifyLocalhost(req: express.Request, res: express.Response, next: express.NextFunction): void {
+    logRequest(req)
     if (req.headers.host === `localhost:${PORT}`) {
         next()
         return
@@ -102,10 +112,19 @@ app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
         myLanStoragePath: serverState.myLanStoragePath,
     })
     if (getAmHosting()) {
+        startAllUdpMessaging()
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     }
     const response: SetAllowHostingResponse = { ok: true }
     res.json(response)
+}))
+
+
+app.post(`/${CONNECTIONS_START_UDP}`, verifyLocalhost, asyncHandler(async (req, res) => {
+    const args: StartUdpArgs = req.body
+    startAllUdpMessaging()
+    const result: StartUdpResponse = { message: 'ok' }
+    res.json(result)
 }))
 
 app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, res) => {
@@ -124,8 +143,8 @@ app.post(`/${CONNECTIONS_API_CONNECT}`, verifyLocalhost, asyncHandler(async (req
     const args: ConnectArgs = req.body
     // lookup connection info for serverId
     const host = serverState.hosts[args.serverId]
-    const url = createUrl(host.protocol, host.ip, host.port)
     if (host) {
+        const url = createUrl(host.protocol, host.ip, host.port)
         if (host.protocol === 'http') {
             setProxy({ serverId: args.serverId, url })
             const response: ConnectResponse = { connectionUrl: url }
@@ -146,6 +165,7 @@ app.post(`/${CONNECTIONS_API_CONNECT}`, verifyLocalhost, asyncHandler(async (req
 
 function verifyLocalhostUnlessHosting(req: express.Request, res: express.Response, next: express.NextFunction): void {
     if (serverState.allowHosting && !req.headers.host.startsWith('localhost:')) {
+        logRequest(req)
         // look for custom header that indicates intended serverId
         const serverId = req.headers['x-sltt-app-storage-server-id']
         if (serverId !== serverState.myServerId) {
@@ -295,7 +315,11 @@ export const startStorageServer = async (configFilePath: string): Promise<void> 
         if (needsToSave) {
             await saveServerSettings(configFilePath, serverState)
         }
-        broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+        if (getAmHosting()) {
+            console.log('Starting UDP messaging to allowHosting')
+            startAllUdpMessaging()
+            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+        }
         app.listen(PORT, () => {
             console.log(`Storage server is running localhost port ${PORT}`)
         })
