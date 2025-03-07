@@ -35,7 +35,7 @@ const PORT = Number(process.env.PORT) || serverConfig.port
 
 const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUpload` })
 
-console.log('UDP client port', PORT)
+console.log('storage server port: ', PORT)
 
 app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
