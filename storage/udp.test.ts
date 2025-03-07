@@ -51,6 +51,7 @@ describe('UDP Client', () => {
         serverState.allowHosting = false
         serverState.myLanStoragePath = ''
         udpState = startUdpClient()
+        udpState.myClient = myClient
     })
 
     it('should initialize UDP client and send discovery message', () => {
