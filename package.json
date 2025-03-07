@@ -37,10 +37,13 @@
     "build:win:update:metadata": "cross-env LATEST_YAML_PATH=./dist/latest.yml node build/recomputeHash.js && echo 'Do NOT forget to upload updated `dist/latest.yml` to release (e.g. npm run build:win:release:metadata)'",
     "build:win:release:metadata": "cross-env LATEST_YAML_PATH=./dist/latest.yml node build/updateReleaseMetadata.js",
     
+    "list:release": "gh release list -R ubsicap/sltt-app | grep -v 'Draft'",
+    "show:release": "export versionTag=$(jq -r .version package.json); gh release view v${versionTag} --web -R ubsicap/sltt-app",
+
     "copy:mac:client": "rm -rf out/client; cp -R $SLTT_CLIENT_DIR/build out/client",
     "build:mac:norelease": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish never",
-    "build:mac": "electron-vite build && electron-builder --mac --config",
-    "build:mac:release": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
+    "build:mac:ifNoWinRelease": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
+    "upload:mac:release": "export versionTag=$(jq -r .version package.json); gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}.dmg.blockmap -R ubsicap/sltt-app",
     
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },

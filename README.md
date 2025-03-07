@@ -183,7 +183,7 @@ vite v4.3.3 building for production...
 Done in 55.90s.
 ```
 
-### Publish release to Github (MAC)
+### Publish release to Github (Mac)
 
 If the corresponding Windows release HAS NOT already been published in GitHub:
 
@@ -192,14 +192,25 @@ If the corresponding Windows release HAS NOT already been published in GitHub:
 
 If the corresponding Windows release HAS already been published in GitHub:
 
-- Go to the 'Code' tab. Find the 'Releases' section (lower right). Click the "Latest" button.
-- Click the 'Edit' (pencil) icon. Find the section "Attach binaries by dropping them here"
-- Drag/drop the following files
-    - dist/latest-mac.yml
-    - dist/sltt-app-XXXXXX.X.X-mac.zip
-    - dist/sltt-app-XXXXXX.X.X-mac.zip.blockmap
-    - dist/sltt-app-XXXXXX.X.X.dmg
-    - dist/sltt-app-XXXXXX.X.X.dmg.blockmap
-- Click 'Update release'
+```bash
+$ cd sltt/client
+$ git checkout dev; git pull     # OR git checkout main   
+$ npm install        # DON'T use yarn install
+$ yarn build:dev:sltt-app:client # or build:prd:sltt-app:client
+
+$ cd sltt-app
+$ yarn list:release  # find tag for current release
+
+# very "version" in package.json is set to current release
+
+$ yarn show:release   # verify version is set to current release
+$ yarn build:mac:norelease
+
+# install dist/sltt-app-${version}.dmg and test
+
+$ yarn upload:mac:release
+$ yarn show:release   # verify files uploaded correctly
+```
+
 
 Notes on Building Releases for Mac: [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)
