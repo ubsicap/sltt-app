@@ -1,4 +1,4 @@
-export const CONNECTIONS_START_UDP = 'startUdp'
+export const CONNECTIONS_API_START_UDP = 'startUdp'
 export const CONNECTIONS_API_PROBE = 'probeConnections'
 export const CONNECTIONS_API_CONNECT = 'connect'
 // not sure if these belong to a different module or not
