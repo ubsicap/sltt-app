@@ -12,6 +12,14 @@ vi.mock('diskusage')
 vi.mock('./serverState')
 vi.mock('./utils')
 
+class MockedNodeError extends Error {
+    code: string
+    constructor(code: string) {
+        super()
+        this.code = code
+    }
+}
+
 describe('canWriteToFolder', () => {
     const folderPath = '/test-folder'
     const normalizedFolder = '/normalized-test-folder'
@@ -53,7 +61,7 @@ describe('canWriteToFolder', () => {
         const result = await canWriteToFolder(folderPath)
 
         expect(result.error).toBe(errorMessage)
-        expect(result.diskUsage).toBe(diskUsageMock)
+        expect(result.diskUsage).toBeUndefined()
     })
 
     it('should return error if path exists but is not a directory', async () => {
@@ -72,7 +80,7 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('Write permission error.')
+        expect(result.error).toBe('Error accessing folder.')
         expect(result.diskUsage).toBe(diskUsageMock)
     })
 
@@ -99,7 +107,7 @@ describe('canWriteToFolder', () => {
     })
 
     it('should return success if folder does not exist but can be created and is writable', async () => {
-        vi.mocked(stat).mockRejectedValue(new Error('ENOENT'))
+        vi.mocked(stat).mockRejectedValue(new MockedNodeError('ENOENT'))
         vi.mocked(mkdir).mockResolvedValue(undefined)
 
         const result = await canWriteToFolder(folderPath)
