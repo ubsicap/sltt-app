@@ -31,7 +31,7 @@ export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
  * if the hostFolder is "c:\\subfolder" it will return "c:\\subfolder\\sltt-app\\lan"
  * @param hostFolder
  */
-const finalizeHostFolder = (hostFolder: string): string => {
+export const finalizeHostFolder = (hostFolder: string): string => {
     const normalizedHostFolder = normalize(hostFolder.trim()).replace(/[\\/]+$/, '')
     const normalizedEnd = normalize(SLTT_APP_LAN_FOLDER)
     const requiredParts = normalizedEnd.split(path.sep).filter(s => s)

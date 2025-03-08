@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { canWriteToFolder } from './hostFolder'
+import { canWriteToFolder, finalizeHostFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
 import disk from 'diskusage'
-import { checkHostStoragePath } from './serverState'
+import { checkHostStoragePath, serverState, setLANStoragePath, SLTT_APP_LAN_FOLDER } from './serverState'
 import { isNodeError } from './utils'
+import { platform } from 'os'
+import { normalize } from 'path'
 
+vi.mock('os')
 vi.mock('fs/promises')
 vi.mock('path')
 vi.mock('diskusage')
@@ -118,5 +121,79 @@ describe('canWriteToFolder', () => {
         expect(writeFile).toHaveBeenCalledWith(path.join(folderPath, 'tempfile.tmp'), 'test')
         expect(unlink).toHaveBeenCalledWith(path.join(folderPath, 'tempfile.tmp'))
         expect(rmdir).toHaveBeenCalledWith(folderPath)
+    })
+})
+
+describe('finalizeHostFolder', () => {
+    it('should return the same path if it already ends with the required folder', () => {
+        const hostFolder = 'C:\\sltt-app\\lan'
+        const result = finalizeHostFolder(hostFolder)
+        expect(result).toBe('C:\\sltt-app\\lan')
+    })
+
+    it('should append the required folder if it does not end with it', () => {
+        const hostFolder = 'C:\\sltt-app'
+        const result = finalizeHostFolder(hostFolder)
+        expect(result).toBe('C:\\sltt-app\\lan')
+    })
+
+    it('should handle trailing slashes correctly', () => {
+        const hostFolder = 'C:\\sltt-app\\'
+        const result = finalizeHostFolder(hostFolder)
+        expect(result).toBe('C:\\sltt-app\\lan')
+    })
+
+    it('should insert the required folder in the correct position', () => {
+        const hostFolder = 'C:\\subfolder'
+        const result = finalizeHostFolder(hostFolder)
+        expect(result).toBe('C:\\subfolder\\sltt-app\\lan')
+    })
+
+    it('should handle nested folders correctly', () => {
+        const hostFolder = 'C:\\sltt-app\\lan\\subfolder'
+        const result = finalizeHostFolder(hostFolder)
+        expect(result).toBe('C:\\sltt-app\\lan\\subfolder\\sltt-app\\lan')
+    })
+})
+
+describe('loadHostFolder', () => {
+    const defaultFolder = platform() === 'win32' ? 'C:\\sltt-app\\lan' : '/Users/Shared/sltt-app/lan'
+    const requiredEnd = normalize(SLTT_APP_LAN_FOLDER)
+    const hostFolder = '/test-folder'
+    const diskUsageMock = { available: 1000, free: 2000, total: 3000 }
+
+    beforeEach(() => {
+        vi.resetAllMocks()
+        serverState.myLanStoragePath = hostFolder
+        vi.mocked(disk.check).mockResolvedValue(diskUsageMock)
+    })
+
+    it('should return the correct response when disk check is successful', async () => {
+        const result = await loadHostFolder()
+        expect(result).toEqual({ hostFolder, defaultFolder, requiredEnd, diskUsage: diskUsageMock })
+    })
+
+    it('should return the correct response when disk check fails', async () => {
+        vi.mocked(disk.check).mockRejectedValue(new Error('Disk check error'))
+        const result = await loadHostFolder()
+        expect(result).toEqual({ hostFolder, defaultFolder, requiredEnd, diskUsage: undefined })
+    })
+})
+
+describe('saveHostFolder', () => {
+    const hostFolder = 'C:\\sltt-app'
+    const finalFolder = 'C:\\sltt-app\\lan'
+
+    beforeEach(() => {
+        vi.resetAllMocks()
+        vi.mocked(finalizeHostFolder).mockReturnValue(finalFolder)
+        vi.mocked(mkdir).mockResolvedValue(undefined)
+    })
+
+    it('should save the host folder and return the correct response', async () => {
+        const result = await saveHostFolder(hostFolder)
+        expect(result).toEqual({ finalHostFolder: finalFolder })
+        expect(mkdir).toHaveBeenCalledWith(finalFolder, { recursive: true })
+        expect(setLANStoragePath).toHaveBeenCalledWith(finalFolder)
     })
 })
