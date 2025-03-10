@@ -5,11 +5,11 @@ export const HOST_FOLDER_API_SAVE_HOST_FOLDER = 'saveHostFolder'
 export const HOST_FOLDER_API_SET_ALLOW_HOSTING = 'setAllowHosting'
 export const HOST_FOLDER_API_GET_ALLOW_HOSTING = 'getAllowHosting'
 
-/** Extension is not allowed in folder path: (errorInfo - ${extension}) */
+/** `Extension is not allowed in folder path:` (errorInfo - ${extension}) */
 export const HOST_FOLDER_ERROR_CODE_EXTENSION_IS_NOT_ALLOWED_IN_FOLDER = 'hostFolderError_extensionNotAllowedInFolder'
-/** Full drive path required. (errorInfo - '') */
+/** `Full drive path required.` (errorInfo - '') */
 export const HOST_FOLDER_ERROR_CODE_FULL_DRIVE_PATH_REQUIRED = 'hostFolderError_fullDrivePathRequired'
-/** Unknown error: (errorInfo - ${error.message}) */
+/** `Unknown error:` (errorInfo - ${error.message}) */
 export const HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR = 'hostFolderError_unknownError'
 /** `Path exists but is not a directory.` (errorInfo - '') */
 export const HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY = 'hostFolderError_pathExistsButNotDirectory'
