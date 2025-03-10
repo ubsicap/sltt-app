@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { canWriteToFolder, finalizeHostFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
@@ -124,7 +124,13 @@ describe('canWriteToFolder', () => {
     })
 })
 
-describe('finalizeHostFolder', () => {
+describe('finalizeHostFolder - win32', () => {
+    beforeAll(() => {
+        vi.mocked(path.normalize).mockImplementation((path: string) => path.replace(/\//g, '\\'))
+        vi.mocked(path.join).mockImplementation((...paths: string[]) => paths.join('\\'))
+        vi.mocked(platform).mockReturnValue('win32')
+    })
+    
     it('should return the same path if it already ends with the required folder', () => {
         const hostFolder = 'C:\\sltt-app\\lan'
         const result = finalizeHostFolder(hostFolder)
