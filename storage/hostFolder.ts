@@ -1,11 +1,12 @@
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
-import { CanWriteToFolderResponse, LoadHostFolderResponse, SaveHostFolderResponse } from './hostFolder.d'
+import { CanWriteToFolderResponse, HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER, HOST_FOLDER_ERROR_CODE_EXTENSION_IS_NOT_ALLOWED_IN_FOLDER, HOST_FOLDER_ERROR_CODE_FULL_DRIVE_PATH_REQUIRED, HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY, HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR, HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR, LoadHostFolderResponse, SaveHostFolderResponse } from './hostFolder.d'
 import { platform } from 'os'
 import { checkHostStoragePath, serverState, setLANStoragePath, SLTT_APP_LAN_FOLDER } from './serverState'
 import { normalize } from 'path'
 import disk from 'diskusage'
 import { isNodeError } from './utils'
+import { stringify as safeStableStringify} from 'safe-stable-stringify'
 
 
 export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
@@ -82,18 +83,22 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
         // Check if the normalizedFolder has an extension
         const ext = path.extname(normalizedFolder)
         if (ext) {
-            return { error: `Extension is not allowed in folder path:` + ` "${ext}"`, diskUsage }
+            return { errorCode: HOST_FOLDER_ERROR_CODE_EXTENSION_IS_NOT_ALLOWED_IN_FOLDER, errorInfo: ext, diskUsage }
         }
 
         if (!path.isAbsolute(normalizedFolder)) {
-            return { error: `Full drive path required.`, diskUsage };
+            return { errorCode: HOST_FOLDER_ERROR_CODE_FULL_DRIVE_PATH_REQUIRED, errorInfo: '', diskUsage };
         }
 
         try {
             checkHostStoragePath(normalizedFolder, false)
             diskUsage = await disk.check(normalizedFolder)
         } catch(err: unknown) {
-            return { error: (err as Error).message, diskUsage }
+            return {
+                errorCode: HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR,
+                errorInfo: ((err as Error).message || safeStableStringify(err)),
+                diskUsage 
+            }
         }
 
         // Check if the folder exists
@@ -101,10 +106,10 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
         if (stats.isDirectory()) {
             // Folder exists, check write permissions by creating a temporary file
             await createTempFile(normalizedFolder)
-            return { error: '', diskUsage }
+            return { errorCode: '', errorInfo: '', diskUsage }
         } else {
             console.error(`Path exists but is not a directory: ${folderPath}`)
-            return { error: `Path exists but is not a directory.`, diskUsage }
+            return { errorCode: HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY, errorInfo: '', diskUsage }
         }
     } catch (err: unknown) {
         if (isNodeError(err) && err.code === 'ENOENT') {
@@ -115,14 +120,22 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
                 await createTempFile(folderPath)
                 // Clean up by removing the created folder
                 await rmdir(folderPath)
-                return { error: '', diskUsage }
-            } catch (mkdirErr) {
+                return { errorCode: '', errorInfo: '', diskUsage }
+            } catch (mkdirErr: unknown) {
                 console.error(`Write permission error: ${folderPath}`, mkdirErr)
-                return { error: `Write permission error.`, diskUsage }
+                return {
+                    errorCode: HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR,
+                    errorInfo: (mkdirErr as Error).message || safeStableStringify(mkdirErr),
+                    diskUsage
+                }
             }
         } else {
             console.error(`Error accessing folder: ${folderPath}`, err)
-            return { error: `Error accessing folder.`, diskUsage }
+            return {
+                errorCode: HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER,
+                errorInfo: (err as Error).message || safeStableStringify(err),
+                diskUsage
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ import { checkHostStoragePath, serverState, setLANStoragePath } from './serverSt
 import { isNodeError } from './utils'
 import { platform } from 'os'
 import { normalize } from 'path'
+import { HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER, HOST_FOLDER_ERROR_CODE_EXTENSION_IS_NOT_ALLOWED_IN_FOLDER, HOST_FOLDER_ERROR_CODE_FULL_DRIVE_PATH_REQUIRED, HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY, HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR, HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR } from './hostFolder.d'
 
 vi.mock('os')
 vi.mock('fs/promises')
@@ -42,7 +43,8 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('Extension is not allowed in folder path: ".txt"')
+        expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_EXTENSION_IS_NOT_ALLOWED_IN_FOLDER)
+        expect(result.errorInfo).toBe('.txt')
         expect(result.diskUsage).toBeUndefined()
     })
 
@@ -51,7 +53,8 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('Full drive path required.')
+        expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_FULL_DRIVE_PATH_REQUIRED)
+        expect(result.errorInfo).toBe('')
         expect(result.diskUsage).toBeUndefined()
     })
 
@@ -63,7 +66,8 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe(errorMessage)
+        expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR)
+        expect(result.errorInfo).toBe(errorMessage)
         expect(result.diskUsage).toBeUndefined()
     })
 
@@ -72,18 +76,20 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('Path exists but is not a directory.')
+        expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY)
+        expect(result.errorInfo).toBe('')
         expect(result.diskUsage).toBe(diskUsageMock)
     })
 
     it('should return error if folder does not exist and cannot be created', async () => {
         const mkdirError = new Error('Mkdir error')
-        vi.mocked(stat).mockRejectedValue(new Error('ENOENT'))
+        vi.mocked(stat).mockRejectedValue(new MockedNodeError('ENOENT'))
         vi.mocked(mkdir).mockRejectedValue(mkdirError)
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('Error accessing folder.')
+        expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR)
+        expect(result.errorInfo).toBe(mkdirError.message)
         expect(result.diskUsage).toBe(diskUsageMock)
     })
 
@@ -94,7 +100,8 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('Error accessing folder.')
+        expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER)
+        expect(result.errorInfo).toBe(accessError.message)
         expect(result.diskUsage).toBe(diskUsageMock)
     })
 
@@ -103,7 +110,8 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('')
+        expect(result.errorCode).toBe('')
+        expect(result.errorInfo).toBe('')
         expect(result.diskUsage).toBe(diskUsageMock)
         expect(writeFile).toHaveBeenCalledWith(path.join(normalizedFolder, 'tempfile.tmp'), 'test')
         expect(unlink).toHaveBeenCalledWith(path.join(normalizedFolder, 'tempfile.tmp'))
@@ -115,7 +123,8 @@ describe('canWriteToFolder', () => {
 
         const result = await canWriteToFolder(folderPath)
 
-        expect(result.error).toBe('')
+        expect(result.errorCode).toBe('')
+        expect(result.errorInfo).toBe('')
         expect(result.diskUsage).toBe(diskUsageMock)
         expect(mkdir).toHaveBeenCalledWith(folderPath, { recursive: true })
         expect(writeFile).toHaveBeenCalledWith(path.join(folderPath, 'tempfile.tmp'), 'test')
