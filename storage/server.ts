@@ -92,8 +92,8 @@ app.post(`/${HOST_FOLDER_API_SAVE_HOST_FOLDER}`, verifyLocalhost, asyncHandler(a
 app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: CanWriteToFolderArgs = req.body
     const result = await canWriteToFolder(args.folderPath)
-    if (result.error) {
-        console.warn(`canWriteToFolder error: ${result.error}`)
+    if (result.errorCode) {
+        console.warn(`canWriteToFolder error: ${result.errorCode} - ${result.errorInfo}`)
     }
     res.json(result)
 }))

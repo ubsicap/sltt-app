@@ -189,7 +189,7 @@ describe('loadHostFolder', () => {
 
     it.each([
         {
-            platformValue: 'win32',
+            platformValue: 'win32' as NodeJS.Platform,
             normalizeFn: winNormalize,
             myLanStoragePath: 'C:/subfolder/sltt-app/lan',
             hostFolder: 'C:\\subfolder\\sltt-app\\lan',
@@ -197,7 +197,7 @@ describe('loadHostFolder', () => {
             requiredEnd: 'sltt-app\\lan'
         },
         {
-            platformValue: 'darwin',
+            platformValue: 'darwin' as NodeJS.Platform,
             normalizeFn: macNormalize,
             myLanStoragePath: '\\subfolder\\sltt-app\\lan',
             hostFolder: '/subfolder/sltt-app/lan',
@@ -205,7 +205,7 @@ describe('loadHostFolder', () => {
             requiredEnd: 'sltt-app/lan'
         },
         {
-            platformValue: 'win32',
+            platformValue: 'win32' as NodeJS.Platform,
             normalizeFn: winNormalize,
             myLanStoragePath: '',
             hostFolder: '',
@@ -213,7 +213,7 @@ describe('loadHostFolder', () => {
             requiredEnd: 'sltt-app\\lan'
         },
         {
-            platformValue: 'darwin',
+            platformValue: 'darwin' as NodeJS.Platform,
             normalizeFn: macNormalize,
             myLanStoragePath: '',
             hostFolder: '',

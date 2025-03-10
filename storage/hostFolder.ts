@@ -96,7 +96,7 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
         } catch(err: unknown) {
             return {
                 errorCode: HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR,
-                errorInfo: ((err as Error).message || safeStableStringify(err)),
+                errorInfo: (err as Error).message || safeStableStringify(err) || '',
                 diskUsage 
             }
         }
@@ -125,7 +125,7 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
                 console.error(`Write permission error: ${folderPath}`, mkdirErr)
                 return {
                     errorCode: HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR,
-                    errorInfo: (mkdirErr as Error).message || safeStableStringify(mkdirErr),
+                    errorInfo: (mkdirErr as Error).message || safeStableStringify(mkdirErr) || '',
                     diskUsage
                 }
             }
@@ -133,7 +133,7 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
             console.error(`Error accessing folder: ${folderPath}`, err)
             return {
                 errorCode: HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER,
-                errorInfo: (err as Error).message || safeStableStringify(err),
+                errorInfo: (err as Error).message || safeStableStringify(err) || '',
                 diskUsage
             }
         }
