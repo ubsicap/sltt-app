@@ -78,7 +78,7 @@ describe('canWriteToFolder', () => {
 
         expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY)
         expect(result.errorInfo).toBe('')
-        expect(result.diskUsage).toBe(diskUsageMock)
+        expect(result.diskUsage).toBeUndefined()
     })
 
     it('should return error if folder does not exist and cannot be created', async () => {
@@ -90,7 +90,7 @@ describe('canWriteToFolder', () => {
 
         expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR)
         expect(result.errorInfo).toBe(mkdirError.message)
-        expect(result.diskUsage).toBe(diskUsageMock)
+        expect(result.diskUsage).toBeUndefined()
     })
 
     it('should return error if there is an error accessing the folder', async () => {
@@ -102,7 +102,7 @@ describe('canWriteToFolder', () => {
 
         expect(result.errorCode).toBe(HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER)
         expect(result.errorInfo).toBe(accessError.message)
-        expect(result.diskUsage).toBe(diskUsageMock)
+        expect(result.diskUsage).toBeUndefined()
     })
 
     it('should return success if folder exists and is writable', async () => {
@@ -121,15 +121,15 @@ describe('canWriteToFolder', () => {
         vi.mocked(stat).mockRejectedValue(new MockedNodeError('ENOENT'))
         vi.mocked(mkdir).mockResolvedValue(undefined)
 
-        const result = await canWriteToFolder(folderPath)
+        const result = await canWriteToFolder(normalizedFolder)
 
         expect(result.errorCode).toBe('')
         expect(result.errorInfo).toBe('')
         expect(result.diskUsage).toBe(diskUsageMock)
-        expect(mkdir).toHaveBeenCalledWith(folderPath, { recursive: true })
-        expect(writeFile).toHaveBeenCalledWith(path.join(folderPath, 'tempfile.tmp'), 'test')
-        expect(unlink).toHaveBeenCalledWith(path.join(folderPath, 'tempfile.tmp'))
-        expect(rmdir).toHaveBeenCalledWith(folderPath)
+        expect(mkdir).toHaveBeenCalledWith(normalizedFolder, { recursive: true })
+        expect(writeFile).toHaveBeenCalledWith(path.join(normalizedFolder, 'tempfile.tmp'), 'test')
+        expect(unlink).toHaveBeenCalledWith(path.join(normalizedFolder, 'tempfile.tmp'))
+        expect(rmdir).toHaveBeenCalledWith(normalizedFolder)
     })
 })
 

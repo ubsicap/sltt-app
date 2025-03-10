@@ -75,11 +75,10 @@ const createTempFile = async (folderPath: string): Promise<void> => {
  * if the folder exists, then write a file to it and delete it
  */
 const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderResponse> => {
+    let normalizedFolder: string = normalize(folderPath.trim())
+    console.log(`canWriteToFolder: "${folderPath}" -> "${normalizedFolder}"`)
     let diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined = undefined
     try {
-        const normalizedFolder = normalize(folderPath.trim())
-        console.log(`canWriteToFolder: "${folderPath}" -> "${normalizedFolder}"`)
-        
         // Check if the normalizedFolder has an extension
         const ext = path.extname(normalizedFolder)
         if (ext) {
@@ -92,7 +91,6 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
 
         try {
             checkHostStoragePath(normalizedFolder, false)
-            diskUsage = await disk.check(normalizedFolder)
         } catch(err: unknown) {
             return {
                 errorCode: HOST_FOLDER_ERROR_CODE_UNKNOWN_ERROR,
@@ -106,23 +104,25 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
         if (stats.isDirectory()) {
             // Folder exists, check write permissions by creating a temporary file
             await createTempFile(normalizedFolder)
+            diskUsage = await disk.check(normalizedFolder)
             return { errorCode: '', errorInfo: '', diskUsage }
         } else {
-            console.error(`Path exists but is not a directory: ${folderPath}`)
+            console.error(`Path exists but is not a directory: ${normalizedFolder}`)
             return { errorCode: HOST_FOLDER_ERROR_CODE_PATH_EXISTS_BUT_NOT_DIRECTORY, errorInfo: '', diskUsage }
         }
     } catch (err: unknown) {
         if (isNodeError(err) && err.code === 'ENOENT') {
             // Folder does not exist, check if we can create it
             try {
-                await mkdir(folderPath, { recursive: true })
+                await mkdir(normalizedFolder, { recursive: true })
                 // Folder created successfully, check write permissions by creating a temporary file
-                await createTempFile(folderPath)
+                await createTempFile(normalizedFolder)
+                diskUsage = await disk.check(normalizedFolder)
                 // Clean up by removing the created folder
-                await rmdir(folderPath)
+                await rmdir(normalizedFolder)
                 return { errorCode: '', errorInfo: '', diskUsage }
             } catch (mkdirErr: unknown) {
-                console.error(`Write permission error: ${folderPath}`, mkdirErr)
+                console.error(`Write permission error: ${normalizedFolder}`, mkdirErr)
                 return {
                     errorCode: HOST_FOLDER_ERROR_CODE_WRITE_PERMISSION_ERROR,
                     errorInfo: (mkdirErr as Error).message || safeStableStringify(mkdirErr) || '',
@@ -130,7 +130,7 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
                 }
             }
         } else {
-            console.error(`Error accessing folder: ${folderPath}`, err)
+            console.error(`Error accessing folder: ${normalizedFolder}`, err)
             return {
                 errorCode: HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER,
                 errorInfo: (err as Error).message || safeStableStringify(err) || '',
