@@ -3,7 +3,7 @@ import { canWriteToFolder, finalizeHostFolder, loadHostFolder, saveHostFolder } 
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
 import disk from 'diskusage'
-import { checkHostStoragePath, serverState, setLANStoragePath, SLTT_APP_LAN_FOLDER } from './serverState'
+import { checkHostStoragePath, serverState, setLANStoragePath } from './serverState'
 import { isNodeError } from './utils'
 import { platform } from 'os'
 import { normalize } from 'path'
@@ -162,25 +162,77 @@ describe('finalizeHostFolder - win32', () => {
     })
 })
 
+function winNormalize(path: string): string {
+    return path.replace(/\//g, '\\')
+}
+
+function macNormalize(path: string): string {
+    return path.replace(/\\/g, '/')
+}
+
 describe('loadHostFolder', () => {
-    const defaultFolder = platform() === 'win32' ? 'C:\\sltt-app\\lan' : '/Users/Shared/sltt-app/lan'
-    const requiredEnd = normalize(SLTT_APP_LAN_FOLDER)
-    const hostFolder = '/test-folder'
     const diskUsageMock = { available: 1000, free: 2000, total: 3000 }
 
-    beforeEach(() => {
+    beforeAll(() => {
         vi.resetAllMocks()
-        serverState.myLanStoragePath = hostFolder
         vi.mocked(disk.check).mockResolvedValue(diskUsageMock)
     })
 
-    it('should return the correct response when disk check is successful', async () => {
+    it.each([
+        {
+            platformValue: 'win32',
+            normalizeFn: winNormalize,
+            myLanStoragePath: 'C:/subfolder/sltt-app/lan',
+            hostFolder: 'C:\\subfolder\\sltt-app\\lan',
+            defaultFolder: 'C:\\sltt-app\\lan',
+            requiredEnd: 'sltt-app\\lan'
+        },
+        {
+            platformValue: 'darwin',
+            normalizeFn: macNormalize,
+            myLanStoragePath: '\\subfolder\\sltt-app\\lan',
+            hostFolder: '/subfolder/sltt-app/lan',
+            defaultFolder: '/Users/Shared/sltt-app/lan',
+            requiredEnd: 'sltt-app/lan'
+        },
+        {
+            platformValue: 'win32',
+            normalizeFn: winNormalize,
+            myLanStoragePath: '',
+            hostFolder: '',
+            defaultFolder: 'C:\\sltt-app\\lan',
+            requiredEnd: 'sltt-app\\lan'
+        },
+        {
+            platformValue: 'darwin',
+            normalizeFn: macNormalize,
+            myLanStoragePath: '',
+            hostFolder: '',
+            defaultFolder: '/Users/Shared/sltt-app/lan',
+            requiredEnd: 'sltt-app/lan'
+        }
+    ])('should return the correct response when disk check is successful - $platformValue $hostFolder', async ({
+        platformValue, normalizeFn, myLanStoragePath, hostFolder, defaultFolder, requiredEnd
+    }: {
+        platformValue: NodeJS.Platform, normalizeFn: (path: string) => string, myLanStoragePath: string, hostFolder: string, defaultFolder: string, requiredEnd: string
+    }) => {
+        vi.mocked(platform).mockReturnValue(platformValue)
+        vi.mocked(normalize).mockImplementation(normalizeFn)
+        serverState.myLanStoragePath = myLanStoragePath
         const result = await loadHostFolder()
         expect(result).toEqual({ hostFolder, defaultFolder, requiredEnd, diskUsage: diskUsageMock })
     })
 
     it('should return the correct response when disk check fails', async () => {
+        const platformValue = 'win32'
+        const myLanStoragePath = 'C:/subfolder/sltt-app/lan'
+        const hostFolder = 'C:\\subfolder\\sltt-app\\lan'
+        const defaultFolder = 'C:\\sltt-app\\lan'
+        const requiredEnd = 'sltt-app\\lan'
+        vi.mocked(normalize).mockImplementation(winNormalize)
+        vi.mocked(platform).mockReturnValue(platformValue)
         vi.mocked(disk.check).mockRejectedValue(new Error('Disk check error'))
+        serverState.myLanStoragePath = myLanStoragePath
         const result = await loadHostFolder()
         expect(result).toEqual({ hostFolder, defaultFolder, requiredEnd, diskUsage: undefined })
     })
@@ -190,10 +242,10 @@ describe('saveHostFolder', () => {
     const hostFolder = 'C:\\sltt-app'
     const finalFolder = 'C:\\sltt-app\\lan'
 
-    beforeEach(() => {
-        vi.resetAllMocks()
-        vi.mocked(finalizeHostFolder).mockReturnValue(finalFolder)
-        vi.mocked(mkdir).mockResolvedValue(undefined)
+    beforeAll(() => {
+        vi.mocked(path.normalize).mockImplementation((path: string) => path.replace(/\//g, '\\'))
+        vi.mocked(path.join).mockImplementation((...paths: string[]) => paths.join('\\'))
+        vi.mocked(platform).mockReturnValue('win32')
     })
 
     it('should save the host folder and return the correct response', async () => {
