@@ -210,7 +210,7 @@ app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandl
     const args: RetrieveBlobArgs = req.body
     const result = await handleRetrieveBlob(getBlobsPath(), args)
     if (result) {
-        console.log(`retrieveBlob buffer size: ${result.length}`)
+        console.log(`retrieveBlob (${args.blobId}) buffer size: ${result.length}`)
         res.type('application/octet-stream').send(result)
     } else {
         res.json(null)
