@@ -6,6 +6,8 @@ export const CONNECTIONS_API_ADD_STORAGE_PROJECT = 'addStorageProject'
 export const CONNECTIONS_API_REMOVE_STORAGE_PROJECT = 'removeStorageProject'
 export const CONNECTIONS_API_GET_STORAGE_PROJECTS = 'getStorageProjects'
 
+export const MIN_DISK_SPACE_MB = 50
+
 export type StartUdpArgs = { clientId: string }
 export type StartUdpResponse = { message: 'ok' }
 

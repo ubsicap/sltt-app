@@ -3,7 +3,7 @@ import { constants, ensureDir } from 'fs-extra'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 import { fileURLToPath } from 'url'
-import { AddStorageProjectArgs, ConnectionInfo, ConnectResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
+import { AddStorageProjectArgs, ConnectionInfo, ConnectResponse, GetStorageProjectsArgs, GetStorageProjectsResponse, MIN_DISK_SPACE_MB, ProbeConnectionsArgs, ProbeConnectionsResponse, RemoveStorageProjectArgs } from './connections.d'
 import { checkHostStoragePath, createUrl, getAmHosting, getHostsByRelevance, getLANStoragePath, HostInfo, serverState, SLTT_APP_LAN_FOLDER } from './serverState'
 import axios from 'axios'
 import { broadcastPushHostDataMaybe } from './udp'
@@ -15,8 +15,6 @@ import { isNodeError } from './utils'
 wifi.init({
     iface: null
 })
-
-export const MIN_DISK_SPACE_MB = 50
 
 const wifiGetCurrentConnections = promisify(wifi.getCurrentConnections)
 
