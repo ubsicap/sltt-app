@@ -115,6 +115,9 @@ app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
     if (getAmHosting()) {
         startAllUdpMessaging()
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
+    } else {
+        // remove from my hosts. (Other computers will take 10 seconds to expire me)
+        delete serverState.hosts[serverState.myServerId]
     }
     const response: SetAllowHostingResponse = { ok: true }
     res.json(response)
