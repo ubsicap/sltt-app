@@ -56,6 +56,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
             const errMessage = (error as Error).message
             console.error('asyncHandler error:', errMessage)
             res.status(400).json({ error: errMessage })
+            return
         })
     }
 }
@@ -168,8 +169,9 @@ function verifyLocalhostUnlessHosting(req: express.Request, res: express.Respons
         // look for custom header that indicates intended serverId
         const serverId = req.headers['x-sltt-app-storage-server-id']
         if (serverId !== serverState.myServerId) {
-            console.error(`Forbidden: "${req.headers.host}" from "${req.ip}". Expected serverId "${serverState.myServerId}" but got "${serverId}"`)
+            console.error(`Forbidden: "${req.headers.host}://${req.originalUrl}" from "${req.ip}". Expected serverId "${serverState.myServerId}" but got "${serverId}"`)
             res.status(403).json({ error: 'Forbidden' })
+            return
         }
         next()
         return
