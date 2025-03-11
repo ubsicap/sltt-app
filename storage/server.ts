@@ -209,7 +209,11 @@ app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, a
 app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveBlobArgs = req.body
     const result = await handleRetrieveBlob(getBlobsPath(), args)
-    res.json(result)
+    if (result) {
+        res.type('application/octet-stream').send(result)
+    } else {
+        res.json(null)
+    }
 }))
 
 app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.single('blob'), asyncHandler(async (req, res) => {
