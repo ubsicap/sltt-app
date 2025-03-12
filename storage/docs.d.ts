@@ -16,7 +16,7 @@ export type StoreRemoteDocsResponse = { lastSeq: number, storedCount: number, er
 type Spot = { bytePosition: number, modDate: string }
 export type RemoteSpot = { seq: number } & Spot
 export type SaveRemoteSpotsArgs = { clientId: string, project: string, spots: { [spotKey: string]: RemoteSpot } }
-export type SaveRemoteSpotsResponse = { message: 'ok' }
+export type SaveRemoteSpotsResponse = { ok: boolean }
 
 export type GetRemoteSpotsArgs = { clientId: string, project: string }
 export type GetRemoteSpotsResponse = { [key: string]: RemoteSpot } | Record<string, never>
@@ -36,7 +36,7 @@ export type RetrieveLocalClientDocsArgs = { clientId: string, localClientId: str
 export type RetrieveLocalClientDocsResponse<TDoc> = { localDocs: LocalDoc<TDoc>[], spot: LocalSpot }
 
 export type SaveLocalSpotsArgs = { clientId: string, project: string, spots: { [spotKey: string]: LocalSpot[] } }
-export type SaveLocalSpotsResponse = { message: 'ok' }
+export type SaveLocalSpotsResponse = { ok: boolean }
 
 export type GetLocalSpotsArgs = { clientId: string, project: string }
 export type GetLocalSpotsResponse = { [key: string]: LocalSpot[] } | Record<string, never>

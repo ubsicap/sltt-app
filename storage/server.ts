@@ -7,18 +7,18 @@ import { hostname, tmpdir } from 'os'
 import { createUrl, getAmHosting, getLANStoragePath, serverState, setLANStoragePath, setProxy } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
-import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, CONNECTIONS_API_START_UDP, StartUdpResponse } from './connections.d'
+import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, CONNECTIONS_API_START_UDP, StartUdpResponse, RemoveStorageProjectResponse, AddStorageProjectResponse, ProbeConnectionsResponse, GetStorageProjectsResponse } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
-import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveAllBlobIdsArgs, RetrieveBlobArgs, StoreBlobArgs } from './blobs.d'
+import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
 import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob } from './blobs'
 import { handleRegisterClientUser } from './clients'
-import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetRemoteSpotsArgs, GetStoredLocalClientIdsArgs, RetrieveLocalClientDocsArgs, RetrieveRemoteDocsArgs, SaveLocalSpotsArgs, SaveRemoteSpotsArgs, StoreLocalDocsArgs, StoreRemoteDocsArgs } from './docs.d'
-import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs } from './clients.d'
-import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs } from './vcrs.d'
+import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, GetRemoteSpotsResponse, GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveLocalSpotsResponse, SaveRemoteSpotsArgs, SaveRemoteSpotsResponse, StoreLocalDocsArgs, StoreLocalDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
+import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs, RegisterClientUserResponse } from './clients.d'
+import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs, ListVcrFilesResponse, RetrieveVcrsResponse } from './vcrs.d'
 import { startUdpClient, broadcastPushHostDataMaybe, startHostExpirationTimer, startPushHostDataUpdating } from './udp'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
-import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING } from './hostFolder.d'
+import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING, GetAllowHostingResponse, CanWriteToFolderResponse, LoadHostFolderResponse } from './hostFolder.d'
 
 
 const startAllUdpMessaging = () => {
@@ -78,7 +78,7 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
 }
 
 app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (_, res) => {
-    const response = await loadHostFolder()
+    const response: LoadHostFolderResponse = await loadHostFolder()
     res.json(response)
 }))
 
@@ -92,15 +92,15 @@ app.post(`/${HOST_FOLDER_API_SAVE_HOST_FOLDER}`, verifyLocalhost, asyncHandler(a
 
 app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: CanWriteToFolderArgs = req.body
-    const result = await canWriteToFolder(args.folderPath)
-    if (result.errorCode) {
-        console.warn(`canWriteToFolder error: ${result.errorCode} - ${result.errorInfo}`)
+    const response: CanWriteToFolderResponse = await canWriteToFolder(args.folderPath)
+    if (response.errorCode) {
+        console.warn(`canWriteToFolder error: ${response.errorCode} - ${response.errorInfo}`)
     }
-    res.json(result)
+    res.json(response)
 }))
 
 app.post(`/${HOST_FOLDER_API_GET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(async (_, res) => {
-    const response: { allowHosting: boolean } = { allowHosting: serverState.allowHosting }
+    const response: GetAllowHostingResponse = { allowHosting: serverState.allowHosting }
     res.json(response)
 }))
 
@@ -126,8 +126,8 @@ app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
 
 app.post(`/${CONNECTIONS_API_START_UDP}`, verifyLocalhost, asyncHandler(async (_, res) => {
     startAllUdpMessaging()
-    const result: StartUdpResponse = { message: 'ok' }
-    res.json(result)
+    const response: StartUdpResponse = { ok: true }
+    res.json(response)
 }))
 
 app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, res) => {
@@ -137,8 +137,8 @@ app.post(`/${CONNECTIONS_API_PROBE}`, verifyLocalhost, asyncHandler(async (req, 
     if (getAmHosting()) {
         broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     }
-    const result = await handleProbeConnections(args)
-    res.json(result)
+    const response: ProbeConnectionsResponse = await handleProbeConnections(args)
+    res.json(response)
 }))
 
 app.post(`/${CONNECTIONS_API_CONNECT}`, verifyLocalhost, asyncHandler(async (req, res) => {
@@ -184,36 +184,38 @@ function verifyLocalhostUnlessHosting(req: express.Request, res: express.Respons
 
 app.post(`/${CONNECTIONS_API_GET_STORAGE_PROJECTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: GetStorageProjectsArgs = req.body
-    const result = await handleGetStorageProjects(args)
-    res.json(result)
+    const response: GetStorageProjectsResponse = await handleGetStorageProjects(args)
+    res.json(response)
 }))
 
 app.post(`/${CONNECTIONS_API_ADD_STORAGE_PROJECT}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: AddStorageProjectArgs = req.body
     await handleAddStorageProject(args)
-    res.json({ message: 'ok' })
+    const response: AddStorageProjectResponse = { ok: true }
+    res.json(response)
 }))
 
 app.post(`/${CONNECTIONS_API_REMOVE_STORAGE_PROJECT}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RemoveStorageProjectArgs = req.body
     await handleRemoveStorageProject(args)
-    res.json({ message: 'ok' })
+    const response: RemoveStorageProjectResponse = { ok: true }
+    res.json(response)
 }))
 
 app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RegisterClientUserArgs = req.body
-    const result = await handleRegisterClientUser(getClientsPath(), args)
-    res.json(result)
+    const response: RegisterClientUserResponse = await handleRegisterClientUser(getClientsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveBlobArgs = req.body
-    const result = await handleRetrieveBlob(getBlobsPath(), args)
-    if (result) {
-        console.log(`retrieveBlob (${args.blobId}) buffer size: ${result.length}`)
-        res.type('application/octet-stream').send(result)
+    const response: RetrieveBlobResponse = await handleRetrieveBlob(getBlobsPath(), args)
+    if (response) {
+        console.log(`retrieveBlob (${args.blobId}) buffer size: ${response.length}`)
+        res.type('application/octet-stream').send(response)
     } else {
-        res.json(null)
+        res.json(response)
     }
 }))
 
@@ -227,86 +229,88 @@ app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.s
         blobId: origArgs.blobId,
         file: origArgs.blob as File,
     }
-    const result = await handleStoreBlob(getBlobsPath(), args)
-    res.json(result)
+    const response: StoreBlobResponse = await handleStoreBlob(getBlobsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveAllBlobIdsArgs = req.body
-    const result = await handleRetrieveAllBlobIds(getBlobsPath(), args)
-    res.json(result)
+    const response: RetrieveAllBlobIdsResponse = await handleRetrieveAllBlobIds(getBlobsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${VIDEO_CACHE_RECORDS_API_STORE_VCR}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: StoreVcrArgs = req.body
-    const result = await storeVcr(getVcrsPath(), args)
-    res.json(result)
+    const response: StoreBlobResponse = await storeVcr(getVcrsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: ListVcrFilesArgs = req.body
-    const result = await listVcrFiles(getVcrsPath(), args)
-    res.json(result)
+    const response: ListVcrFilesResponse = await listVcrFiles(getVcrsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveVcrsArgs = req.body
-    const result = await retrieveVcrs(getVcrsPath(), args)
-    res.json(result)
+    const response: RetrieveVcrsResponse = await retrieveVcrs(getVcrsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_STORE_REMOTE_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: StoreRemoteDocsArgs<IDBModDoc> = req.body
-    const result = await handleStoreRemoteDocs(getDocsPath(), args)
-    res.json(result)
+    const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(getDocsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_RETRIEVE_REMOTE_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveRemoteDocsArgs = req.body
-    const result = await handleRetrieveRemoteDocs(getDocsPath(), args)
-    res.json(result)
+    const response: RetrieveRemoteDocsResponse<IDBModDoc> = await handleRetrieveRemoteDocs(getDocsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_SAVE_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: SaveRemoteSpotsArgs = req.body
     await handleSaveRemoteSpots(getDocsPath(), args)
-    res.json({ message: 'ok' })
+    const response: SaveRemoteSpotsResponse = { ok: true }
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_GET_REMOTE_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: GetRemoteSpotsArgs = req.body
-    const result = await handleGetRemoteSpots(getDocsPath(), args)
-    res.json(result)
+    const response: GetRemoteSpotsResponse = await handleGetRemoteSpots(getDocsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_STORE_LOCAL_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: StoreLocalDocsArgs<IDBModDoc> = req.body
-    const result = await handleStoreLocalDocs(getDocsPath(), args)
-    res.json(result)
+    const response: StoreLocalDocsResponse = await handleStoreLocalDocs(getDocsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_GET_STORED_LOCAL_CLIENT_IDS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: GetStoredLocalClientIdsArgs = req.body
-    const result = await handleGetStoredLocalClientIds(getDocsPath(), args)
-    res.json(result)
+    const response: GetStoredLocalClientIdsResponse = await handleGetStoredLocalClientIds(getDocsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveLocalClientDocsArgs = req.body
-    const result = await handleRetrieveLocalClientDocs(getDocsPath(), args)
-    res.json(result)
+    const response: RetrieveLocalClientDocsResponse<IDBModDoc> = await handleRetrieveLocalClientDocs(getDocsPath(), args)
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_SAVE_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: SaveLocalSpotsArgs = req.body
     await handleSaveLocalSpots(getDocsPath(), args)
-    res.json({ message: 'ok' })
+    const response: SaveLocalSpotsResponse = { ok: true }
+    res.json(response)
 }))
 
 app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: GetLocalSpotsArgs = req.body
-    const result = await handleGetLocalSpots(getDocsPath(), args)
-    res.json(result)
+    const response: GetLocalSpotsResponse = await handleGetLocalSpots(getDocsPath(), args)
+    res.json(response)
 }))
 
 export const startStorageServer = async (configFilePath: string): Promise<void> => {

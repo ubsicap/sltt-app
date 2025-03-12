@@ -9,16 +9,16 @@ export const CONNECTIONS_API_GET_STORAGE_PROJECTS = 'getStorageProjects'
 export const MIN_DISK_SPACE_MB = 50
 
 export type StartUdpArgs = { clientId: string }
-export type StartUdpResponse = { message: 'ok' }
+export type StartUdpResponse = { ok: boolean }
 
 export type GetStorageProjectsArgs = { clientId: string }
 export type GetStorageProjectsResponse = string[]
 
 export type AddStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
-export type AddStorageProjectResponse = { message: 'ok' }
+export type AddStorageProjectResponse = { ok: boolean }
 
 export type RemoveStorageProjectArgs = { clientId: string, project: string, adminEmail: string }
-export type RemoveStorageProjectArgs = { message: 'ok' }
+export type RemoveStorageProjectResponse = { ok: boolean }
 
 type DiskUsage = { available: number, free: number, total: number }
 
