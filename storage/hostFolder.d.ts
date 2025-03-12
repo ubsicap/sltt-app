@@ -35,7 +35,7 @@ export type CanWriteToFolderResponse = {
 
 export type LoadHostFolderResponse = { hostFolder: string, defaultFolder: string, requiredEnd: string, diskUsage: DiskUsage | undefined }
 
-export type SaveHostFolderArgs = { hostFolder: string }
+export type SaveHostFolderArgs = { clientId: string, hostFolder: string }
 export type SaveHostFolderResponse = { finalHostFolder: string }
 
 export type SetAllowHostingArgs = { clientId: string, allowHosting: boolean }

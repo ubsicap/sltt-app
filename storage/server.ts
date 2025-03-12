@@ -85,7 +85,9 @@ app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(a
 app.post(`/${HOST_FOLDER_API_SAVE_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: SaveHostFolderArgs = req.body
     const response: SaveHostFolderResponse = await saveHostFolder(args.hostFolder)
+    setLANStoragePath(args.hostFolder)
     await saveServerSettings(configSettingsPath, serverState)
+    broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     res.json(response)
 }))
     
