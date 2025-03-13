@@ -270,7 +270,7 @@ export const pruneExpiredHosts = () => {
     // instead of host.updatedAt, find my host peer updatedAt, since it uses my clock
     for (const host of Object.values(serverState.hosts)) {
         const myPeer = host.peers[serverState.myServerId]
-        if (myPeer && myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs) {
+        if (!myPeer || (myPeer && myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs)) {
             console.log('Removing expired host: ', host.serverId)
             delete serverState.hosts[host.serverId]
         }
