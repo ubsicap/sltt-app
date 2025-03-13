@@ -12,7 +12,10 @@ import { stringify as safeStableStringify} from 'safe-stable-stringify'
 export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
     const defaultFolder = platform() === 'win32' ? 'C:\\sltt-app\\lan' : '/Users/Shared/sltt-app/lan'
     const requiredEnd = normalize(SLTT_APP_LAN_FOLDER)
-    const hostFolder = normalize(serverState.myLanStoragePath)
+    if (!normalize(defaultFolder).endsWith(requiredEnd)) {
+        throw new Error(`Default folder does not end with required end: ${defaultFolder} -> ${requiredEnd}`)
+    }
+    const hostFolder = serverState.myLanStoragePath ? normalize(serverState.myLanStoragePath) : ''
     let diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined = undefined
     try {
         diskUsage = await disk.check(hostFolder || defaultFolder)

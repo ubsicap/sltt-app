@@ -172,10 +172,12 @@ describe('finalizeHostFolder - win32', () => {
 })
 
 function winNormalize(path: string): string {
+    if (!path) return '.'
     return path.replace(/\//g, '\\')
 }
 
 function macNormalize(path: string): string {
+    if (!path) return '.'
     return path.replace(/\\/g, '/')
 }
 
