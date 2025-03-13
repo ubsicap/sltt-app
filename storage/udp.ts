@@ -33,7 +33,7 @@ type PushHostInfoResponse = {
     isClient: boolean,
 }
 
-type ClientMessage = {
+export type ClientMessage = {
     client: {
         serverId: string,
         startedAt: string,
@@ -114,34 +114,37 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
         console.log('Ignoring own message:', JSON.stringify(clientData.message, null, 2))
         return
     }
-    console.log(`Client received message from '${rinfo.address}:${rinfo.port}': "${msg}`)
+    console.log(`Client received message '${message.id}' from '${rinfo.address}:${rinfo.port}':\n\t${msg}`)
     if (message.id === MSG_PUSH_HOST_INFO) {
         if (message.type === 'push') {
             const { port, projects, peers, diskUsage }: PushHostInfoBroadcast = JSON.parse(message.json)
             const hostServerId = client.serverId
             const hostUpdatedAt = message.createdAt
-            const protocol = 'http'
-            const updatedHost: HostInfo = {
-                serverId: hostServerId,
-                protocol,
-                ip: rinfo.address,
-                port,
-                user: client.user,
-                startedAt: client.startedAt,
-                updatedAt: hostUpdatedAt,
-                computerName: client.computerName,
-                peers,
-                projects,
-                diskUsage,
+            if (hostServerId === serverState.myServerId || peers[serverState.myServerId] !== undefined) {
+                // don't add other hosts until they have my peer info since that's used to determine if they are expired
+                const protocol = 'http'
+                const updatedHost: HostInfo = {
+                    serverId: hostServerId,
+                    protocol,
+                    ip: rinfo.address,
+                    port,
+                    user: client.user,
+                    startedAt: client.startedAt,
+                    updatedAt: hostUpdatedAt,
+                    computerName: client.computerName,
+                    peers,
+                    projects,
+                    diskUsage,
+                }
+                serverState.hosts[client.serverId] = updatedHost
+                serverState.hostProjects = new Set(projects)
+                console.log(`Host URL is: ${createUrl(protocol, rinfo.address, port)}`)
+                console.log('Host serverId:', updatedHost.serverId)
+                console.log('Host computer name:', updatedHost.computerName)
+                console.log('Host started at:', updatedHost.startedAt)
+                console.log('Host projects:', projects)
+                console.log('Host peers:', JSON.stringify(peers, null, 2))
             }
-            serverState.hosts[client.serverId] = updatedHost
-            serverState.hostProjects = new Set(projects)
-            console.log(`Host URL is: ${createUrl(protocol, rinfo.address, port)}`)
-            console.log('Host serverId:', updatedHost.serverId)
-            console.log('Host computer name:', updatedHost.computerName)
-            console.log('Host started at:', updatedHost.startedAt)
-            console.log('Host projects:', projects)
-            console.log('Host peers:', JSON.stringify(peers, null, 2))
             // respond (as a peer) with our own local ip address and port information
             const payload: PushHostInfoResponse = {
                 port: getServerConfig().port, hostServerId, hostUpdatedAt,
@@ -269,9 +272,10 @@ export const pruneExpiredHosts = () => {
     // for each host, check if updatedAt is expired
     // instead of host.updatedAt, find my host peer updatedAt, since it uses my clock
     for (const host of Object.values(serverState.hosts)) {
+        const isMyHost = host.serverId === serverState.myServerId
+        const shouldRemoveMyHost = isMyHost && !getAmHosting()
         const myPeer = host.peers[serverState.myServerId]
-        if (Object.values(host.peers).length === 0 ||
-            myPeer && myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs) {
+        if (shouldRemoveMyHost || !isMyHost && (myPeer === undefined || myPeer.updatedAt && now - new Date(myPeer.updatedAt).getTime() > peerExpirationMs)) {
             console.log('Removing expired host: ', host.serverId)
             delete serverState.hosts[host.serverId]
         }
