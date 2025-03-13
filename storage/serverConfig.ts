@@ -35,7 +35,7 @@ export const loadServerSettings = async (configPath: string): Promise<ServerSett
     try {
         const exists = await pathExists(configPath)
         if (!exists) {
-            console.error(`Server settings file not found: ${configPath}`)
+            console.warn(`Server settings file not found: ${configPath}`)
             return { ...initialServerConfig }
         }
         const settings = await readJson(configPath)
