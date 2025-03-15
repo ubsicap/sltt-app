@@ -19,10 +19,13 @@ import { startUdpClient, broadcastPushHostDataMaybe, startHostExpirationTimer, s
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING, GetAllowHostingResponse, CanWriteToFolderResponse, LoadHostFolderResponse } from './hostFolder.d'
+import { reportToRollbar } from '../services/rollbar'
 
 
+let udpState: ReturnType<typeof startUdpClient> | undefined = undefined
 const startAllUdpMessaging = () => {
-    startUdpClient()
+    if (reportToRollbar) throw new Error('Test rollbar error')
+    udpState = startUdpClient()
     startHostExpirationTimer()
     startPushHostDataUpdating(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
 }
@@ -55,6 +58,14 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
         fn(req, res, next).catch((error: unknown) => {
             const errMessage = (error as Error).message
             console.error('asyncHandler error:', errMessage)
+            reportToRollbar({ error: error as Error, custom: {
+                context: 'storage/server: asyncHandler',
+                serverState,
+                serverConfig,
+                udpState,
+                req,
+                res,
+            } })
             res.status(400).json({ error: errMessage })
             return
         })
@@ -316,27 +327,44 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHand
 }))
 
 export const startStorageServer = async (configFilePath: string): Promise<void> => {
-    await loadServerSettings(configFilePath).then(async (settings) => {
-        configSettingsPath = configFilePath
-        let needsToSave = false
-        if (!settings.myServerId) {
-            serverState.myServerId = `${hostname()}__${new Date().toISOString()}`
-            needsToSave = true
-        } else {
-            serverState.myServerId = settings.myServerId
-        }
-        serverState.allowHosting = settings.allowHosting
-        setLANStoragePath(settings.myLanStoragePath)
-        if (needsToSave) {
-            await saveServerSettings(configFilePath, serverState)
-        }
-        if (getAmHosting()) {
-            console.log('Starting UDP messaging to allowHosting')
-            startAllUdpMessaging()
-            broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
-        }
-        app.listen(PORT, () => {
-            console.log(`Storage server is running localhost port ${PORT}`)
+    try {
+        await loadServerSettings(configFilePath).then(async (settings) => {
+            configSettingsPath = configFilePath
+            let needsToSave = false
+            if (!settings.myServerId) {
+                serverState.myServerId = `${hostname()}__${new Date().toISOString()}`
+                needsToSave = true
+            } else {
+                serverState.myServerId = settings.myServerId
+            }
+            serverState.allowHosting = settings.allowHosting
+            setLANStoragePath(settings.myLanStoragePath)
+            if (needsToSave) {
+                await saveServerSettings(configFilePath, serverState)
+            }
+            if (getAmHosting()) {
+                console.log('Starting UDP messaging to allowHosting')
+                startAllUdpMessaging()
+                broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
+            }
+            app.listen(PORT, () => {
+                console.log(`Storage server is running localhost port ${PORT}`)
+            })
         })
-    })
+    } catch (error) {
+        reportToRollbar({ error: error as Error, custom: {
+            context: 'storage/server: startStorageServer',
+            serverState,
+            serverConfig,
+            udpState,
+            configFilePath,
+        } })
+        reportToRollbar({ error: error as Error, custom: {
+            context: 'storage/server: startStorageServer',
+            serverState,
+            serverConfig,
+            udpState,
+            configFilePath,
+        } })
+    }
 }
