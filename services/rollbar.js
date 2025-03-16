@@ -1,9 +1,9 @@
-import Rollbar from 'rollbar'
-import Bottleneck from 'bottleneck'
+const Rollbar = require('rollbar')
+const Bottleneck = require('bottleneck')
 
-let rollbarInstance: Rollbar | undefined = undefined
+let rollbarInstance = undefined
 
-export const setupRollbar = ({ accessToken, environment, version, host }): void => {
+const setupRollbar = ({ accessToken, environment, version, host })  => {
     if (rollbarInstance) {
         console.error('Rollbar already initialized')
         return
@@ -35,11 +35,6 @@ const errorBatcher = new Bottleneck.Batcher({
     maxTime: MAX_TIME_MS, // 1 second
 })
 
-type ErrorReport = {
-    error: Error
-    custom: Object
-}
-
 function createChecksum(input) {
     let checksum = 0
     for (let i = 0; i < input.length; i++) {
@@ -55,7 +50,7 @@ errorBatcher.on('batch', async (batch) => {
         console.error('Rollbar not initialized')
     }
 
-    const errors = batch.map((report: ErrorReport) => {
+    const errors = batch.map((report) => {
         const err = report.error
         const custom = report.custom
         return {
@@ -91,10 +86,16 @@ errorBatcher.on('batch', async (batch) => {
     rollbarInstance?.critical(batchMessage, firstReport.error)
 })
 
-export const reportToRollbar = ({ error, custom }: ErrorReport): void => {
+const reportToRollbar = ({ error, custom }) => {
     if (!rollbarInstance) {
         console.error('Rollbar not initialized')
         return
     }
     errorBatcher.add({ error, custom })
 }
+
+module.exports = {
+    default: { setupRollbar, reportToRollbar },    
+    setupRollbar,
+    reportToRollbar,
+};

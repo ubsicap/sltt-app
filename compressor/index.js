@@ -8,7 +8,7 @@ const util = require('util')
 const checkDiskSpace = require('check-disk-space')
 let { VideoCompressor, progressMap } = require('./src/VideoCompressor')
 const _config = require('./src/config')
-// const { reportToRollbar } = require('../services/rollbar')
+const { reportToRollbar } = require('../services/rollbar')
 
 const port = 29678
 
@@ -248,10 +248,10 @@ app.use((error, req, res, next) => {
         return next(error)
     }
     let statusCode = error.statusCode || 500
-    // reportToRollbar(error, {
-    //     context: 'compressor',
-    //     req, res
-    // })
+    reportToRollbar(error, {
+        context: 'compressor',
+        req, res
+    })
     let errorMessage = error.stack || error
     console.error(`${statusCode}: ${errorMessage}`)
     console.error('')   // line between error messages

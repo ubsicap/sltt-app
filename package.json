@@ -86,6 +86,7 @@
     "fluent-ffmpeg": "^2.1.2",
     "formidable": "^1.2.2",
     "fs-extra": "^11.2.0",
+    "lodash": "^4.17.21",
     "multer": "^1.4.5-lts.1",
     "node-wifi": "^2.0.16",
     "rollbar": "^2.26.4",
@@ -94,6 +95,7 @@
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron/notarize": "^1.2.3",
+    "@rollup/plugin-commonjs": "^28.0.3",
     "@types/lodash": "^4.17.7",
     "@types/node": "18.0.0",
     "@types/react": "18.0.30",

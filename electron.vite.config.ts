@@ -1,10 +1,11 @@
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
+import commonjs from '@rollup/plugin-commonjs';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), commonjs()],
     build: {
       rollupOptions: {
         input: {
@@ -14,7 +15,7 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()]
+    plugins: [externalizeDepsPlugin(), commonjs()]
   },
   renderer: {
     logLevel: 'info',
@@ -23,7 +24,7 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [react()],
+    plugins: [react(), commonjs()],
     build: {
       rollupOptions: {
         input: {
