@@ -68,7 +68,7 @@ errorBatcher.on('batch', async (batch) => {
 
     if (errors.length === 1) {
         console.error('Error for Rollbar:\n\t', JSON.stringify(firstReport, null, 2))
-        rollbarInstance?.configure({ payload: { title: undefined, custom: firstReport.custom, errors: [] } })
+        rollbarInstance?.configure({ payload: { fingerprint: undefined, custom: firstReport.custom, errors: [] } })
         rollbarInstance?.error(firstReport.error)
         return
     }
@@ -87,7 +87,7 @@ errorBatcher.on('batch', async (batch) => {
     const isDuplicateMessages = errors.every((error, _, array) => error.error.message === array[0].error.message)
     const truncatedSummary = `${errors[0].error.message.slice(0, 50)}...${errors.slice(-1)[0].error.message.slice(-50)}`
     const batchMessage = `[${errorChecksum}] Batched ${errors.length} ${isDuplicateMessages ? 'duplicate': ''} errors within ${(MAX_TIME_MS / 1000).toFixed(1)}s: ${truncatedSummary}`
-    rollbarInstance?.configure({ payload: { custom: batchedPayload, errors: batchedPayload.errors } })
+    rollbarInstance?.configure({ payload: { fingerprint: errorChecksum, custom: batchedPayload, errors: batchedPayload.errors } })
     rollbarInstance?.critical(batchMessage, firstReport.error)
 })
 

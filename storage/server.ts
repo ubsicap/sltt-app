@@ -23,8 +23,8 @@ import { reportToRollbar } from '../services/rollbar'
 
 
 let udpState: ReturnType<typeof startUdpClient> | undefined = undefined
+
 const startAllUdpMessaging = () => {
-    if (reportToRollbar) throw new Error('Test rollbar error')
     udpState = startUdpClient()
     startHostExpirationTimer()
     startPushHostDataUpdating(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
@@ -352,19 +352,14 @@ export const startStorageServer = async (configFilePath: string): Promise<void> 
             })
         })
     } catch (error) {
-        reportToRollbar({ error: error as Error, custom: {
-            context: 'storage/server: startStorageServer',
-            serverState,
-            serverConfig,
-            udpState,
-            configFilePath,
-        } })
-        reportToRollbar({ error: error as Error, custom: {
-            context: 'storage/server: startStorageServer',
-            serverState,
-            serverConfig,
-            udpState,
-            configFilePath,
-        } })
+        reportToRollbar({
+            error: error as Error, custom: {
+                context: 'storage/server: startStorageServer',
+                serverState,
+                serverConfig,
+                udpState,
+                configFilePath,
+            }
+        })
     }
 }
