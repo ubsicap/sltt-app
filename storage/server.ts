@@ -51,7 +51,8 @@ debug && app.use((req, res, next) => {
 })
 
 function logRequest(req: express.Request): void {
-    const clientId = req.body['clientId']
+    const clientId = req.body?.clientId
+    if (req.method === 'OPTIONS' && !clientId) return
     console.log(`req [${req.ip} ${clientId ?? 'xxxx'}] (${req.headers.host}) ${req.method} ${req.originalUrl}`)
 }
 
