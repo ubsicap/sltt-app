@@ -80,6 +80,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
                 serverState,
                 serverConfig,
                 udpState,
+                clientId,
                 req: {
                     ip: req.ip,
                     method: req.method,
