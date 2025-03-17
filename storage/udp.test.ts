@@ -220,7 +220,7 @@ describe('UDP Client', () => {
             serverId: 'my-server-id',
             peers: host2Peers
         } as HostInfo
-        serverState.allowHosting = false
+        (getAmHosting as Mock).mockReturnValue(false)
         pruneExpiredHosts()
         expect(serverState.hosts).toEqual({})
     })
