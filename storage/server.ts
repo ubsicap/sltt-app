@@ -20,7 +20,7 @@ import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID }
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING, GetAllowHostingResponse, CanWriteToFolderResponse, LoadHostFolderResponse } from './hostFolder.d'
 import { reportToRollbar } from '../services/rollbar'
-
+import { stringify as safeStableStringify } from 'safe-stable-stringify'
 
 let udpState: ReturnType<typeof startUdpClient> | undefined = undefined
 
@@ -74,13 +74,20 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
         fn(req, res, next).catch((error: unknown) => {
             const errMessage = (error as Error).message
             console.error('asyncHandler error:', errMessage)
+            const clientId = req.body?.clientId
             reportToRollbar({ error: error as Error, custom: {
                 context: 'storage/server: asyncHandler',
                 serverState,
                 serverConfig,
                 udpState,
-                req,
-                res,
+                req: {
+                    ip: req.ip,
+                    method: req.method,
+                    originalUrl: req.originalUrl,
+                    isFile: req.file ? true : false,
+                    body: safeStableStringify(req.body),
+                    headers: safeStableStringify(req.headers),
+                },
             } })
             res.status(400).json({ error: errMessage })
             return
@@ -97,6 +104,12 @@ function verifyLocalhost(req: express.Request, res: express.Response, next: expr
     res.status(403).json({ error: 'Forbidden' })
 }
 
+app.post(`/${CONNECTIONS_API_START_UDP}`, verifyLocalhost, asyncHandler(async (_, res) => {
+    startAllUdpMessaging()
+    const response: StartUdpResponse = { ok: true }
+    res.json(response)
+}))
+
 app.post(`/${HOST_FOLDER_API_LOAD_HOST_FOLDER}`, verifyLocalhost, asyncHandler(async (_, res) => {
     const response: LoadHostFolderResponse = await loadHostFolder()
     res.json(response)
@@ -110,7 +123,6 @@ app.post(`/${HOST_FOLDER_API_SAVE_HOST_FOLDER}`, verifyLocalhost, asyncHandler(a
     broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: args.clientId }))
     res.json(response)
 }))
-    
 
 app.post(`/${HOST_FOLDER_API_CAN_WRITE_TO_FOLDER}`, verifyLocalhost, asyncHandler(async (req, res) => {
     const args: CanWriteToFolderArgs = req.body
@@ -142,13 +154,6 @@ app.post(`/${HOST_FOLDER_API_SET_ALLOW_HOSTING}`, verifyLocalhost, asyncHandler(
         delete serverState.hosts[serverState.myServerId]
     }
     const response: SetAllowHostingResponse = { ok: true }
-    res.json(response)
-}))
-
-
-app.post(`/${CONNECTIONS_API_START_UDP}`, verifyLocalhost, asyncHandler(async (_, res) => {
-    startAllUdpMessaging()
-    const response: StartUdpResponse = { ok: true }
     res.json(response)
 }))
 

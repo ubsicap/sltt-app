@@ -8,7 +8,9 @@ const util = require('util')
 const checkDiskSpace = require('check-disk-space')
 let { VideoCompressor, progressMap } = require('./src/VideoCompressor')
 const _config = require('./src/config')
-const { reportToRollbar } = require('../services/rollbar')
+const { stringify: safeStableStringify } = require('safe-stable-stringify')
+
+let reportToRollbar = () => {}
 
 const port = 29678
 
@@ -39,6 +41,7 @@ app.get('/ffmpeg/stats', async (req, res, next) => {
     const { ffmpegPath, srcFfmpegPath } = _config
     const stat = util.promisify(fs.stat)
     try {
+        throw new Error('Test rollbar error #3')
         const ffmpegOldStats = await stat(srcFfmpegPath)
         const ffmpegStats = await stat(ffmpegPath)
         res.send({
@@ -248,17 +251,33 @@ app.use((error, req, res, next) => {
         return next(error)
     }
     let statusCode = error.statusCode || 500
-    reportToRollbar(error, {
-        context: 'compressor',
-        req, res
-    })
     let errorMessage = error.stack || error
     console.error(`${statusCode}: ${errorMessage}`)
     console.error('')   // line between error messages
+    reportToRollbar({
+        error,
+        custom: {
+            context: 'compressor',
+            req: {
+                ip: req.ip,
+                method: req.method,
+                originalUrl: req.originalUrl,
+                body: safeStableStringify(req.body),
+                headers: safeStableStringify(req.headers),
+                query: safeStableStringify(req.query),
+            },
+            res: {
+                statusCode,
+            }
+        }
+    })
     return res.status(statusCode).json({ error: error.toString() })
 })
 
-async function startServer() {
+async function startServer(fnReportToRollbar) {
+    if (fnReportToRollbar) {
+        reportToRollbar = fnReportToRollbar
+    }
     await initialize()
     app.listen(port, () => {
         console.log(`Server is running on http://localhost:${port}`)
@@ -376,4 +395,21 @@ async function createVersionFile() {
     })
 }
 
-startServer()
+module.exports = { startServer }
+if (require.main === module) {
+    if (!process.env.ROLLBAR_ACCESS_TOKEN) {
+        console.error('Missing environment variable ROLLBAR_ACCESS_TOKEN')
+        process.exit
+    }
+    const { setupRollbar, reportToRollbar } = require('../services/rollbar')
+    const isDev = process.env.NODE_ENV === 'development'
+    const env = isDev ? 'dev' : 'prod'
+    const config = {
+        accessToken: process.env.ROLLBAR_ACCESS_TOKEN,
+        environment: `${env}.compressor`,
+        version: _config.version,
+        host: 'compressor',
+    }
+    setupRollbar(config)
+    startServer(reportToRollbar)
+}
