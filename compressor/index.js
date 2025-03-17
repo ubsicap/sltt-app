@@ -251,12 +251,14 @@ app.use((error, req, res, next) => {
     }
     let statusCode = error.statusCode || 500
     let errorMessage = error.stack || error
+    const clientId = req.headers['client-id']
     console.error(`${statusCode}: ${errorMessage}`)
     console.error('')   // line between error messages
     reportToRollbar({
         error,
         custom: {
             context: 'compressor',
+            clientId,
             req: {
                 ip: req.ip,
                 method: req.method,
