@@ -41,7 +41,6 @@ app.get('/ffmpeg/stats', async (req, res, next) => {
     const { ffmpegPath, srcFfmpegPath } = _config
     const stat = util.promisify(fs.stat)
     try {
-        throw new Error('Test rollbar error #3')
         const ffmpegOldStats = await stat(srcFfmpegPath)
         const ffmpegStats = await stat(ffmpegPath)
         res.send({
