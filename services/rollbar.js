@@ -12,6 +12,9 @@ const setupRollbar = ({ accessToken, environment, version, host })  => {
         accessToken,
         captureUncaught: true,
         captureUnhandledRejections: true,
+        autoInstrument: {
+            log: true,
+        },
         payload: {
             environment,
             host,
@@ -89,6 +92,14 @@ errorBatcher.on('batch', async (batch) => {
 const reportToRollbar = ({ error, custom }) => {
     if (!rollbarInstance) {
         console.error('Rollbar not initialized')
+        return
+    }
+    if (!error) {
+        console.error('No error to report to Rollbar')
+        return
+    }
+    if (!custom) {
+        console.error('No custom data to report to Rollbar')
         return
     }
     errorBatcher.add({ error, custom })
