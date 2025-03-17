@@ -20,7 +20,7 @@
     "start": "electron-vite preview",
     "test": "npm i && vitest",
     "dev": "npm i && electron-vite dev",
-    "build": "cross-env ROLLBAR_ACCESS_TOKEN=%ROLLBAR_ACCESS_TOKEN% BUILD_ENV=prd npm run typecheck && electron-vite build",
+    "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "ls:version:source": "dir %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
     "find:version:source": "findstr /S /M /C:\"version = \\\"2.65.7\\\"\" %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
