@@ -40,6 +40,21 @@ const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUploa
 
 console.log('storage server port: ', PORT)
 
+const debug = true
+
+// Log request/response
+debug && app.use((req, res, next) => {
+    res.on('finish', () => {
+        logRequest(req)
+    })
+    next()
+})
+
+function logRequest(req: express.Request): void {
+    const clientId = req.body['clientId']
+    console.log(`req [${req.ip} ${clientId ?? 'xxxx'}] (${req.headers.host}) ${req.method} ${req.originalUrl}`)
+}
+
 app.use(cors())
 app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
@@ -72,14 +87,7 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
     }
 }
 
-function logRequest(req: express.Request): void {
-    const clientId = req.body['clientId']
-    console.log(`req [${req.ip} ${clientId ?? 'xxxx'}] (${req.headers.host}) ${req.method} ${req.originalUrl}`)
-}
-
-
 function verifyLocalhost(req: express.Request, res: express.Response, next: express.NextFunction): void {
-    logRequest(req)
     if (req.headers.host === `localhost:${PORT}`) {
         next()
         return
@@ -181,7 +189,6 @@ app.post(`/${CONNECTIONS_API_CONNECT}`, verifyLocalhost, asyncHandler(async (req
 
 function verifyLocalhostUnlessHosting(req: express.Request, res: express.Response, next: express.NextFunction): void {
     if (serverState.allowHosting && !req.headers.host.startsWith('localhost:')) {
-        logRequest(req)
         // look for custom header that indicates intended serverId
         const serverId = req.headers['x-sltt-app-storage-server-id']
         if (serverId !== serverState.myServerId) {
