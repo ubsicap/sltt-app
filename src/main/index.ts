@@ -115,7 +115,7 @@ app.whenReady().then(() => {
 
   createWindow()
 
-  autoUpdater.forceDevUpdateConfig = true;
+  // autoUpdater.forceDevUpdateConfig = true
 
   // Uncomment next 2 lines to step thru the autoUpdater logic in the debugger
   // autoUpdater.checkForUpdatesAndNotify()
