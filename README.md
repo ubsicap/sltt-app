@@ -55,17 +55,21 @@ $ git clone https://github.com/ubsicap/sltt.git sltt
 2. Build the `sltt` client source pages
 ```bash
 $ cd sltt/client
-$ yarn install
-$ yarn build:dev:sltt-app:client // or build:prd:sltt-app:client
+$ git checkout dev; git pull     # OR git checkout main   
+$ npm install        # DON'T use yarn install
+$ yarn build:dev:sltt-app:client # or build:prd:sltt-app:client
 ```
 
-3. Set the `SLTT_CLIENT_PATH` environment variable to the `sltt/client` directory
+3. Set the `SLTT_CLIENT_DIR` environment variable to the `sltt/client` directory
 
 ```bash
-$ set SLTT_CLIENT_PATH={path to sltt repo sltt/client} # For windows 
+$ set SLTT_CLIENT_DIR={path to sltt repo sltt/client} # For windows 
 ```
 
 4. Bump the `package.json` version number
+
+Find the client version number in the build/assets/index-*.js.
+It will look like this: const version = "2.63.11";
 
 The package.json version number is used to create the release tag and version number in the file name, and to check client version code to match our build expectations in step 5 below. For example, if the version number is `206311.4.5`, then it will expect to find a version number matching `2.63.11` in the client source code built from step 4. The `4.51 part is the version number is the sltt-app version number. In semantic versioning terms: `4.5` is `major.minor|patch` where the major part represents something breaking between the client and the electron code, and minor|patch are combined to get bumped for something new or something fixed.
 
@@ -79,10 +83,13 @@ Also, the release tag will be `v206311.4.5` and the file name will be `sltt-app 
 
 5. Copy the build `sltt/client/build` to the `sltt-app` `out/client` directory
 
-This step will also verify that the client version number matches the expected version number in step 4 above.
+On Windows, this step will also verify that the client version number matches the expected version number in step 4 above.
 
 ```bash
-$ yarn copy:build:client # uses the `%SLTT_CLIENT_PATH%` environment variable from step 1.3
+# For Windows
+$ yarn copy:build:client # uses the `%SLTT_CLIENT_DIR%` environment variable from step 1.3
+# For Mac
+$ yarn copy:mac:client # uses the `%SLTT_CLIENT_DIR%` environment variable from step 1.3
 ```
 
 6. Add a commit message that summarizes the release
@@ -99,22 +106,30 @@ $ git push
 Before publishing the new installer, test the new installer to make sure it works as expected. For example:
 
 ```bash
-# For windows
+# For Windows
 $ npm run build:win:norelease
+# For Mac
+$ npm run build:mac:norelease
 ```
 
 The installer will be located in the `dist` directory. For example, `dist/sltt-app Setup 206311.4.5.exe`.
 
-### Publish release to Github
+### Publish release to Github (WINDOWS)
 
 1. Set the personal access token (PAT) for the Github account
 
 $ set SLTT_APP_PAT={https://github.com/settings/tokens/new?scopes=public_repo&description=sltt-app}
 
+nlm - I was not able to auto generate the PAT as above.
+I had to
+- go to the link above in my browser
+- authenticate to github
+- add a line to my .zshrc: export GH_TOKEN="ghp_pixfz5Z..."
+
 2. Run the `build:win:release script` For example:
 
 ```bash
-$ yarn build:win:release   
+$ yarn build:win:release   # OR yarn build:mac:release
 yarn run v1.22.19
 warning package.json: No license field
 $ npm run build && cross-env GH_TOKEN=%SLTT_APP_PAT% electron-builder --win --config --publish always
@@ -168,6 +183,32 @@ vite v4.3.3 building for production...
 Done in 55.90s.
 ```
 
-# Building Releases for Mac
+### Publish release to Github (Mac)
 
-Discussion of process [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)
+Assumes that the corresponding Windows release HAS already been published in GitHub:
+
+```bash
+$ cd sltt/client
+$ git checkout dev; git pull     # OR git checkout main   
+$ npm install        # DON'T use yarn install
+$ yarn build:dev:sltt-app:client # or build:prd:sltt-app:client
+
+$ cd sltt-app
+$ yarn copy:mac:client
+$ yarn list:release  # find tag for current release
+
+# verify "version" in package.json is set to current release
+
+$ yarn show:release   # verify version is set to current release
+$ yarn build:mac:norelease  # build installer but don't upload
+
+# install dist/sltt-app-${version}.dmg and test
+
+$ yarn upload:mac:release
+$ yarn show:release   # verify files uploaded correctly
+
+# should trigger auto update process for users
+```
+
+
+Notes on Building Releases for Mac: [HERE](https://docs.google.com/document/d/1Qk-bz-uRPBThCXs2rRfNnr4QIxsC3yNlM_e7eMjGGHs/edit?usp=sharing)

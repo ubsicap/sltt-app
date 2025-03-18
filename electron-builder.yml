@@ -42,6 +42,7 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+# Publish info here is overwritten by the package.json file
 publish:
   provider: generic
   url: https://example.com/auto-updates
