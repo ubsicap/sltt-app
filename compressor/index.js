@@ -8,6 +8,9 @@ const util = require('util')
 const checkDiskSpace = require('check-disk-space')
 let { VideoCompressor, progressMap } = require('./src/VideoCompressor')
 const _config = require('./src/config')
+const { stringify: safeStableStringify } = require('safe-stable-stringify')
+
+let reportToRollbar = () => {}
 
 const port = 29678
 
@@ -248,12 +251,34 @@ app.use((error, req, res, next) => {
     }
     let statusCode = error.statusCode || 500
     let errorMessage = error.stack || error
+    const clientId = req.headers['client-id']
     console.error(`${statusCode}: ${errorMessage}`)
     console.error('')   // line between error messages
+    reportToRollbar({
+        error,
+        custom: {
+            context: 'compressor',
+            clientId,
+            req: {
+                ip: req.ip,
+                method: req.method,
+                originalUrl: req.originalUrl,
+                body: safeStableStringify(req.body),
+                headers: safeStableStringify(req.headers),
+                query: safeStableStringify(req.query),
+            },
+            res: {
+                statusCode,
+            }
+        }
+    })
     return res.status(statusCode).json({ error: error.toString() })
 })
 
-async function startServer() {
+async function startServer(fnReportToRollbar) {
+    if (fnReportToRollbar) {
+        reportToRollbar = fnReportToRollbar
+    }
     await initialize()
     app.listen(port, () => {
         console.log(`Server is running on http://localhost:${port}`)
@@ -371,4 +396,21 @@ async function createVersionFile() {
     })
 }
 
-startServer()
+module.exports = { startServer }
+if (require.main === module) {
+    if (!process.env.ROLLBAR_ACCESS_TOKEN) {
+        console.error('Missing environment variable ROLLBAR_ACCESS_TOKEN')
+        process.exit
+    }
+    const { setupRollbar, reportToRollbar } = require('../services/rollbar')
+    const isDev = process.env.NODE_ENV === 'development'
+    const env = isDev ? 'dev' : 'prod'
+    const config = {
+        accessToken: process.env.ROLLBAR_ACCESS_TOKEN,
+        environment: `${env}.compressor`,
+        version: _config.version,
+        host: 'compressor',
+    }
+    setupRollbar(config)
+    startServer(reportToRollbar)
+}

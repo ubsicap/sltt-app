@@ -14,7 +14,7 @@ let path = require('path')
 // http://localhost:29678/ffmpeg/stats
 
 const tmpDirectory = path.join(os.tmpdir(), '/sltt-app/server-29678')
-console.log(`sltt-app server temp directory: ${tmpDirectory}`)
+console.log(`sltt-app compressor server temp directory: ${tmpDirectory}`)
 
 const resourcesPath = path.join(tmpDirectory, '/resources')
 const videosPath = path.join(tmpDirectory, '/videos')
@@ -36,6 +36,6 @@ console.log(`srcFfmpegPath: ${srcFfmpegPath}`)
 const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
 
 const version = '2.0.0'
-console.log(`sltt-app server version: ${version}`)
+console.log(`sltt-app compressor server version: ${version}`)
 
 module.exports = { resourcesPath, videosPath, srcFfmpegPath, ffmpegPath, version, platform }

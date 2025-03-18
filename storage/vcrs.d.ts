@@ -7,7 +7,7 @@ export type VideoCacheRecord = {
     uploadeds: boolean[]
 }
 
-export type StoreVcrArgs = { clientId: string, videoCacheRecord: VideoCacheRecord }
+export type StoreVcrArgs = { clientId: string, videoCacheRecord: VideoCacheRecord, batchMaxTime?: number, batchMaxSize?: number }
 export type StoreVcrResponse = { fullPath: string }
 
 export function storeVcr(
