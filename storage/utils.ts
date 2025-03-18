@@ -1,6 +1,6 @@
 import { readJson, read, Stats, ensureFile, readdir } from 'fs-extra'
 import { promisify } from 'util'
-import { stat, open, readFile, writeFile } from 'fs/promises'
+import { stat, open } from 'fs/promises'
 import { resolve } from 'path'
 
 export function isNodeError(error: unknown): error is NodeJS.ErrnoException {
