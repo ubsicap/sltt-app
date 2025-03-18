@@ -4,7 +4,7 @@ import { readdir, appendFile, stat } from 'fs/promises'
 import { ensureDir, ensureFile, writeJson } from 'fs-extra'
 import { sortBy, uniqBy } from 'lodash'
 import { RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, GetRemoteSpotsResponse, SaveRemoteSpotsArgs, StoreRemoteDocsArgs, StoreRemoteDocsResponse, RetrieveLocalClientDocsResponse, RetrieveLocalClientDocsArgs, SaveLocalSpotsArgs, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, LocalDoc, StoreLocalDocsArgs, StoreLocalDocsResponse, GetStoredLocalClientIdsResponse, GetStoredLocalClientIdsArgs, LocalSpot } from './docs.d'
-import { readJsonCatchMissing, readLastBytes, readFromBytePosition } from './utils'
+import { readJsonCatchMissing, readLastBytes, readFromBytePosition, isNodeError } from './utils'
 
 // import { createHash } from 'crypto'
 // const createMd5Hash = (s: string): string => createHash('md5').update(s).digest('hex').toString()
@@ -43,7 +43,7 @@ export const handleStoreRemoteDocs = async (
     const remoteSeqDocsFile = join(fullFromPath, `remote.sltt-docs`)
     // read the last `000000000` characters from the file to get the last stored remoteSeq
     let lastStoredSeq = 0
-    let originalFileStats: Stats
+    let originalFileStats: Stats | undefined = undefined
     try {
         const { buffer: lastBytes, fileStats } = await readLastBytes(remoteSeqDocsFile, `${MAX_REMOTE_SEQ}`.length)
         originalFileStats = fileStats
@@ -53,8 +53,8 @@ export const handleStoreRemoteDocs = async (
         if (Number.isNaN(lastStoredSeq)) {
             throw Error(`lastBytes is NaN: ${lastBytes}`)
         }
-    } catch (error) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             // file doesn't exist, so it's the first sync
             console.log(`Remote file does not exist: ${remoteSeqDocsFile}`)
         } else {
@@ -77,8 +77,8 @@ export const handleStoreRemoteDocs = async (
     try {
         const newFileStats = await stat(remoteSeqDocsFile)
         newSize = newFileStats.size
-    } catch (error) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             // file doesn't exist, so it's the first sync
             console.log(`Remote file does not exist: ${remoteSeqDocsFile}`)
         } else {
@@ -136,7 +136,7 @@ export const handleGetRemoteSpots = async (
     { clientId, project }: GetRemoteSpotsArgs): Promise<GetRemoteSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, true)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
-    return readJsonCatchMissing<GetRemoteSpotsResponse, Record<string, never>>(spotsFile, {})
+    return await readJsonCatchMissing<GetRemoteSpotsResponse, Record<string, never>>(spotsFile, {})
 }
 
 export const EMPTY_STATUS = '  ' // two spaces
@@ -173,8 +173,8 @@ export const handleStoreLocalDocs = async (docsFolder: string, { clientId, proje
             const newLine = `${status}\t${Date.now()}\t${JSON.stringify(doc)}\n`
             await appendFile(clientDocsPath, newLine)
             counts++
-        } catch (error) {
-            console.error('An error occurred:', error.message)
+        } catch (error: unknown) {
+            console.error('An error occurred:', (error as Error).message)
             throw error
         }
     }
@@ -239,5 +239,5 @@ export const handleGetLocalSpots = async (
     { clientId, project }: GetLocalSpotsArgs): Promise<GetLocalSpotsResponse> => {
     const fullFromPath = buildDocFolder(docsFolder, project, false)
     const spotsFile = join(fullFromPath, `${clientId}.sltt-spots`)
-    return readJsonCatchMissing<GetLocalSpotsResponse, Record<string, never>>(spotsFile, {})
+    return await readJsonCatchMissing<GetLocalSpotsResponse, Record<string, never>>(spotsFile, {})
 }

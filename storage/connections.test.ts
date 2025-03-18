@@ -1,121 +1,139 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import path, { join } from 'path'
-import { tmpdir } from 'os'
-import { appendFile, mkdtemp, readFile } from 'fs/promises'
-import { ensureDir, remove } from 'fs-extra'
-import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections, handleConnectToUrl, SLTT_APP_LAN_FOLDER } from './connections'
-import { AddStorageProjectArgs, GetStorageProjectsArgs, RemoveStorageProjectArgs, ProbeConnectionsArgs, ConnectToUrlArgs } from './connections.d'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { handleGetStorageProjects, handleAddStorageProject, handleRemoveStorageProject, handleProbeConnections } from './connections'
+import { readFile, appendFile } from 'fs/promises'
+import { getLANStoragePath, getHostsByRelevance, serverState, HostInfo, createUrl } from './serverState'
+import { broadcastPushHostDataMaybe } from './udp'
+import { ProbeConnectionsResponse } from './connections.d'
 
-let tempDir: string
+vi.mock('fs/promises')
+vi.mock('./serverState')
+vi.mock('axios')
+vi.mock('./udp')
 
-beforeEach(async () => {
-    // Create a temporary directory for each test
-    tempDir = join(await mkdtemp(join(tmpdir(), 'connections-')), SLTT_APP_LAN_FOLDER)
-    await ensureDir(tempDir)
-})
+class MockedNodeError extends Error {
+    code: string
+    constructor(code: string) {
+        super()
+        this.code = code
+    }
+}
 
-afterEach(async () => {
-    // Clean up the temporary directory after each test
-    await remove(tempDir)
+beforeEach(() => {
+    vi.resetAllMocks()
+    serverState.hosts = {}
+    serverState.hostProjects = new Set()
+    serverState.allowHosting = false
+    serverState.myServerId = ''
+    serverState.myLanStoragePath = ''
 })
 
 describe('handleGetStorageProjects', () => {
-    it('should throw an error if the LAN storage path is not set', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: '' }
-        await expect(handleGetStorageProjects(args)).rejects.toThrow('LAN storage path is not set')
-    })
+    it.each([
+        { case: 'no whitelist', whitelistContent: undefined, expectedProjects: [] },
+        { case: 'empty whitelist', whitelistContent: '', expectedProjects: [] },
+        { case: 'added project1', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\n', expectedProjects: ['project1'] },
+        { case: 'removed project1', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\ntimestamp\t-\tproject1\tadminEmail\n', expectedProjects: [] },
+        { case: 'added project1, project2', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\ntimestamp\t+\tproject2\tadminEmail\n', expectedProjects: ['project1', 'project2'] },
+        { case: 'removed project1, added project2', whitelistContent: 'timestamp\t+\tproject1\tadminEmail\ntimestamp\t-\tproject1\tadminEmail\ntimestamp\t+\tproject2\tadminEmail\n', expectedProjects: ['project2'] },
+    ])('should return the list of storage projects - $case', async ({
+        whitelistContent,
+        expectedProjects
+    }: { whitelistContent: string | undefined, expectedProjects: string[] }) => {
+        const clientId = 'test-client'
+        const lanStoragePath = 'test-path'
+        vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
+        if (whitelistContent !== undefined) {
+            vi.mocked(readFile).mockResolvedValue(whitelistContent)
+        } else {
+            vi.mocked(readFile).mockRejectedValue(new MockedNodeError('ENOENT'))
+        }
+        const result = await handleGetStorageProjects({ clientId })
 
-    it('should throw an error if the LAN storage path is invalid', async () => {
-        const invalidPath = join(tempDir, 'invalid-path')
-        await ensureDir(invalidPath)
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: invalidPath }
-        await expect(handleGetStorageProjects(args)).rejects.toThrow(`LAN storage path is invalid: ${invalidPath}`)
-    })
-
-    it('should return an empty array if no projects are added', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString() }
-        const response = await handleGetStorageProjects(args)
-        expect(response).toEqual([])
-    })
-
-    it('should return added projects', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString() }
-        const project = 'project1'
-        const adminEmail = 'admin@example.com'
-        await appendFile(`${tempDir}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
-        const response = await handleGetStorageProjects(args)
-        expect(response).toEqual([project])
-    })
-
-    it('should not return removed projects', async () => {
-        const args: GetStorageProjectsArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString() }
-        const project = 'project1'
-        const adminEmail = 'admin@example.com'
-        await appendFile(`${tempDir}/whitelist.sltt-projects`, `${Date.now()}\t+\t${project}\t${adminEmail}\n`)
-        await appendFile(`${tempDir}/whitelist.sltt-projects`, `${Date.now()}\t-\t${project}\t${adminEmail}\n`)
-        const response = await handleGetStorageProjects(args)
-        expect(response).toEqual([])
+        expect(result).toEqual(expectedProjects)
+        expect(readFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, 'utf-8')
     })
 })
 
 describe('handleAddStorageProject', () => {
-    it('should add a project to the whitelist', async () => {
-        const args: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
-        await handleAddStorageProject(args)
-        const whitelistContent = await readFile(`${tempDir}/whitelist.sltt-projects`, 'utf-8')
-        expect(whitelistContent).toContain(`\t+\t${args.project}\t${args.adminEmail}\n`)
+    it('should add a new storage project', async () => {
+        const clientId = 'test-client'
+        const project = 'new-project'
+        const adminEmail = 'admin@example.com'
+        const lanStoragePath = 'test-path'
+        vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
+        vi.mocked(readFile).mockRejectedValue(new MockedNodeError('ENOENT'))
+
+        await handleAddStorageProject({ clientId, project, adminEmail })
+
+        expect(readFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, 'utf-8')
+        expect(appendFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, expect.stringContaining(`\t+\t${project}\t${adminEmail}\n`))
+        expect(broadcastPushHostDataMaybe).toHaveBeenCalled()
+    })
+
+    it('should not add an existing storage project', async () => {
+        const clientId = 'test-client'
+        const project = 'existing-project'
+        const adminEmail = 'admin@example.com'
+        const lanStoragePath = 'test-path'
+        vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
+        vi.mocked(readFile).mockResolvedValue('timestamp\t+\texisting-project\n')
+
+        await handleAddStorageProject({ clientId, project, adminEmail })
+
+        expect(readFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, 'utf-8')
+        expect(appendFile).not.toHaveBeenCalled()
+        expect(broadcastPushHostDataMaybe).not.toHaveBeenCalled()
     })
 })
 
 describe('handleRemoveStorageProject', () => {
-    it('should remove a project from the whitelist', async () => {
-        const addArgs: AddStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
-        await handleAddStorageProject(addArgs)
-        const removeArgs: RemoveStorageProjectArgs = { clientId: 'client1', url: pathToFileURL(tempDir).toString(), project: 'project1', adminEmail: 'admin@example.com' }
-        await handleRemoveStorageProject(removeArgs)
-        const whitelistContent = await readFile(`${tempDir}/whitelist.sltt-projects`, 'utf-8')
-        expect(whitelistContent).toContain(`\t-\t${removeArgs.project}\t${removeArgs.adminEmail}\n`)
+    it('should remove an existing storage project', async () => {
+        const clientId = 'test-client'
+        const project = 'existing-project'
+        const adminEmail = 'admin@example.com'
+        const lanStoragePath = 'test-path'
+        vi.mocked(getLANStoragePath).mockReturnValue(lanStoragePath)
+        vi.mocked(readFile).mockResolvedValue('timestamp\t+\texisting-project\n')
+
+        await handleRemoveStorageProject({ clientId, project, adminEmail })
+
+        expect(appendFile).toHaveBeenCalledWith(`${lanStoragePath}/whitelist.sltt-projects`, expect.stringContaining(`\t-\t${project}\t${adminEmail}\n`))
+        expect(broadcastPushHostDataMaybe).toHaveBeenCalled()
     })
 })
 
 describe('handleProbeConnections', () => {
-    it('should return accessible status for URLs', async () => {
-        const urls = [pathToFileURL(tempDir).href]
-        const args: ProbeConnectionsArgs = { clientId: 'client1' }
-        const response = await handleProbeConnections(tempDir, args)
-        expect(response).toEqual([{ url: urls[0], accessible: true }])
-    })
+    it.each([
+        { case: 'above minimum disk space', availableMb: 75, expectedAccessible: true },
+        { case: 'below minimum disk space', availableMb: 25, expectedAccessible: false },
+    ])('should return the list of connections - $case', async ({
+        availableMb, expectedAccessible
+    }: { availableMb: number, expectedAccessible: boolean }
+) => {
+        const clientId = 'test-client'
+        const username = 'user1'
+        const hostsByRelevance: HostInfo[] = [
+            {
+                serverId: 'server1', protocol: 'http', ip: '123.4.5.6', port: 12345, peers: {}, projects: [],
+                computerName: 'computer1', user: 'user1', startedAt: '2021-01-01', updatedAt: '2021-01-01',
+                diskUsage: { available: availableMb * 1024 * 1024, free: (availableMb + 50) * 1024 * 1024, total: 1000 * 1024 * 1024 },
+            },
+        ]
+        vi.mocked(createUrl).mockImplementation((protocol, ip, port) => `${protocol}://${ip}:${port}`)
+        vi.mocked(getHostsByRelevance).mockReturnValue(hostsByRelevance)
+        serverState.allowHosting = true
+        serverState.myServerId = 'server1'
+        serverState.myLanStoragePath = 'test-path'
+        serverState.myServerId = 'server1'
+        serverState.hosts['server1'] = hostsByRelevance[0]
 
-    it('should return inaccessible status for invalid URLs', async () => {
-        const urls = ['invalid-url']
-        const defaultUrl = pathToFileURL(tempDir).href
-        const args: ProbeConnectionsArgs = { urls, clientId: 'client1' }
-        const response = await handleProbeConnections(tempDir, args)
-        expect(response).toEqual([
-            { url: defaultUrl, accessible: true },
-            { url: urls[0], accessible: false, error: expect.any(String) }
-        ])
-    })
-})
-
-describe('handleConnectToUrl', () => {
-    it('should return the file path if accessible', async () => {
-        const url = pathToFileURL(tempDir).href
-        const args: ConnectToUrlArgs = { url, clientId: 'client1', project: 'project1' }
-        const response = await handleConnectToUrl(args)
-        expect(response).toEqual(fileURLToPath(url))
-    })
-
-    it('should throw an error if the URL is invalid', async () => {
-        const url = 'invalid-url'
-        const args: ConnectToUrlArgs = { url, clientId: 'client1', project: 'project1' }
-        await expect(handleConnectToUrl(args)).rejects.toThrow(`Connection path '${url}' is invalid due to error: `)
-    })
-
-    it('should throw an error if the file path is inaccessible', async () => {
-        const url = pathToFileURL(join(tempDir, 'non-existent-file')).href
-        const args: ConnectToUrlArgs = { url, clientId: 'client1', project: 'project1' }
-        await expect(handleConnectToUrl(args)).rejects.toThrow(`Connection path '${fileURLToPath(url)}' is inaccessible due to error: `)
+        const result: ProbeConnectionsResponse = await handleProbeConnections({ clientId, username })
+        expect(result).toHaveLength(1)
+        const { accessible, connectionInfo } = result[0]
+        expect(accessible).toBe(expectedAccessible)
+        expect(connectionInfo).not.toBeNull()
+        expect(connectionInfo.isMyServer).toBe(true)
+        expect(connectionInfo.user).toBe(username)
+        // expect(result).toMatchSnapshot()
     })
 })

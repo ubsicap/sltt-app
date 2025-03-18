@@ -1,7 +1,11 @@
 import { readJson, read, Stats, ensureFile, readdir } from 'fs-extra'
 import { promisify } from 'util'
-import { stat, open } from 'fs/promises'
+import { stat, open, readFile, writeFile } from 'fs/promises'
 import { resolve } from 'path'
+
+export function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+    return error instanceof Error && 'code' in error;
+}
 
 /**
  * from https://stackoverflow.com/a/45130990/24056785
@@ -18,15 +22,18 @@ export async function getFiles(dir: string, useForwardSlashes = false): Promise<
     return Array.prototype.concat(...files).map(file => useForwardSlashes ? file.replace(/\\/g, '/'): file)
 }
 
-export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault | undefined): Promise<T|TDefault> {
+/** NOTE: Please use await readJsonCatchMissing. Failing to do so can lead to 
+ * "Unexpected end of JSON input" errors when reading the json file contents.
+ */
+export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault): Promise<T|TDefault> {
     try {
         const contents = await readJson(filePath)
         return contents
-    } catch (error) {
-        if (error.code === 'ENOENT') {
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             return defaultValue
         } else {
-            console.error('An error occurred:', error.message)
+            console.error('An error occurred:', (error as Error).message)
             throw error
         }
     }
@@ -57,7 +64,7 @@ export async function readFromBytePosition(filePath: string, bytePosition: numbe
         // Close the file
         try {
             await fileHandle.close()
-        } catch (closeErr) {
+        } catch (closeErr: unknown) {
             console.error('Error closing file:', closeErr)
         }
     }
@@ -85,7 +92,7 @@ export async function readLastBytes(filePath: string, byteCount: number): Promis
     } finally {
         try {
             await fileHandle.close()
-        } catch (closeErr) {
+        } catch (closeErr: unknown) {
             console.error('Error closing file:', closeErr)
         }
     }
