@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "206701.5.6",
+  "version": "206701.5.7",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
