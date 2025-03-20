@@ -110,9 +110,9 @@ app.whenReady().then(() => {
         ) {
           toggleDevTools(win);
         }
-        // Handle Alt+W
-        if (input.key === 'w' && input.alt) {
-          console.log('Alt+w was pressed')
+        // Handle Ctrl+Shift+1
+        if (input.control && input.shift && input.key === '1') {
+          console.log('Ctrl+Shift+1 was pressed')
           // only create menus when Alt+W is pressed
           createMenu(win)
           // only show the menu if the window is focused
