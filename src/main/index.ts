@@ -103,8 +103,12 @@ app.whenReady().then(() => {
     win.webContents.on('before-input-event', (_event, input) => {
       if (input.type === 'keyDown') {
         // Toggle devtools with <F12> or <Ctrl+Shift+I>
-        if (input.code === 'F12' || (input.key === 'I' && input.control && input.shift)) {
-          toggleDevTools(win)
+        if (input.code === 'F12' || 
+          (input.key === 'I' && (
+            (process.platform === 'darwin' ? (input.meta && input.alt) : (input.control && input.shift))
+          ))
+        ) {
+          toggleDevTools(win);
         }
         // Handle Alt+W
         if (input.key === 'w' && input.alt) {
