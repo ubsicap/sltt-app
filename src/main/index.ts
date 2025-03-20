@@ -110,10 +110,8 @@ app.whenReady().then(() => {
         ) {
           toggleDevTools(win);
         }
-        // Handle Ctrl+Shift+1
-        if (input.control && input.shift && input.key === '1') {
-          console.log('Ctrl+Shift+1 was pressed')
-          // only create menus when Alt+W is pressed
+        // Open secret menu with <Alt+W> (win) or <Cmd+Shift+1> (macos)
+        if (process.platform === 'darwin' ? (input.control && input.shift && input.key === '1') : (input.key === 'w' && input.alt)) {
           createMenu(win)
           // only show the menu if the window is focused
           const menu = Menu.getApplicationMenu()
