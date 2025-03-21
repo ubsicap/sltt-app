@@ -49,8 +49,6 @@ function createWindow(partition?: string): BrowserWindow {
 
   win.webContents.setWindowOpenHandler(({ url, frameName, disposition, features, referrer, postBody }) => {
     console.log('window open handler', { url, frameName, disposition, features, referrer, postBody })
-    // This is the name we chose for our window. You can have multiple names for
-    // multiple windows and each have their options
     if (url.startsWith('about:blank')) {
       return {
         action: 'allow',
