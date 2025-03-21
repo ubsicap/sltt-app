@@ -52,7 +52,7 @@ function createWindow(partition?: string): BrowserWindow {
     // This is the name we chose for our window. You can have multiple names for
     // multiple windows and each have their options
     if (url.startsWith('about:blank')) {
-      return { action: 'allow' }
+      return { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true } }
     }
     shell.openExternal(url)
     return { action: 'deny' }
