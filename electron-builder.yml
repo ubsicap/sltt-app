@@ -12,6 +12,11 @@ files:
 asarUnpack:
   - resources/**
 afterSign: build/notarize.js
+protocols:
+  name: sltt-app protocol
+  schemes:
+    - sltt-app
+  role: Editor
 win:
   executableName: sltt-app
 nsis:
