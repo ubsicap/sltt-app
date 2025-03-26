@@ -19,8 +19,6 @@ setupRollbar({
 
 const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
 
-const windowsCreated: BrowserWindow[] = []
-
 function createWindow(partition?: string): BrowserWindow {
   const win = new BrowserWindow({
     width: 1400,
@@ -41,10 +39,6 @@ function createWindow(partition?: string): BrowserWindow {
 
   win.on('ready-to-show', () => {
     win.show()
-  })
-
-  win.on('close', () => {
-    windowsCreated.splice(windowsCreated.indexOf(win), 1)
   })
 
   win.webContents.setWindowOpenHandler(({ url, frameName, disposition, features, referrer, postBody }) => {
@@ -78,7 +72,13 @@ function createWindow(partition?: string): BrowserWindow {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
-  loadUrlOrFile(win)
+  const protocolUrl = process.argv.find(arg => arg.startsWith('sltt-app://'))
+  if (protocolUrl) {
+    console.log(`App launched with protocol URL: ${protocolUrl}`)
+    handleCustomProtocol(protocolUrl)
+  } else {
+    loadUrlOrFile(win)
+  }
 
   const { session: { webRequest } } = win.webContents
   webRequest.onBeforeRequest({
@@ -88,7 +88,6 @@ function createWindow(partition?: string): BrowserWindow {
     const { search } = urlParts
     loadUrlOrFile(win, search ? { search } : undefined)
   })
-  windowsCreated.push(win)
   return win
 }
 
@@ -96,6 +95,13 @@ function createWindow(partition?: string): BrowserWindow {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // Check if the app was launched with a protocol URL
+  const isDefaultProtocolClient = app.setAsDefaultProtocolClient('sltt-app')
+  if (isDefaultProtocolClient) {
+    console.log('Successfully registered sltt-app:// as a custom protocol.')
+  } else {
+    console.log('Failed to register sltt-app:// as a custom protocol.')
+  }
   ensureOneInstanceOfSlttAppAndCompressor()
   // Set app user model id for windows
   // const { build: { appId } } = require('./package.json')
@@ -182,7 +188,20 @@ function ensureOneInstanceOfSlttAppAndCompressor(): void {
     // launch compressor
     const { startServer } = require('../../compressor/index.js')
     startServer(reportToRollbar)
-    app.on('second-instance', () => {
+    // Handle custom protocol on macOS
+    app.on('open-url', (event, url) => {
+      event.preventDefault()
+      console.log(`Custom protocol link opened: ${url}`)
+      handleCustomProtocol(url)
+    })
+
+    app.on('second-instance', (_, argv) => {
+      const protocolUrl = argv.find(arg => arg.startsWith('sltt-app://'))
+      if (protocolUrl) {
+        console.log(`Second instance launched with protocol URL: ${protocolUrl}`)
+        handleCustomProtocol(protocolUrl)
+      }
+
       // Someone tried to run a second instance, we should focus our window.
       const allWindows = BrowserWindow.getAllWindows()
       if (allWindows.length) {
@@ -194,13 +213,30 @@ function ensureOneInstanceOfSlttAppAndCompressor(): void {
   }
 }
 
+const loadFilePath = join(__dirname, '../client/index.html')
+
 function loadUrlOrFile(mainWindow: BrowserWindow, options: LoadFileOptions | undefined = undefined): void {
   console.log({ isDev: is.dev, options })
   if (is.dev) {
     mainWindow.loadURL(`http://localhost:3000/${options?.search || ''}`)
   } else {
     // mainWindow.loadURL('https://sltt-bible.net')
-    mainWindow.loadFile(join(__dirname, '../client/index.html'), options)
+    mainWindow.loadFile(loadFilePath, options)
+  }
+}
+
+function handleCustomProtocol(url: string): void {
+  console.log(`Handling custom protocol: ${url}`)
+  const mainWindow = BrowserWindow.getAllWindows()[0]
+  if (mainWindow) {
+    // Parse the URL and extract query parameters
+    const parsedUrl = new URL(url)
+    const searchParams = parsedUrl.search // e.g., "?key=value"
+
+    // Reload the main window with the custom protocol URL as query parameters
+    mainWindow.loadFile(loadFilePath, {
+      search: searchParams, // Pass the query parameters to the renderer
+    })
   }
 }
 
