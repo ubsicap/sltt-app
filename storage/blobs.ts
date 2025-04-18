@@ -1,20 +1,58 @@
 import { ensureDir } from 'fs-extra'
-import { copyFile, readFile } from 'fs/promises'
+import { access, copyFile, readFile } from 'fs/promises'
 import { dirname, basename, join, posix } from 'path'
 import { RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
 
+const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
 
-export const handleRetrieveBlob = async (blobsPath, { blobId }: RetrieveBlobArgs ): Promise<RetrieveBlobResponse> => {
+/**
+ * find the full path of the blob file (if it exists). 
+ * Do Promise.race to check if the file exists in the ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder or the ${blobsPath}/{blobId} 
+ * @isUploaded - `true` means blob has been uploaded to remote server and is found in the ${blobsPath}/{blobId} folder.
+ * `false` means found in special folder: ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder.
+*/
+const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: number): Promise<{ fullPath: string, isUploaded: boolean }> => {
     const relativeVideoPath = dirname(blobId)
     const fileName = basename(blobId)
-    const fullFolder = join(blobsPath, relativeVideoPath)
-    const fullPath = join(fullFolder, fileName)
+    const fullFolderUploaded = join(blobsPath, relativeVideoPath)
+    const fullFolderUploadQueue = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs))
+    const pathsToCheck = [
+        { path: join(fullFolderUploadQueue, fileName), isUploaded: false },
+        { path: join(fullFolderUploaded, fileName), isUploaded: true }
+    ]
+
+    const promises = pathsToCheck.map(async ({ path, isUploaded }) => {
+        try {
+            await access(path)
+            return { fullPath: path, isUploaded }
+        } catch (error: unknown) {
+            if (isNodeError(error) && error.code === 'ENOENT') {
+                return null
+            } else {
+                // Handle other possible errors
+                console.error('An error occurred:', (error as Error).message)
+                throw error
+            }
+        }
+    })
+
+    const results = await Promise.all(promises)
+    const found = results.find(result => result !== null) as { fullPath: string, isUploaded: boolean } | undefined
+    if (found) {
+        return found
+    } else {
+        throw new Error(`ENOENT: Blob not found: ${blobId}`)
+    }
+}
+
+export const handleRetrieveBlob = async (blobsPath, { blobId, vcrTotalBlobs }: RetrieveBlobArgs ): Promise<RetrieveBlobResponse> => {
     try {
-        return await readFile(fullPath)
+        const { fullPath, isUploaded } = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+        return { blobBuffer: await readFile(fullPath), isUploaded }
     } catch (error: unknown) {
-        if (isNodeError(error) && error.code === 'ENOENT') {
-            return null
+        if (isNodeError(error) && error.code === 'ENOENT' || String(error).includes('ENOENT')) {
+            return { blobBuffer: null, isUploaded: false }
         } else {
             // Handle other possible errors
             console.error('An error occurred:', (error as Error).message)
