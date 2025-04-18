@@ -10,7 +10,7 @@ export type StoreBlobArgs = { clientId: string, blobId: string, blob: Blob, isUp
 export type StoreBlobResponse = { fullPath: string }
 
 export type RetrieveBlobArgs = { clientId: string, blobId: string, vcrTotalBlobs: number }
-export type RetrieveBlobResponse = { blobBuffer: Buffer | null, isUploaded: boolean }
+export type RetrieveBlobResponse = { blobBytes: number[] | null, isUploaded: boolean }
 
 /**
  * @isUploaded - `true` means blob has been uploaded to remote server. `false` means `isPendingUpload`

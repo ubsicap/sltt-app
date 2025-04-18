@@ -238,12 +238,8 @@ app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, a
 app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveBlobArgs = req.body
     const response: RetrieveBlobResponse = await handleRetrieveBlob(getBlobsPath(), args)
-    if (response) {
-        console.log(`retrieveBlob (${args.blobId}) buffer size: ${response.length}`)
-        res.type('application/octet-stream').send(response)
-    } else {
-        res.json(response)
-    }
+    console.log(`retrieveBlob (${args.blobId}) buffer size: ${response.blobBytes?.length || 0} isUploaded: ${response.isUploaded}`)
+    res.json(response)
 }))
 
 app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.single('blob'), asyncHandler(async (req, res) => {
@@ -251,6 +247,8 @@ app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.s
         clientId: req.body['clientId'],
         blobId: req.body['blobId'],
         blob: req.file,
+        isUploaded: req.body['isUploaded'] === 'true',
+        vcrTotalBlobs: Number(req.body['vcrTotalBlobs']),
     }
     const args: { blobId: string, file: File } = {
         blobId: origArgs.blobId,

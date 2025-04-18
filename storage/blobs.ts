@@ -49,10 +49,11 @@ const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: num
 export const handleRetrieveBlob = async (blobsPath, { blobId, vcrTotalBlobs }: RetrieveBlobArgs ): Promise<RetrieveBlobResponse> => {
     try {
         const { fullPath, isUploaded } = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
-        return { blobBuffer: await readFile(fullPath), isUploaded }
+        const blobBuffer = await readFile(fullPath)
+        return { blobBytes: Array.from(new Uint8Array(blobBuffer)), isUploaded }
     } catch (error: unknown) {
         if (isNodeError(error) && error.code === 'ENOENT' || String(error).includes('ENOENT')) {
-            return { blobBuffer: null, isUploaded: false }
+            return { blobBytes: null, isUploaded: false }
         } else {
             // Handle other possible errors
             console.error('An error occurred:', (error as Error).message)
