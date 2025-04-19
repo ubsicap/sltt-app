@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobIds } from './blobs'
+import { filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobInfo, UPLOAD_QUEUE_FOLDER } from './blobs'
 import { mkdtemp, rm, mkdir, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { join, win32 } from 'path'
+import { RetrieveAllBlobIdsResponse } from './blobs.d'
 
 describe('filterBlobFiles', () => {
     it('should filter out files that are not pasDoc or video blobs', () => {
@@ -37,15 +38,34 @@ describe('transformBlobFilePathsToBlobIds', () => {
     it('should transform blob file paths to blob IDs', () => {
         const blobsPath = '/base/path'
         const blobFilePaths = [
+            `/base/path/${UPLOAD_QUEUE_FOLDER}/2/project1/250925_150335/250925_160335/250925_150335-1`,
             '/base/path/project1/240925_150335/240925_160335/240925_150335-1',
             '/base/path/project1/240925_150335/240925_160335/pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1'
         ]
-        const expected = [
-            'project1/240925_150335/240925_160335/240925_150335-1',
-            'project1/240925_150335/240925_160335/pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1'
+        const expected: RetrieveAllBlobIdsResponse = [
+            {
+                blobId: 'project1/250925_150335/250925_160335/250925_150335-1',
+                isUploaded: false,
+                vcrTotalBlobs: 2,
+            },
+            {
+                blobId: 'project1/240925_150335/240925_160335/240925_150335-1',
+                isUploaded: true,
+                vcrTotalBlobs: -1,
+            },
+            {
+                blobId: 'project1/240925_150335/240925_160335/pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1',
+                isUploaded: true,
+                vcrTotalBlobs: -1,
+            }
         ]
-        const result = transformBlobFilePathsToBlobIds(blobsPath, blobFilePaths)
+        const result = transformBlobFilePathsToBlobInfo(blobsPath, blobFilePaths)
         expect(result).toEqual(expected)
+
+        // handle windows style paths as well
+        const blobFilePaths2 = blobFilePaths.map((filePath) => win32.normalize(filePath))
+        const result2 = transformBlobFilePathsToBlobInfo(blobsPath, blobFilePaths2)
+        expect(result2).toEqual(expected)
     })
 })
 
@@ -76,8 +96,8 @@ describe('handleRetrieveAllBlobIds', () => {
 
         const result = await handleRetrieveAllBlobIds(tempDir, { clientId })
         expect(result).toEqual([
-            '240925_150335-1',
-            'pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1'
+            { blobId: '240925_150335-1', isUploaded: true, vcrTotalBlobs: -1 },
+            { blobId: 'pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1', isUploaded: true, vcrTotalBlobs: -1 }
         ])
     })
 

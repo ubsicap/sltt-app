@@ -1,10 +1,10 @@
 import { ensureDir } from 'fs-extra'
 import { access, copyFile, readFile } from 'fs/promises'
 import { dirname, basename, join, posix } from 'path'
-import { RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
+import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
 
-const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
+export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
 
 /**
  * find the full path of the blob file (if it exists). 
@@ -92,18 +92,25 @@ export const filterBlobFiles = (allPosixFilePaths: string[]): string[] => {
     return allPosixFilePaths.filter((file) => blobPattern.test(basename(file)))
 }
 
-export const transformBlobFilePathsToBlobIds = (blobsPath: string, blobFilePaths: string[]): string[] => {
+export const transformBlobFilePathsToBlobInfo = (blobsPath: string, blobFilePaths: string[]): RetrieveAllBlobIdsResponse => {
     // now normalize the blob file paths to remove fullClientPath and ensure forward slashes
-    return blobFilePaths.map((file) => posix.relative(blobsPath.replace(/\\/g, '/'), file.replace(/\\/g, '/')))
+    return blobFilePaths.map((filePath) => {
+        const relativePath = posix.relative(blobsPath.replace(/\\/g, '/'), filePath.replace(/\\/g, '/'))
+        const parsedFile = posix.parse(relativePath)
+        const isUploaded = parsedFile.dir.split('/')[0] !== UPLOAD_QUEUE_FOLDER
+        const vcrTotalBlobs = isUploaded ? -1 : Number(parsedFile.dir.split('/')[1])
+        const blobId = isUploaded ? relativePath : posix.join(parsedFile.dir.split('/').slice(2).join('/'), parsedFile.base)
+        return { blobId, isUploaded, vcrTotalBlobs }
+    })
 }
 
-export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: { clientId: string }): Promise<string[]> => {
+export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: RetrieveAllBlobIdsArgs): Promise<RetrieveAllBlobIdsResponse> => {
     try {
         console.log('handleRetrieveAllBlobIds for client', clientId)
         const allPosixFilePaths = await getFiles(blobsPath, true)
         const blobFilePaths = filterBlobFiles(allPosixFilePaths)
-        const blobIds = transformBlobFilePathsToBlobIds(blobsPath, blobFilePaths)
-        return blobIds
+        const blobInfo = transformBlobFilePathsToBlobInfo(blobsPath, blobFilePaths)
+        return blobInfo
     } catch (error: unknown) {
         if (isNodeError(error) && error.code === 'ENOENT') {
             return []

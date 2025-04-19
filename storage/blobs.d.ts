@@ -22,5 +22,8 @@ export type RetrieveAllBlobIdsArgs = { clientId: string }
 export type RetrieveAllBlobIdsResponse = {
     blobId: string,
     isUploaded: boolean,
+    /** 
+     * when isUploaded is false, vcrTotalBlobs is the number of blobs in the VideoCacheRecord responsible for this blob.
+     * can be -1 when isUploaded is true */
     vcrTotalBlobs: number,
 }[]
