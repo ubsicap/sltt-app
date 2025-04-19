@@ -1,5 +1,5 @@
 import { ensureDir } from 'fs-extra'
-import { access, copyFile, readFile } from 'fs/promises'
+import { access, copyFile, readFile, rename } from 'fs/promises'
 import { dirname, basename, join, posix } from 'path'
 import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
@@ -134,15 +134,21 @@ export const handleUpdateBlobUploadedStatus = async (blobsPath, { blobId, isUplo
     } else if (!isUploadedOnDisk && isUploaded) {
         const relativeVideoPath = dirname(blobId)
         const fileName = basename(blobId)
-        const fullFolder = join(blobsPath, relativeVideoPath)
-        await ensureDir(fullFolder)
-        const fullPath = join(fullFolder, fileName)
+        const destFolder = join(blobsPath, relativeVideoPath)
+        const destFilePath = join(destFolder, fileName)
         try {
-            await copyFile(fullPathOnDisk, fullPath)
+            await ensureDir(destFolder)
+            await rename(fullPathOnDisk, destFilePath)
             return { ok: true }
         } catch (error: unknown) {
             console.error('An error occurred:', (error as Error).message)
-            throw error
+            try {
+                await access(destFilePath)
+                // already renamed
+                return { ok: true }
+            } catch (error: unknown) {
+                return { ok: false }
+            }
         }
     }
     return { ok: true }
