@@ -1,7 +1,7 @@
 import { ensureDir } from 'fs-extra'
 import { access, copyFile, readFile } from 'fs/promises'
 import { dirname, basename, join, posix } from 'path'
-import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse } from './blobs.d'
+import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
 
 export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
@@ -120,4 +120,30 @@ export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: Retrieve
             throw error
         }
     }
+}
+
+/** 
+ * TODO: vitests
+ * if blob on disk isUploaded, throw error if isUploaded parameter is false
+ * if blob on disk is in __uploadQueue folder, move it to the project folder if isUploaded parameter is true
+*/
+export const handleUpdateBlobUploadedStatus = async (blobsPath, { blobId, isUploaded, vcrTotalBlobs }: UpdateBlobUploadedStatusArgs): Promise<UpdateBlobUploadedStatusResponse> => {
+    const { fullPath: fullPathOnDisk, isUploaded: isUploadedOnDisk } = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+    if (isUploadedOnDisk && !isUploaded) {
+        throw new Error(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+    } else if (!isUploadedOnDisk && isUploaded) {
+        const relativeVideoPath = dirname(blobId)
+        const fileName = basename(blobId)
+        const fullFolder = join(blobsPath, relativeVideoPath)
+        await ensureDir(fullFolder)
+        const fullPath = join(fullFolder, fileName)
+        try {
+            await copyFile(fullPathOnDisk, fullPath)
+            return { ok: true }
+        } catch (error: unknown) {
+            console.error('An error occurred:', (error as Error).message)
+            throw error
+        }
+    }
+    return { ok: true }
 }
