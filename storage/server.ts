@@ -237,7 +237,13 @@ app.post(`/${CLIENTS_API_REGISTER_CLIENT_USER}`, verifyLocalhostUnlessHosting, a
 
 app.post(`/${BLOBS_API_RETRIEVE_BLOB}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: RetrieveBlobArgs = req.body
-    const response: RetrieveBlobResponse = await handleRetrieveBlob(getBlobsPath(), args)
+    let response: RetrieveBlobResponse = await handleRetrieveBlob(getBlobsPath(), args)
+    if (response.blobBase64 === null) {
+        // maybe it was in the process of getting moved from the upload queue?
+        console.warn(`retrieveBlob (${args.blobId}) not found. trying again...`)
+        const response2: RetrieveBlobResponse = await handleRetrieveBlob(getBlobsPath(), args)
+        response = response2
+    }
     console.log(`retrieveBlob (${args.blobId}) buffer size: ${response.blobBase64?.length || 0} isUploaded: ${response.isUploaded}`)
     res.json(response)
 }))
