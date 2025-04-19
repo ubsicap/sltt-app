@@ -46,14 +46,19 @@ const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: num
     }
 }
 
+const convertBufferToBase64 = (buffer: Buffer): string => {
+    return buffer.toString('base64')
+}
+
 export const handleRetrieveBlob = async (blobsPath, { blobId, vcrTotalBlobs }: RetrieveBlobArgs ): Promise<RetrieveBlobResponse> => {
     try {
         const { fullPath, isUploaded } = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
         const blobBuffer = await readFile(fullPath)
-        return { blobBytes: Array.from(new Uint8Array(blobBuffer)), isUploaded }
+        const blobBase64 = convertBufferToBase64(blobBuffer)
+        return { blobBase64, isUploaded }
     } catch (error: unknown) {
         if (isNodeError(error) && error.code === 'ENOENT' || String(error).includes('ENOENT')) {
-            return { blobBytes: null, isUploaded: false }
+            return { blobBase64: null, isUploaded: false }
         } else {
             // Handle other possible errors
             console.error('An error occurred:', (error as Error).message)
