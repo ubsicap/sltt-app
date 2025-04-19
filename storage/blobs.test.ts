@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobInfo, UPLOAD_QUEUE_FOLDER } from './blobs'
-import { mkdtemp, rm, mkdir, writeFile } from 'fs/promises'
+import { filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobInfo, handleUpdateBlobUploadedStatus, UPLOAD_QUEUE_FOLDER } from './blobs'
+import { mkdtemp, rm, mkdir, writeFile, rename, readFile } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join, win32 } from 'path'
 import { RetrieveAllBlobIdsResponse } from './blobs.d'
@@ -105,5 +105,64 @@ describe('handleRetrieveAllBlobIds', () => {
         const clientId = '5678'
         const result = await handleRetrieveAllBlobIds(tempDir, { clientId })
         expect(result).toEqual([])
+    })
+})
+
+describe('handleUpdateBlobUploadedStatus', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), 'test-'))
+    })
+
+    afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('should throw an error if trying to set isUploaded to false for an already uploaded blob', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const uploadedBlobPath = join(blobsPath, blobId)
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(uploadedBlobPath, 'uploaded blob content')
+
+        await expect(
+            handleUpdateBlobUploadedStatus(blobsPath, { clientId: 'client1',  blobId, isUploaded: false, vcrTotalBlobs: 0 })
+        ).rejects.toThrow(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+    })
+
+    it('should move a blob from the upload queue to the project folder when setting isUploaded to true', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), blobId)
+        const projectFolderPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1'), { recursive: true })
+        await writeFile(uploadQueuePath, 'blob content in upload queue')
+
+        const result = await handleUpdateBlobUploadedStatus(blobsPath, { clientId: 'client1', blobId, isUploaded: true, vcrTotalBlobs })
+        expect(result.ok).toBe(true)
+
+        // Ensure the file was moved
+        await expect(rename(uploadQueuePath, projectFolderPath)).rejects.toThrow()
+        const movedBlobContent = await readFile(projectFolderPath, 'utf-8')
+        expect(movedBlobContent).toBe('blob content in upload queue')
+    })
+
+    it('should do nothing if the blob is already in the correct state', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const uploadedBlobPath = join(blobsPath, blobId)
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(uploadedBlobPath, 'uploaded blob content')
+
+        const result = await handleUpdateBlobUploadedStatus(blobsPath, { clientId: 'client1', blobId, isUploaded: true, vcrTotalBlobs: 0 })
+        expect(result.ok).toBe(true)
+
+        const blobContent = await readFile(uploadedBlobPath, 'utf-8')
+        expect(blobContent).toBe('uploaded blob content')
     })
 })

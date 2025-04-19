@@ -16,7 +16,7 @@ const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: num
     const relativeVideoPath = dirname(blobId)
     const fileName = basename(blobId)
     const fullFolderUploaded = join(blobsPath, relativeVideoPath)
-    const fullFolderUploadQueue = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs))
+    const fullFolderUploadQueue = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), relativeVideoPath)
     const pathsToCheck = [
         { path: join(fullFolderUploadQueue, fileName), isUploaded: false },
         { path: join(fullFolderUploaded, fileName), isUploaded: true }
@@ -143,8 +143,8 @@ export const handleUpdateBlobUploadedStatus = async (blobsPath, { blobId, isUplo
         } catch (error: unknown) {
             console.error('An error occurred:', (error as Error).message)
             try {
+                // already renamed?
                 await access(destFilePath)
-                // already renamed
                 return { ok: true }
             } catch (error: unknown) {
                 return { ok: false }
