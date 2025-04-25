@@ -6,6 +6,16 @@ import { getFiles, isNodeError } from './utils'
 
 export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
 
+const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boolean, vcrTotalBlobs: number): string => {
+    const relativeVideoPath = dirname(blobId)
+    const fileName = basename(blobId)
+    if (isUploaded) {
+        return join(blobsPath, relativeVideoPath, fileName)
+    } else {
+        return join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), relativeVideoPath, fileName)
+    }
+}
+
 /**
  * find the full path of the blob file (if it exists). 
  * Do Promise.race to check if the file exists in the ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder or the ${blobsPath}/{blobId} 
@@ -13,13 +23,9 @@ export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
  * `false` means found in special folder: ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder.
 */
 const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: number): Promise<{ fullPath: string, isUploaded: boolean }> => {
-    const relativeVideoPath = dirname(blobId)
-    const fileName = basename(blobId)
-    const fullFolderUploaded = join(blobsPath, relativeVideoPath)
-    const fullFolderUploadQueue = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), relativeVideoPath)
     const pathsToCheck = [
-        { path: join(fullFolderUploadQueue, fileName), isUploaded: false },
-        { path: join(fullFolderUploaded, fileName), isUploaded: true }
+        { path: buildBlobPath(blobsPath, blobId, false, vcrTotalBlobs), isUploaded: false },
+        { path: buildBlobPath(blobsPath, blobId, true, vcrTotalBlobs), isUploaded: true }
     ]
 
     const promises = pathsToCheck.map(async ({ path, isUploaded }) => {
@@ -67,12 +73,13 @@ export const handleRetrieveBlob = async (blobsPath, { blobId, vcrTotalBlobs }: R
     }
 }
 
-export const handleStoreBlob = async (blobsPath, { blobId, file }: { blobId: StoreBlobArgs['blobId'], file: File }): Promise<StoreBlobResponse> => {
-    const relativeVideoPath = dirname(blobId)
-    const fileName = basename(blobId)
-    const fullFolder = join(blobsPath, relativeVideoPath)
+export type HandleStoreBlobArgs = { clientId: StoreBlobArgs['clientId'], blobId: StoreBlobArgs['blobId'], file: File, isUploaded: StoreBlobArgs['isUploaded'], vcrTotalBlobs: StoreBlobArgs['vcrTotalBlobs'] }
+
+export const handleStoreBlob = async (blobsPath, { blobId, file, isUploaded, vcrTotalBlobs }: HandleStoreBlobArgs): Promise<StoreBlobResponse> => {
+    const fullPath = buildBlobPath(blobsPath, blobId, isUploaded, vcrTotalBlobs)
+    const fullFolder = dirname(fullPath)
     await ensureDir(fullFolder)
-    const fullPath = join(fullFolder, fileName)
+
     try {
         await copyFile((file as unknown /* Express.Multer.File */ as { path: string }).path, fullPath)
         return { fullPath }
