@@ -6,7 +6,7 @@ import { getFiles, isNodeError } from './utils'
 
 export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
 
-const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boolean, vcrTotalBlobs: number): string => {
+export const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boolean, vcrTotalBlobs: number): string => {
     const relativeVideoPath = dirname(blobId)
     const fileName = basename(blobId)
     if (isUploaded) {
@@ -22,7 +22,7 @@ const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boolean, v
  * @isUploaded - `true` means blob has been uploaded to remote server and is found in the ${blobsPath}/{blobId} folder.
  * `false` means found in special folder: ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder.
 */
-const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: number): Promise<{ fullPath: string, isUploaded: boolean }> => {
+export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: number): Promise<{ fullPath: string, isUploaded: boolean }> => {
     const pathsToCheck = [
         { path: buildBlobPath(blobsPath, blobId, false, vcrTotalBlobs), isUploaded: false },
         { path: buildBlobPath(blobsPath, blobId, true, vcrTotalBlobs), isUploaded: true }

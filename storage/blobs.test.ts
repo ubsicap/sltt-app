@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
-import { filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobInfo, handleUpdateBlobUploadedStatus, UPLOAD_QUEUE_FOLDER } from './blobs'
+import { HandleStoreBlobArgs, filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobInfo, handleUpdateBlobUploadedStatus, handleStoreBlob, buildBlobPath, getBlobInfo, UPLOAD_QUEUE_FOLDER } from './blobs'
 import { mkdtemp, rm, mkdir, writeFile, rename, readFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join, win32 } from 'path'
+import { join, win32, posix } from 'path'
 import { RetrieveAllBlobIdsResponse } from './blobs.d'
 
 describe('filterBlobFiles', () => {
@@ -164,5 +164,147 @@ describe('handleUpdateBlobUploadedStatus', () => {
 
         const blobContent = await readFile(uploadedBlobPath, 'utf-8')
         expect(blobContent).toBe('uploaded blob content')
+    })
+})
+
+describe('handleStoreBlob', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), 'test-'))
+    })
+
+    afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('should store a blob in the uploaded folder when isUploaded is true', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const fileContent = 'uploaded blob content'
+        const filePath = join(blobsPath, 'temp-file')
+
+        await writeFile(filePath, fileContent)
+
+        const args: HandleStoreBlobArgs = {
+            clientId: 'client1',
+            blobId,
+            file: { path: filePath } as unknown as File,
+            isUploaded: true,
+            vcrTotalBlobs: 0,
+        }
+
+        const result = await handleStoreBlob(blobsPath, args)
+        expect(result.fullPath).toBe(join(blobsPath, 'project1/blob-1'))
+
+        const storedContent = await readFile(result.fullPath, 'utf-8')
+        expect(storedContent).toBe(fileContent)
+    })
+
+    it('should store a blob in the upload queue folder when isUploaded is false', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const fileContent = 'queued blob content'
+        const filePath = join(blobsPath, 'temp-file')
+
+        await writeFile(filePath, fileContent)
+
+        const args: HandleStoreBlobArgs = {
+            clientId: 'client1',
+            blobId,
+            file: { path: filePath } as unknown as File,
+            isUploaded: false,
+            vcrTotalBlobs: 2,
+        }
+
+        const result = await handleStoreBlob(blobsPath, args)
+        expect(result.fullPath).toBe(join(blobsPath, UPLOAD_QUEUE_FOLDER, '2', 'project1/blob-1'))
+
+        const storedContent = await readFile(result.fullPath, 'utf-8')
+        expect(storedContent).toBe(fileContent)
+    })
+
+    it('should throw an error if the file cannot be copied', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const invalidFilePath = join(blobsPath, 'non-existent-file')
+
+        const args: HandleStoreBlobArgs = {
+            clientId: 'client1',
+            blobId,
+            file: { path: invalidFilePath } as unknown as File,
+            isUploaded: true,
+            vcrTotalBlobs: 0,
+        }
+
+        await expect(handleStoreBlob(blobsPath, args)).rejects.toThrow()
+    })
+})
+
+describe('buildBlobPath', () => {
+    it('should build the correct path for uploaded blobs', () => {
+        const blobsPath = '/base/path'
+        const blobId = 'project1/blob-1'
+        const isUploaded = true
+        const vcrTotalBlobs = 0
+
+        const result = buildBlobPath(blobsPath, blobId, isUploaded, vcrTotalBlobs)
+        expect(result).toBe(win32.normalize('/base/path/project1/blob-1'))
+    })
+
+    it('should build the correct path for blobs in the upload queue', () => {
+        const blobsPath = '/base/path'
+        const blobId = 'project1/blob-1'
+        const isUploaded = false
+        const vcrTotalBlobs = 2
+
+        const result = buildBlobPath(blobsPath, blobId, isUploaded, vcrTotalBlobs)
+        expect(result).toBe(win32.normalize('/base/path/__uploadQueue/2/project1/blob-1'))
+    })
+})
+
+describe('getBlobInfo', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), 'test-'))
+    })
+
+    afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('should return the correct path and isUploaded=true for an uploaded blob', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 0
+        const uploadedBlobPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(uploadedBlobPath, 'uploaded blob content')
+
+        const result = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+        expect(result).toEqual({ fullPath: uploadedBlobPath, isUploaded: true })
+    })
+
+    it('should return the correct path and isUploaded=false for a blob in the upload queue', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1/blob-1')
+
+        await mkdir(join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1'), { recursive: true })
+        await writeFile(uploadQueuePath, 'blob content in upload queue')
+
+        const result = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+        expect(result).toEqual({ fullPath: uploadQueuePath, isUploaded: false })
+    })
+
+    it('should throw an error if the blob does not exist', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+
+        await expect(getBlobInfo(blobsPath, blobId, vcrTotalBlobs)).rejects.toThrow(`ENOENT: Blob not found: ${blobId}`)
     })
 })
