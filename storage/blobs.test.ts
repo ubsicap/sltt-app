@@ -300,6 +300,24 @@ describe('getBlobInfo', () => {
         expect(result).toEqual({ fullPath: uploadQueuePath, isUploaded: false })
     })
 
+    it('should return the uploaded path if also in upload queue', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1/blob-1')
+
+        await mkdir(join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1'), { recursive: true })
+        await writeFile(uploadQueuePath, 'blob content in upload queue')
+
+        const uploadedBlobPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(uploadedBlobPath, 'uploaded blob content')
+
+        const result = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+        expect(result).toEqual({ fullPath: uploadedBlobPath, isUploaded: true })
+    })
+
     it('should throw an error if the blob does not exist', async () => {
         const blobsPath = tempDir
         const blobId = 'project1/blob-1'

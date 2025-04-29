@@ -1,5 +1,6 @@
 import { ensureDir } from 'fs-extra'
 import { access, copyFile, readFile, rename } from 'fs/promises'
+import { sortBy } from 'lodash'
 import { dirname, basename, join, posix } from 'path'
 import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
@@ -18,8 +19,11 @@ export const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boo
 
 /**
  * find the full path of the blob file (if it exists). 
- * Do Promise.race to check if the file exists in the ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder or the ${blobsPath}/{blobId} 
- * @isUploaded - `true` means blob has been uploaded to remote server and is found in the ${blobsPath}/{blobId} folder.
+ * check if the file exists in the ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder AND in the ${blobsPath}/{blobId}
+ * if exists in both, prefer the one in ${blobsPath}/{blobId}
+ * @return
+ * - fullPath - the full path of the blob file
+ * - isUploaded - `true` means blob has been uploaded to remote server and is found in the ${blobsPath}/{blobId} folder.
  * `false` means found in special folder: ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder.
 */
 export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: number): Promise<{ fullPath: string, isUploaded: boolean }> => {
@@ -44,7 +48,7 @@ export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlo
     })
 
     const results = await Promise.all(promises)
-    const found = results.find(result => result !== null) as { fullPath: string, isUploaded: boolean } | undefined
+    const found = sortBy(results, r => r.isUploaded ? 0 /* prefer uploaded */ : 1).find(result => result !== null) as { fullPath: string, isUploaded: boolean } | undefined
     if (found) {
         return found
     } else {
