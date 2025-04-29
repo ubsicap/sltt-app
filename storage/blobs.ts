@@ -48,7 +48,7 @@ export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlo
     })
 
     const results = await Promise.all(promises)
-    const found = sortBy(results, r => r.isUploaded ? 0 /* prefer uploaded */ : 1).find(result => result !== null) as { fullPath: string, isUploaded: boolean } | undefined
+    const found = sortBy(results, r => r?.isUploaded ? 0 /* prefer uploaded */ : 1).find(result => result !== null) as { fullPath: string, isUploaded: boolean } | undefined
     if (found) {
         return found
     } else {
