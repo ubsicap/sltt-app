@@ -79,8 +79,33 @@ export const handleRetrieveBlob = async (blobsPath, { blobId, vcrTotalBlobs }: R
 
 export type HandleStoreBlobArgs = { clientId: StoreBlobArgs['clientId'], blobId: StoreBlobArgs['blobId'], file: File, isUploaded: StoreBlobArgs['isUploaded'], vcrTotalBlobs: StoreBlobArgs['vcrTotalBlobs'] }
 
-export const handleStoreBlob = async (blobsPath, { blobId, file, isUploaded, vcrTotalBlobs }: HandleStoreBlobArgs): Promise<StoreBlobResponse> => {
+export const handleStoreBlob = async (blobsPath, { clientId, blobId, file, isUploaded, vcrTotalBlobs }: HandleStoreBlobArgs): Promise<StoreBlobResponse> => {
     const fullPath = buildBlobPath(blobsPath, blobId, isUploaded, vcrTotalBlobs)
+    let blobInfo: Awaited<ReturnType<typeof getBlobInfo> | undefined> = undefined
+    try {
+        blobInfo = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
+            // file doesn't exist, continue to store it
+        } else {
+            // Handle other possible errors
+            console.error('An error occurred:', (error as Error).message)
+            // try to continue
+        }
+    }
+    if (blobInfo) {
+        if (isUploaded === blobInfo.isUploaded) {
+            return { fullPath: blobInfo.fullPath }
+        }
+        if (blobInfo.isUploaded && !isUploaded) {
+            // prevent storing duplicate in __uploadQueue folder
+            throw new Error(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+        }
+        // else (!blobInfo.isUploaded && isUploaded)
+        await handleUpdateBlobUploadedStatus(blobsPath, { clientId, blobId, isUploaded, vcrTotalBlobs })
+        return { fullPath }
+    }
+
     const fullFolder = dirname(fullPath)
     await ensureDir(fullFolder)
 

@@ -178,10 +178,10 @@ describe('handleStoreBlob', () => {
         await rm(tempDir, { recursive: true, force: true })
     })
 
-    it('should store a blob in the uploaded folder when isUploaded is true', async () => {
+    it('should store a new blob in the uploaded folder when isUploaded is true', async () => {
         const blobsPath = tempDir
         const blobId = 'project1/blob-1'
-        const fileContent = 'uploaded blob content'
+        const fileContent = 'new uploaded blob content'
         const filePath = join(blobsPath, 'temp-file')
 
         await writeFile(filePath, fileContent)
@@ -201,10 +201,10 @@ describe('handleStoreBlob', () => {
         expect(storedContent).toBe(fileContent)
     })
 
-    it('should store a blob in the upload queue folder when isUploaded is false', async () => {
+    it('should store a new blob in the upload queue folder when isUploaded is false', async () => {
         const blobsPath = tempDir
         const blobId = 'project1/blob-1'
-        const fileContent = 'queued blob content'
+        const fileContent = 'new queued blob content'
         const filePath = join(blobsPath, 'temp-file')
 
         await writeFile(filePath, fileContent)
@@ -238,6 +238,75 @@ describe('handleStoreBlob', () => {
         }
 
         await expect(handleStoreBlob(blobsPath, args)).rejects.toThrow()
+    })
+
+    it('should return the existing path if the blob already exists with the same isUploaded status', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const fileContent = 'existing blob content'
+        const existingBlobPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(existingBlobPath, fileContent)
+
+        const args: HandleStoreBlobArgs = {
+            clientId: 'client1',
+            blobId,
+            file: { path: existingBlobPath } as unknown as File,
+            isUploaded: true,
+            vcrTotalBlobs: 0,
+        }
+
+        const result = await handleStoreBlob(blobsPath, args)
+        expect(result.fullPath).toBe(existingBlobPath)
+
+        const storedContent = await readFile(result.fullPath, 'utf-8')
+        expect(storedContent).toBe(fileContent)
+    })
+
+    it('should throw an error if the blob exists as uploaded and isUploaded is set to false', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const fileContent = 'existing uploaded blob content'
+        const existingBlobPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(existingBlobPath, fileContent)
+
+        const args: HandleStoreBlobArgs = {
+            clientId: 'client1',
+            blobId,
+            file: { path: existingBlobPath } as unknown as File,
+            isUploaded: false,
+            vcrTotalBlobs: 0,
+        }
+
+        await expect(handleStoreBlob(blobsPath, args)).rejects.toThrow(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+    })
+
+    it('should move the blob from the upload queue to the uploaded folder if isUploaded is set to true', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const fileContent = 'blob content in upload queue'
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, '2', 'project1/blob-1')
+        const uploadedBlobPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, UPLOAD_QUEUE_FOLDER, '2', 'project1'), { recursive: true })
+        await writeFile(uploadQueuePath, fileContent)
+
+        const args: HandleStoreBlobArgs = {
+            clientId: 'client1',
+            blobId,
+            file: { path: uploadQueuePath } as unknown as File,
+            isUploaded: true,
+            vcrTotalBlobs: 2,
+        }
+
+        const result = await handleStoreBlob(blobsPath, args)
+        expect(result.fullPath).toBe(uploadedBlobPath)
+
+        const storedContent = await readFile(uploadedBlobPath, 'utf-8')
+        expect(storedContent).toBe(fileContent)
     })
 })
 
