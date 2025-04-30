@@ -401,7 +401,8 @@ describe('getBlobInfo', () => {
         const blobsPath = tempDir
         const blobId = 'project1/blob-1'
         const vcrTotalBlobs = 2
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), blobId)
 
-        await expect(getBlobInfo(blobsPath, blobId, vcrTotalBlobs)).rejects.toThrow(`ENOENT: Blob not found: ${blobId}`)
+        await expect(getBlobInfo(blobsPath, blobId, vcrTotalBlobs)).rejects.toThrow(`ENOENT: no such file or directory, access '${uploadQueuePath}`)
     })
 })

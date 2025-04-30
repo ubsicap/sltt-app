@@ -25,6 +25,8 @@ export const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boo
  * - fullPath - the full path of the blob file
  * - isUploaded - `true` means blob has been uploaded to remote server and is found in the ${blobsPath}/{blobId} folder.
  * `false` means found in special folder: ${blobsPath}/__uploadQueue/${vcrTotalBlobs}/${blobId} folder.
+ * 
+ * NOTE: might throw ENOENT if the blob file is not found in either location.
 */
 export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlobs: number): Promise<{ fullPath: string, isUploaded: boolean }> => {
     const pathsToCheck = [
@@ -35,10 +37,10 @@ export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlo
     const promises = pathsToCheck.map(async ({ path, isUploaded }) => {
         try {
             await access(path)
-            return { fullPath: path, isUploaded }
+            return { fullPath: path, isUploaded, error: null }
         } catch (error: unknown) {
             if (isNodeError(error) && error.code === 'ENOENT') {
-                return null
+                return { fullPath: path, isUploaded, error: error as NodeJS.ErrnoException }
             } else {
                 // Handle other possible errors
                 console.error('An error occurred:', (error as Error).message)
@@ -48,11 +50,13 @@ export const getBlobInfo = async (blobsPath: string, blobId: string, vcrTotalBlo
     })
 
     const results = await Promise.all(promises)
-    const found = sortBy(results, r => r?.isUploaded ? 0 /* prefer uploaded */ : 1).find(result => result !== null) as { fullPath: string, isUploaded: boolean } | undefined
+    const found = sortBy(results, r => r.isUploaded ? 0 /* prefer uploaded */ : 1)
+        .find(result => result.error === null) as { fullPath: string, isUploaded: boolean } | undefined
     if (found) {
-        return found
+        const { fullPath, isUploaded } = found
+        return { fullPath, isUploaded }
     } else {
-        throw new Error(`ENOENT: Blob not found: ${blobId}`)
+        throw results[0].error || new Error(`Blob not found: ${blobId}`)
     }
 }
 
@@ -67,7 +71,7 @@ export const handleRetrieveBlob = async (blobsPath, { blobId, vcrTotalBlobs }: R
         const blobBase64 = convertBufferToBase64(blobBuffer)
         return { blobBase64, isUploaded }
     } catch (error: unknown) {
-        if (isNodeError(error) && error.code === 'ENOENT' || String(error).includes('ENOENT')) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
             return { blobBase64: null, isUploaded: false }
         } else {
             // Handle other possible errors
