@@ -26,15 +26,24 @@ export async function getFiles(dir: string, useForwardSlashes = false): Promise<
  * "Unexpected end of JSON input" errors when reading the json file contents.
  */
 export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault): Promise<T|TDefault> {
-    try {
-        const contents = await readJson(filePath)
-        return contents
-    } catch (error: unknown) {
-        if (isNodeError(error) && error.code === 'ENOENT') {
-            return defaultValue
-        } else {
-            console.error('An error occurred:', (error as Error).message)
-            throw error
+    let tries = 0
+    while (tries < 2) {
+        tries++
+        try {
+            const contents = await readJson(filePath)
+            return contents
+        } catch (error: unknown) {
+            if (isNodeError(error) && error.code === 'ENOENT') {
+                return defaultValue
+            } else {
+                const message = (error as Error).message
+                console.error('An error occurred:', message)
+                if (message.includes('Unexpected end of JSON input')) {
+                    continue
+                } else {
+                    throw error
+                }
+            }
         }
     }
 }
