@@ -99,15 +99,21 @@ export const handleStoreBlob = async (blobsPath, { clientId, blobId, file, isUpl
     }
     if (blobInfo) {
         if (isUploaded === blobInfo.isUploaded) {
-            return { fullPath: blobInfo.fullPath }
+            // already stored in expected location
+            return { fullPath: blobInfo.fullPath, isUploaded: blobInfo.isUploaded }
         }
         if (blobInfo.isUploaded && !isUploaded) {
             // prevent storing duplicate in __uploadQueue folder
-            throw new Error(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+            console.error(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+            return { fullPath: blobInfo.fullPath, isUploaded: blobInfo.isUploaded }
         }
         // else (!blobInfo.isUploaded && isUploaded)
-        await handleUpdateBlobUploadedStatus(blobsPath, { clientId, blobId, isUploaded, vcrTotalBlobs })
-        return { fullPath }
+        const status = await handleUpdateBlobUploadedStatus(blobsPath, { clientId, blobId, isUploaded, vcrTotalBlobs })
+        if (!status.ok) {
+            console.error(`Failed to update blob status for ${blobId} to isUploaded: ${isUploaded}`)
+            return { fullPath: blobInfo.fullPath, isUploaded: blobInfo.isUploaded }
+        }
+        return { fullPath, isUploaded }
     }
 
     const fullFolder = dirname(fullPath)
@@ -115,7 +121,7 @@ export const handleStoreBlob = async (blobsPath, { clientId, blobId, file, isUpl
 
     try {
         await copyFile((file as unknown /* Express.Multer.File */ as { path: string }).path, fullPath)
-        return { fullPath }
+        return { fullPath, isUploaded }
     } catch (error: unknown) {
         console.error('An error occurred:', (error as Error).message)
         throw error
