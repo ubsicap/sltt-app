@@ -84,20 +84,30 @@ describe('handleRetrieveAllBlobIds', () => {
         const clientId = '1234'
         const blobsPath = tempDir
         await mkdir(blobsPath, { recursive: true })
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, '2')
 
         const validVideoBlob = join(blobsPath, '240925_150335-1')
+        const validVideoBlob2 = join(blobsPath, '240925_150335-2')
+        const duplicateBlob = join(uploadQueuePath, '240925_150335-1')
+        const uploadQueueBlob = join(uploadQueuePath, '240925_150405-1')
         const validPasDocBlob = join(blobsPath, 'pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1')
         const invalidFile = join(blobsPath, 'invalid_file.txt')
 
+        await mkdir(uploadQueuePath, { recursive: true })
         await mkdir(join(blobsPath, 'pasDoc_221231_163557'), { recursive: true })
         await writeFile(validVideoBlob, 'video blob content')
+        await writeFile(validVideoBlob2, 'video blob content 2')
+        await writeFile(duplicateBlob, 'duplicate blob content')
+        await writeFile(uploadQueueBlob, 'upload queue blob content')
         await writeFile(validPasDocBlob, 'pasDoc blob content')
         await writeFile(invalidFile, 'invalid file content')
 
         const result = await handleRetrieveAllBlobIds(tempDir, { clientId })
         expect(result).toEqual([
-            { blobId: '240925_150335-1', isUploaded: true, vcrTotalBlobs: -1 },
-            { blobId: 'pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1', isUploaded: true, vcrTotalBlobs: -1 }
+            { blobId: '240925_150335-1', isUploaded: true, vcrTotalBlobs: -1 }, /* preferred duplicate */
+            { blobId: '240925_150335-2', isUploaded: true, vcrTotalBlobs: -1 },
+            { blobId: 'pasDoc_221231_163557/2024_08_31T11_34_55.102Z.txt-1', isUploaded: true, vcrTotalBlobs: -1 },
+            { blobId: '240925_150405-1', isUploaded: false, vcrTotalBlobs: 2 },
         ])
     })
 

@@ -1,6 +1,6 @@
 import { ensureDir } from 'fs-extra'
 import { access, copyFile, readFile, rename } from 'fs/promises'
-import { sortBy } from 'lodash'
+import { sortBy, uniqBy } from 'lodash'
 import { dirname, basename, join, posix } from 'path'
 import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
@@ -140,12 +140,32 @@ export const transformBlobFilePathsToBlobInfo = (blobsPath: string, blobFilePath
     })
 }
 
+const getDuplicateKeys = <T> (array: T[], key: (item: T) => string): string[] => {
+    const seen = new Set<string>()
+    const duplicates = new Set<string>()
+    for (const item of array) {
+        const identifier = key(item)
+        if (seen.has(identifier)) {
+            duplicates.add(identifier)
+        } else {
+            seen.add(identifier)
+        }
+    }
+    return Array.from(duplicates) 
+}
+
 export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: RetrieveAllBlobIdsArgs): Promise<RetrieveAllBlobIdsResponse> => {
     try {
         console.log('handleRetrieveAllBlobIds for client', clientId)
         const allPosixFilePaths = await getFiles(blobsPath, true)
         const blobFilePaths = filterBlobFiles(allPosixFilePaths)
         const blobInfo = transformBlobFilePathsToBlobInfo(blobsPath, blobFilePaths)
+        const duplicateKeys = getDuplicateKeys(blobInfo, b => b.blobId)
+        if (duplicateKeys.length > 0) {
+            console.warn(`Duplicate blob IDs found. Excluding ${UPLOAD_QUEUE_FOLDER}: ${duplicateKeys.join(', ')}`)
+            return uniqBy(sortBy(blobInfo, b => b.isUploaded ? 0 : 1), b => b.blobId)
+        }
+        // if same blobId is stored in multiple folders, prefer the uploaded one (not in __uploadQueue).
         return blobInfo
     } catch (error: unknown) {
         if (isNodeError(error) && error.code === 'ENOENT') {
