@@ -6,15 +6,13 @@ import { join } from 'path'
 import { hostname, tmpdir } from 'os'
 import { createUrl, getAmHosting, getLANStoragePath, serverState, setLANStoragePath, setProxy } from './serverState'
 import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientIds, handleRetrieveLocalClientDocs, handleRetrieveRemoteDocs, handleSaveLocalSpots, handleSaveRemoteSpots, handleStoreLocalDocs, handleStoreRemoteDocs, IDBModDoc } from './docs'
-import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, CONNECTIONS_API_START_UDP, StartUdpResponse, RemoveStorageProjectResponse, AddStorageProjectResponse, ProbeConnectionsResponse, GetStorageProjectsResponse } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
 import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_RETRIEVE_BLOB_INFO, BLOBS_API_STORE_BLOB, BLOBS_API_UPDATE_BLOB_UPLOADED_STATUS, RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobInfoArgs, RetrieveBlobInfoResponse, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
-import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleRetrieveBlobInfo, handleStoreBlob, HandleStoreBlobArgs, handleUpdateBlobUploadedStatus } from './blobs'
+import { cleanupUploadQueueFolder, handleRetrieveAllBlobIds, handleRetrieveBlob, handleRetrieveBlobInfo, handleStoreBlob, HandleStoreBlobArgs, handleUpdateBlobUploadedStatus } from './blobs'
 import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, GetRemoteSpotsResponse, GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveLocalSpotsResponse, SaveRemoteSpotsArgs, SaveRemoteSpotsResponse, StoreLocalDocsArgs, StoreLocalDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs, RegisterClientUserResponse } from './clients.d'
-import { VIDEO_CACHE_RECORDS_API_STORE_VCR, VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES, VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS, StoreVcrArgs, ListVcrFilesArgs, RetrieveVcrsArgs, ListVcrFilesResponse, RetrieveVcrsResponse } from './vcrs.d'
 import { startUdpClient, broadcastPushHostDataMaybe, startHostExpirationTimer, startPushHostDataUpdating } from './udp'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
@@ -61,7 +59,6 @@ app.use(bodyParser.json({ limit: '500mb' })) // blobs can be 256MB
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
-const getVcrsPath = (): string => join(getLANStoragePath(), 'vcrs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
 
@@ -286,24 +283,6 @@ app.post(`/${BLOBS_API_RETRIEVE_ALL_BLOB_IDS}`, verifyLocalhostUnlessHosting, as
     res.json(response)
 }))
 
-app.post(`/${VIDEO_CACHE_RECORDS_API_STORE_VCR}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const args: StoreVcrArgs = req.body
-    const response: StoreBlobResponse = await storeVcr(getVcrsPath(), args)
-    res.json(response)
-}))
-
-app.post(`/${VIDEO_CACHE_RECORDS_API_LIST_VCR_FILES}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const args: ListVcrFilesArgs = req.body
-    const response: ListVcrFilesResponse = await listVcrFiles(getVcrsPath(), args)
-    res.json(response)
-}))
-
-app.post(`/${VIDEO_CACHE_RECORDS_API_RETRIEVE_VCRS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
-    const args: RetrieveVcrsArgs = req.body
-    const response: RetrieveVcrsResponse = await retrieveVcrs(getVcrsPath(), args)
-    res.json(response)
-}))
-
 app.post(`/${DOCS_API_STORE_REMOTE_DOCS}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
     const args: StoreRemoteDocsArgs<IDBModDoc> = req.body
     const response: StoreRemoteDocsResponse = await handleStoreRemoteDocs(getDocsPath(), args)
@@ -378,6 +357,7 @@ export const startStorageServer = async (configFilePath: string): Promise<void> 
             }
             if (getAmHosting()) {
                 console.log('Starting UDP messaging to allowHosting')
+                await cleanupUploadQueueFolder(getBlobsPath())
                 startAllUdpMessaging()
                 broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
             }

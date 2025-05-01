@@ -1,4 +1,4 @@
-import { ensureDir } from 'fs-extra'
+import { ensureDir, readdir, remove, rmdir } from 'fs-extra'
 import { access, copyFile, readFile, rename } from 'fs/promises'
 import { sortBy, uniqBy } from 'lodash'
 import { dirname, basename, join, posix } from 'path'
@@ -6,6 +6,54 @@ import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, R
 import { getFiles, isNodeError } from './utils'
 
 export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
+
+const deleteTopLevelEmptyFolders = async (rootDir) => {
+    const entries = await readdir(rootDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue // Skip files
+
+        const folderPath = join(rootDir, entry.name)
+        try {
+            await rmdir(folderPath)
+            console.log(`Deleted empty folder: ${folderPath}`)
+        } catch (error) {
+            if (error.code === 'ENOTEMPTY') {
+                // console.warn(`Skipping non-empty folder: ${folderPath}`)
+            } else {
+                console.error(`Error deleting ${folderPath}:`, error)
+            }
+        }
+    }
+}
+
+/**
+ * Before listening to api requests,
+ * 1. delete all upload queue files that are duplicates of files in the blobs folder
+ * 2. delete all upload queue folders that no longer have files
+ */
+export const cleanupUploadQueueFolder = async (blobsPath: string): Promise<void> => {
+    const blobInfo = await getAllBlobInfo(blobsPath)
+    const duplicateKeys = getDuplicateKeys(blobInfo, b => b.blobId)
+    const uploadQueueFilesToDelete = blobInfo.filter(b => b.isUploaded === false && duplicateKeys.includes(b.blobId))
+    const uploadQueueFilePathsToDelete = uploadQueueFilesToDelete.map(b => buildBlobPath(blobsPath, b.blobId, false, b.vcrTotalBlobs))
+
+    // 1. delete all upload queue files that are duplicates of files in the blobs folder
+    for (const filePath of uploadQueueFilePathsToDelete) {
+        try {
+            await remove(filePath)
+        } catch (error: unknown) {
+            if (isNodeError(error) && error.code === 'ENOENT') {
+                // file already deleted
+            } else {
+                console.error('An error occurred:', (error as Error).message)
+            }
+        }
+    }
+
+    // 2. delete all upload queue folders that no longer have files
+    await deleteTopLevelEmptyFolders(join(blobsPath, UPLOAD_QUEUE_FOLDER))
+}
 
 export const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boolean, vcrTotalBlobs: number): string => {
     const relativeVideoPath = dirname(blobId)
@@ -164,12 +212,17 @@ const getDuplicateKeys = <T> (array: T[], key: (item: T) => string): string[] =>
     return Array.from(duplicates) 
 }
 
+const getAllBlobInfo = async (blobsPath: string): Promise<RetrieveAllBlobIdsResponse> => {
+    const allPosixFilePaths = await getFiles(blobsPath, true)
+    const blobFilePaths = filterBlobFiles(allPosixFilePaths)
+    const blobInfo = transformBlobFilePathsToBlobInfo(blobsPath, blobFilePaths)
+    return blobInfo
+}
+
 export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: RetrieveAllBlobIdsArgs): Promise<RetrieveAllBlobIdsResponse> => {
     try {
         console.log('handleRetrieveAllBlobIds for client', clientId)
-        const allPosixFilePaths = await getFiles(blobsPath, true)
-        const blobFilePaths = filterBlobFiles(allPosixFilePaths)
-        const blobInfo = transformBlobFilePathsToBlobInfo(blobsPath, blobFilePaths)
+        const blobInfo = await getAllBlobInfo(blobsPath)
         const duplicateKeys = getDuplicateKeys(blobInfo, b => b.blobId)
         if (duplicateKeys.length > 0) {
             console.warn(`Duplicate blob IDs found. Excluding ${UPLOAD_QUEUE_FOLDER}: ${duplicateKeys.join(', ')}`)
