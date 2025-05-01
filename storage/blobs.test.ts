@@ -206,6 +206,7 @@ describe('handleStoreBlob', () => {
 
         const result = await handleStoreBlob(blobsPath, args)
         expect(result.fullPath).toBe(join(blobsPath, 'project1/blob-1'))
+        expect(result.isUploaded).toBe(true)
 
         const storedContent = await readFile(result.fullPath, 'utf-8')
         expect(storedContent).toBe(fileContent)
@@ -229,6 +230,7 @@ describe('handleStoreBlob', () => {
 
         const result = await handleStoreBlob(blobsPath, args)
         expect(result.fullPath).toBe(join(blobsPath, UPLOAD_QUEUE_FOLDER, '2', 'project1/blob-1'))
+        expect(result.isUploaded).toBe(false)
 
         const storedContent = await readFile(result.fullPath, 'utf-8')
         expect(storedContent).toBe(fileContent)
@@ -269,12 +271,13 @@ describe('handleStoreBlob', () => {
 
         const result = await handleStoreBlob(blobsPath, args)
         expect(result.fullPath).toBe(existingBlobPath)
+        expect(result.isUploaded).toBe(true)
 
         const storedContent = await readFile(result.fullPath, 'utf-8')
         expect(storedContent).toBe(fileContent)
     })
 
-    it('should throw an error if the blob exists as uploaded and isUploaded is set to false', async () => {
+    it('should return the existing path if the blob already exists as uploaded and isUploaded is set to false', async () => {
         const blobsPath = tempDir
         const blobId = 'project1/blob-1'
         const fileContent = 'existing uploaded blob content'
@@ -291,7 +294,12 @@ describe('handleStoreBlob', () => {
             vcrTotalBlobs: 0,
         }
 
-        await expect(handleStoreBlob(blobsPath, args)).rejects.toThrow(`Blob ${blobId} is already uploaded. Cannot set isUploaded to false.`)
+        const result = await handleStoreBlob(blobsPath, args)
+        expect(result.fullPath).toBe(existingBlobPath)
+        expect(result.isUploaded).toBe(true)
+
+        const storedContent = await readFile(result.fullPath, 'utf-8')
+        expect(storedContent).toBe(fileContent)
     })
 
     it('should move the blob from the upload queue to the uploaded folder if isUploaded is set to true', async () => {
@@ -314,6 +322,7 @@ describe('handleStoreBlob', () => {
 
         const result = await handleStoreBlob(blobsPath, args)
         expect(result.fullPath).toBe(uploadedBlobPath)
+        expect(result.isUploaded).toBe(true)
 
         const storedContent = await readFile(uploadedBlobPath, 'utf-8')
         expect(storedContent).toBe(fileContent)
