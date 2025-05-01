@@ -7,21 +7,22 @@ import { getFiles, isNodeError } from './utils'
 
 export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
 
-const deleteTopLevelEmptyFolders = async (rootDir) => {
-    const entries = await readdir(rootDir, { withFileTypes: true })
+async function deleteEmptyFolders(dir) {
+    const entries = await readdir(dir, { withFileTypes: true })
 
     for (const entry of entries) {
-        if (!entry.isDirectory()) continue // Skip files
+        const fullPath = join(dir, entry.name)
 
-        const folderPath = join(rootDir, entry.name)
-        try {
-            await rmdir(folderPath)
-            console.log(`Deleted empty folder: ${folderPath}`)
-        } catch (error) {
-            if (error.code === 'ENOTEMPTY') {
-                // console.warn(`Skipping non-empty folder: ${folderPath}`)
-            } else {
-                console.error(`Error deleting ${folderPath}:`, error)
+        if (entry.isDirectory()) {
+            await deleteEmptyFolders(fullPath) // Recursively go deeper first
+
+            try {
+                await rmdir(fullPath) // Remove folder if empty
+                console.log(`Deleted empty folder: ${fullPath}`)
+            } catch (error) {
+                if (error.code === 'ENOTEMPTY') {
+                    console.warn(`Skipping non-empty folder: ${fullPath}`)
+                }
             }
         }
     }
@@ -38,9 +39,11 @@ export const cleanupUploadQueueFolder = async (blobsPath: string): Promise<void>
     const uploadQueueFilesToDelete = blobInfo.filter(b => b.isUploaded === false && duplicateKeys.includes(b.blobId))
     const uploadQueueFilePathsToDelete = uploadQueueFilesToDelete.map(b => buildBlobPath(blobsPath, b.blobId, false, b.vcrTotalBlobs))
 
+    console.log(`Deleting files from ${UPLOAD_QUEUE_FOLDER} that have been uploaded.`)
     // 1. delete all upload queue files that are duplicates of files in the blobs folder
     for (const filePath of uploadQueueFilePathsToDelete) {
         try {
+            console.warn(`Deleting ${filePath}`)
             await remove(filePath)
         } catch (error: unknown) {
             if (isNodeError(error) && error.code === 'ENOENT') {
@@ -51,8 +54,9 @@ export const cleanupUploadQueueFolder = async (blobsPath: string): Promise<void>
         }
     }
 
+    console.log(`Deleting empty ${UPLOAD_QUEUE_FOLDER} sub-folders`)
     // 2. delete all upload queue folders that no longer have files
-    await deleteTopLevelEmptyFolders(join(blobsPath, UPLOAD_QUEUE_FOLDER))
+    await deleteEmptyFolders(join(blobsPath, UPLOAD_QUEUE_FOLDER))
 }
 
 export const buildBlobPath = (blobsPath: string, blobId: string, isUploaded: boolean, vcrTotalBlobs: number): string => {

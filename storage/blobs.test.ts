@@ -507,7 +507,7 @@ describe('cleanupUploadQueueFolder', () => {
         await cleanupUploadQueueFolder(blobsPath)
 
         // Ensure the empty folder is deleted
-        expect(await access(topLevelFolder)).toEqual(undefined)
+        await expect(access(topLevelFolder)).rejects.toThrow()
     })
 
     it('should not delete non-empty folders in the upload queue', async () => {
