@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { HandleStoreBlobArgs, filterBlobFiles, handleRetrieveAllBlobIds, transformBlobFilePathsToBlobInfo, handleUpdateBlobUploadedStatus, handleStoreBlob, buildBlobPath, getBlobInfo, UPLOAD_QUEUE_FOLDER } from './blobs'
-import { mkdtemp, rm, mkdir, writeFile, rename, readFile } from 'fs/promises'
+import { mkdtemp, rm, mkdir, writeFile, rename, readFile, access } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join, win32, posix } from 'path'
+import { join, win32 } from 'path'
 import { RetrieveAllBlobIdsResponse } from './blobs.d'
+import { handleRetrieveBlobInfo, cleanupUploadQueueFolder } from './blobs'
 
 describe('filterBlobFiles', () => {
     it('should filter out files that are not pasDoc or video blobs', () => {
@@ -413,5 +414,114 @@ describe('getBlobInfo', () => {
         const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), blobId)
 
         await expect(getBlobInfo(blobsPath, blobId, vcrTotalBlobs)).rejects.toThrow(`ENOENT: no such file or directory, access '${uploadQueuePath}`)
+    })
+})
+
+describe('handleRetrieveBlobInfo', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), 'test-'))
+    })
+
+    afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('should return the correct path and isUploaded=true for an uploaded blob', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 0
+        const uploadedBlobPath = join(blobsPath, 'project1/blob-1')
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(uploadedBlobPath, 'uploaded blob content')
+
+        const result = await handleRetrieveBlobInfo(blobsPath, { clientId: '1234', blobId, vcrTotalBlobs })
+        expect(result).toEqual({ fullPath: uploadedBlobPath, isUploaded: true })
+    })
+
+    it('should return the correct path and isUploaded=false for a blob in the upload queue', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1/blob-1')
+
+        await mkdir(join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1'), { recursive: true })
+        await writeFile(uploadQueuePath, 'blob content in upload queue')
+
+        const result = await handleRetrieveBlobInfo(blobsPath, { clientId: '1234', blobId, vcrTotalBlobs })
+        expect(result).toEqual({ fullPath: uploadQueuePath, isUploaded: false })
+    })
+
+    it('should return an empty path and isUploaded=false if the blob does not exist', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+
+        const result = await handleRetrieveBlobInfo(blobsPath, { clientId: '1234', blobId, vcrTotalBlobs })
+        expect(result).toEqual({ fullPath: '', isUploaded: false })
+    })
+})
+
+describe('cleanupUploadQueueFolder', () => {
+    let tempDir: string
+
+    beforeEach(async () => {
+        tempDir = await mkdtemp(join(tmpdir(), 'test-'))
+    })
+
+    afterEach(async () => {
+        await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('should delete duplicate files in the upload queue', async () => {
+        const blobsPath = tempDir
+        const blobId = 'project1/blob-1'
+        const vcrTotalBlobs = 2
+        const uploadedBlobPath = buildBlobPath(blobsPath, blobId, true, vcrTotalBlobs)
+        const uploadQueueBlobPath = buildBlobPath(blobsPath, blobId, false, vcrTotalBlobs)
+
+        await mkdir(join(blobsPath, 'project1'), { recursive: true })
+        await writeFile(uploadedBlobPath, 'uploaded blob content')
+
+        await mkdir(join(blobsPath, UPLOAD_QUEUE_FOLDER, String(vcrTotalBlobs), 'project1'), { recursive: true })
+        await writeFile(uploadQueueBlobPath, 'duplicate blob content')
+
+        await cleanupUploadQueueFolder(blobsPath)
+
+        // Ensure the duplicate file in the upload queue is deleted
+        await expect(access(uploadQueueBlobPath)).rejects.toThrow()
+        // Ensure the uploaded file is not deleted
+        const uploadedContent = await readFile(uploadedBlobPath, 'utf-8')
+        expect(uploadedContent).toBe('uploaded blob content')
+    })
+
+    it('should delete empty folders in the upload queue', async () => {
+        const blobsPath = tempDir
+        const emptyFolderPath = join(blobsPath, UPLOAD_QUEUE_FOLDER, '2', 'empty-folder')
+        const topLevelFolder = join(blobsPath, UPLOAD_QUEUE_FOLDER, '2')
+
+        await mkdir(emptyFolderPath, { recursive: true })
+
+        await cleanupUploadQueueFolder(blobsPath)
+
+        // Ensure the empty folder is deleted
+        expect(await access(topLevelFolder)).toEqual(undefined)
+    })
+
+    it('should not delete non-empty folders in the upload queue', async () => {
+        const blobsPath = tempDir
+        const nonEmptyFolderPath = join(blobsPath, UPLOAD_QUEUE_FOLDER, '2', 'non-empty-folder')
+        const filePath = join(nonEmptyFolderPath, 'file.txt')
+
+        await mkdir(nonEmptyFolderPath, { recursive: true })
+        await writeFile(filePath, 'content')
+
+        await cleanupUploadQueueFolder(blobsPath)
+
+        // Ensure the non-empty folder is not deleted
+        const fileContent = await readFile(filePath, 'utf-8')
+        expect(fileContent).toBe('content')
     })
 })
