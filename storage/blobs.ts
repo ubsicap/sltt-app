@@ -2,7 +2,7 @@ import { ensureDir } from 'fs-extra'
 import { access, copyFile, readFile, rename } from 'fs/promises'
 import { sortBy, uniqBy } from 'lodash'
 import { dirname, basename, join, posix } from 'path'
-import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
+import { RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobInfoArgs, RetrieveBlobInfoResponse, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
 import { getFiles, isNodeError } from './utils'
 
 export const UPLOAD_QUEUE_FOLDER = '__uploadQueue'
@@ -180,6 +180,21 @@ export const handleRetrieveAllBlobIds = async (blobsPath, { clientId }: Retrieve
     } catch (error: unknown) {
         if (isNodeError(error) && error.code === 'ENOENT') {
             return []
+        } else {
+            // Handle other possible errors
+            console.error('An error occurred:', (error as Error).message)
+            throw error
+        }
+    }
+}
+
+export const handleRetrieveBlobInfo = async (blobsPath: string, { blobId, vcrTotalBlobs }: RetrieveBlobInfoArgs): Promise<RetrieveBlobInfoResponse> => {
+    try {
+        const { fullPath, isUploaded } = await getBlobInfo(blobsPath, blobId, vcrTotalBlobs)
+        return { fullPath, isUploaded }
+    } catch (error: unknown) {
+        if (isNodeError(error) && error.code === 'ENOENT') {
+            return { fullPath: '', isUploaded: false }
         } else {
             // Handle other possible errors
             console.error('An error occurred:', (error as Error).message)

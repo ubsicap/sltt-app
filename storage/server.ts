@@ -9,8 +9,8 @@ import { handleGetLocalSpots, handleGetRemoteSpots, handleGetStoredLocalClientId
 import { listVcrFiles, retrieveVcrs, storeVcr } from './vcrs'
 import { AddStorageProjectArgs, CONNECTIONS_API_ADD_STORAGE_PROJECT, CONNECTIONS_API_CONNECT, CONNECTIONS_API_GET_STORAGE_PROJECTS, CONNECTIONS_API_PROBE, CONNECTIONS_API_REMOVE_STORAGE_PROJECT, ConnectArgs, ConnectResponse, GetStorageProjectsArgs, ProbeConnectionsArgs, RemoveStorageProjectArgs, CONNECTIONS_API_START_UDP, StartUdpResponse, RemoveStorageProjectResponse, AddStorageProjectResponse, ProbeConnectionsResponse, GetStorageProjectsResponse } from './connections.d'
 import { handleAddStorageProject, handleConnectToUrl, handleGetStorageProjects, handleProbeConnections, handleRemoveStorageProject } from './connections'
-import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_STORE_BLOB, BLOBS_API_UPDATE_BLOB_UPLOADED_STATUS, RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
-import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleStoreBlob, HandleStoreBlobArgs, handleUpdateBlobUploadedStatus } from './blobs'
+import { BLOBS_API_RETRIEVE_ALL_BLOB_IDS, BLOBS_API_RETRIEVE_BLOB, BLOBS_API_RETRIEVE_BLOB_INFO, BLOBS_API_STORE_BLOB, BLOBS_API_UPDATE_BLOB_UPLOADED_STATUS, RetrieveAllBlobIdsArgs, RetrieveAllBlobIdsResponse, RetrieveBlobArgs, RetrieveBlobInfoArgs, RetrieveBlobInfoResponse, RetrieveBlobResponse, StoreBlobArgs, StoreBlobResponse, UpdateBlobUploadedStatusArgs, UpdateBlobUploadedStatusResponse } from './blobs.d'
+import { handleRetrieveAllBlobIds, handleRetrieveBlob, handleRetrieveBlobInfo, handleStoreBlob, HandleStoreBlobArgs, handleUpdateBlobUploadedStatus } from './blobs'
 import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, GetRemoteSpotsResponse, GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveLocalSpotsResponse, SaveRemoteSpotsArgs, SaveRemoteSpotsResponse, StoreLocalDocsArgs, StoreLocalDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs, RegisterClientUserResponse } from './clients.d'
@@ -264,6 +264,12 @@ app.post(`/${BLOBS_API_STORE_BLOB}`, verifyLocalhostUnlessHosting, multiUpload.s
         vcrTotalBlobs: origArgs.vcrTotalBlobs,
     }
     const response: StoreBlobResponse = await handleStoreBlob(getBlobsPath(), args)
+    res.json(response)
+}))
+
+app.post(`/${BLOBS_API_RETRIEVE_BLOB_INFO}`, verifyLocalhostUnlessHosting, asyncHandler(async (req, res) => {
+    const args: RetrieveBlobInfoArgs = req.body
+    const response: RetrieveBlobInfoResponse = await handleRetrieveBlobInfo(getBlobsPath(), args)
     res.json(response)
 }))
 
