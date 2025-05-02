@@ -27,7 +27,7 @@ export async function getFiles(dir: string, useForwardSlashes = false): Promise<
  */
 export async function readJsonCatchMissing<T,TDefault>(filePath: string, defaultValue: T | TDefault): Promise<T|TDefault> {
     let tries = 0
-    while (tries < 2) {
+    while (true) {
         tries++
         try {
             const contents = await readJson(filePath)
@@ -39,10 +39,11 @@ export async function readJsonCatchMissing<T,TDefault>(filePath: string, default
                 const message = (error as Error).message
                 console.error('An error occurred:', message)
                 if (message.includes('Unexpected end of JSON input')) {
-                    continue
-                } else {
-                    throw error
+                    if (tries < 2) {
+                        continue
+                    }
                 }
+                throw error
             }
         }
     }

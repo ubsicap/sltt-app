@@ -20,7 +20,7 @@ async function deleteEmptyFolders(dir) {
                 await rmdir(fullPath) // Remove folder if empty
                 console.log(`Deleted empty folder: ${fullPath}`)
             } catch (error) {
-                if (error.code === 'ENOTEMPTY') {
+                if (isNodeError(error) && error.code === 'ENOTEMPTY') {
                     console.warn(`Skipping non-empty folder: ${fullPath}`)
                 }
             }
