@@ -70,7 +70,13 @@ function createWindow(partition?: string): BrowserWindow {
   })
 
   win.webContents.on('did-finish-load', () => {
-    console.log('Renderer has successfully reloaded!', win.webContents.getURL().substring(0, 50))
+    console.log('Renderer has successfully reloaded!', win.webContents.getURL())
+  })
+
+  win.webContents.on('page-title-updated', (event, title) => {
+    event.preventDefault() // Prevent default behavior
+    const appVersion = app.getVersion() // Get app version
+    win.setTitle(`${title} - v${appVersion}`) // Append version
   })
 
 
