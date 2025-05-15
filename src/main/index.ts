@@ -69,6 +69,11 @@ function createWindow(partition?: string): BrowserWindow {
     })
   })
 
+  win.webContents.on('did-finish-load', () => {
+    console.log('Renderer has successfully reloaded!', win.webContents.getURL().substring(0, 50))
+  })
+
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   console.log({ loadUrl: process.env['ELECTRON_RENDERER_URL'], isDev: is.dev })
