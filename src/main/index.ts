@@ -24,6 +24,7 @@ function createWindow(partition?: string): BrowserWindow {
     width: 1400,
     height: 670,
     backgroundColor: '#000',
+    transparent: false, // prevent window from flashing white
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -256,6 +257,7 @@ async function launchNewWindowConfig(configs: ReturnType<typeof loadWindowConfig
     width: 620,
     height: 320,
     backgroundColor: '#666',
+    transparent: false, // prevent window from flashing white
     modal: true,
     parent: BrowserWindow.getFocusedWindow() || undefined,
     webPreferences: {
