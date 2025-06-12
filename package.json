@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "207304.6.8",
+  "version": "207304.6.9",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -44,7 +44,7 @@
     "copy:mac:client": "rm -rf out/client; mkdir -p out/client; cp -R $SLTT_CLIENT_DIR/build out/client",
     "build:mac:norelease": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish never",
     "build:mac:ifNoWinRelease": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
-    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo 'uploading to release ${versionTag}'; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}.dmg.blockmap -R ubsicap/sltt-app",
+    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo uploading to release ${versionTag}; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}.dmg.blockmap -R ubsicap/sltt-app",
     
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },
