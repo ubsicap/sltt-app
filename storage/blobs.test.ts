@@ -5,6 +5,7 @@ import { tmpdir } from 'os'
 import { join, win32 } from 'path'
 import { RetrieveAllBlobIdsResponse } from './blobs.d'
 import { handleRetrieveBlobInfo, cleanupUploadQueueFolder } from './blobs'
+import { pathExists } from 'fs-extra'
 
 describe('filterBlobFiles', () => {
     it('should filter out files that are not pasDoc or video blobs', () => {
@@ -473,6 +474,16 @@ describe('cleanupUploadQueueFolder', () => {
 
     afterEach(async () => {
         await rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('should ensure the upload queue folder exists', async () => {
+        const blobsPath = tempDir
+        const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER)
+
+        await cleanupUploadQueueFolder(blobsPath)
+
+        // Ensure the upload queue folder is created
+        await expect(pathExists(uploadQueuePath)).resolves.toBe(true)
     })
 
     it('should delete duplicate files in the upload queue', async () => {

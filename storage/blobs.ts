@@ -34,6 +34,8 @@ async function deleteEmptyFolders(dir) {
  * 2. delete all upload queue folders that no longer have files
  */
 export const cleanupUploadQueueFolder = async (blobsPath: string): Promise<void> => {
+    const uploadQueuePath = join(blobsPath, UPLOAD_QUEUE_FOLDER)
+    await ensureDir(uploadQueuePath)
     const blobInfo = await getAllBlobInfo(blobsPath)
     const duplicateKeys = getDuplicateKeys(blobInfo, b => b.blobId)
     const uploadQueueFilesToDelete = blobInfo.filter(b => b.isUploaded === false && duplicateKeys.includes(b.blobId))
