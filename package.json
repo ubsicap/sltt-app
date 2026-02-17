@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "207304.6.13",
+  "version": "208600.7.00",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -19,12 +19,12 @@
     "typecheck:watch": "tsc -p tsconfig.json --watch",
     "start": "electron-vite preview",
     "test": "npm i && vitest",
-    "dev": "electron-vite dev",
+    "dev": "npm i && electron-vite dev",
     "build": "npm i && npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "ls:version:source": "dir %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
-    "find:version:source": "findstr /S /M \"version = \\\"2.73.4\\\"\" %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
-    "find:version:target": "findstr /S /M \"version = \\\"2.73.4\\\"\" out\\client\\assets\\index-*.js",
+    "find:version:source": "findstr /S /M \"version = \\\"2.86.0\\\"\" %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
+    "find:version:target": "findstr /S /M \"version = \\\"2.86.0\\\"\" out\\client\\assets\\index-*.js",
     "find:auth0_client_id:target": "findstr /S /M \"\\\"VITE_AUTH0_CLIENT_ID\\\": \\\"eTewsjcscudtGHteG3u86YEDwHUTRd6Z\\\"\" out\\client\\assets\\index-*.js",
     "find:auth0_client_id:source": "findstr /S /M \"\\\"VITE_AUTH0_CLIENT_ID\\\": \\\"eTewsjcscudtGHteG3u86YEDwHUTRd6Z\\\"\" %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
     "rmdir:build:client": "if exist \".\\out\\client\" rmdir /s /q \".\\out\\client\"",
@@ -41,10 +41,10 @@
     "show:release": "export versionTag=$(jq -r .version package.json); gh release view v${versionTag} --web -R ubsicap/sltt-app",
     "copy:mac:client": "rm -rf out/client; mkdir -p out/client; cp -R $SLTT_CLIENT_DIR/build/* out/client",
     "build:mac:norelease:core": "electron-vite build && electron-builder --mac --config --publish never",
-    "build:mac:norelease": "yarn copy:mac:client && yarn build:mac:norelease:core",
-    "build:mac:ifNoWinRelease": "yarn copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
+    "build:mac:norelease": "npm run copy:mac:client && npm run build:mac:norelease:core",
+    "build:mac:ifNoWinRelease": "npm run copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
     "delete:mac:release-assets": "export versionTag=$(jq -r .version package.json); for asset in latest-mac.yml sltt-app-${versionTag}-mac.zip sltt-app-${versionTag}-mac.zip.blockmap sltt-app-${versionTag}.dmg sltt-app-${versionTag}.dmg.blockmap; do gh release delete-asset v${versionTag} \"$asset\" -R ubsicap/sltt-app || true; done",
-    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo uploading to release ${versionTag}; yarn delete:mac:release-assets; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}.dmg.blockmap -R ubsicap/sltt-app --clobber",
+    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo uploading to release ${versionTag}; npm run delete:mac:release-assets; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}.dmg.blockmap -R ubsicap/sltt-app --clobber",
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },
   "build": {
@@ -124,6 +124,5 @@
     "vite": "^6.4.1",
     "vitest": "^3.2.4",
     "yaml": "^2.7.0"
-  },
-  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+  }
 }
