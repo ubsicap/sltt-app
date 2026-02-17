@@ -215,11 +215,14 @@ function ensureOneInstanceOfSlttAppAndCompressor(): void {
       }
 
       // Someone tried to run a second instance, we should focus our window.
+      console.log('Second instance launched, focusing existing window...')
       const allWindows = BrowserWindow.getAllWindows()
       if (allWindows.length) {
         const win = allWindows[0]
         if (win.isMinimized()) win.restore()
         win.focus()
+      } else {
+        console.log('No existing window found...')
       }
     })
   }
