@@ -2,7 +2,7 @@ import dgram from 'dgram'
 import { hostname } from 'os'
 import { createUrl, getAmHosting, HostInfo, PeerInfo, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
-import disk from 'diskusage'
+import { checkDiskUsage, DiskUsage } from './diskUsage'
 
 export const BROADCAST_ADDRESS = '255.255.255.255'
 export const UDP_CLIENT_PORT = 41234
@@ -23,7 +23,7 @@ type PushHostInfoBroadcast = {
     port: number,
     projects: string[],
     peers: { [serverId: string]: PeerInfo },
-    diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined,
+    diskUsage: DiskUsage | undefined,
 }
 
 type PushHostInfoResponse = {
@@ -212,11 +212,11 @@ export const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
     return activePeers
 }
 
-export const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.check>> | undefined> => {
+export const getDiskUsage = async (): Promise<DiskUsage | undefined> => {
     try {
         const startAt = new Date()
         console.debug('Checking disk usage...')
-        const result = await disk.check(serverState.myLanStoragePath)
+        const result = await checkDiskUsage(serverState.myLanStoragePath)
         const endAt = new Date()
         console.debug('Disk usage finished in', endAt.getTime() - startAt.getTime(), 'ms')
         return result

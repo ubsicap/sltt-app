@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { canWriteToFolder, finalizeHostFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { stat, mkdir, writeFile, unlink, rmdir } from 'fs/promises'
 import * as path from 'path'
-import disk from 'diskusage'
+import { checkDiskUsage } from './diskUsage'
 import { checkHostStoragePath, serverState, setLANStoragePath } from './serverState'
 import { isNodeError } from './utils'
 import { platform } from 'os'
@@ -12,7 +12,9 @@ import { HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER, HOST_FOLDER_ERROR_CODE_E
 vi.mock('os')
 vi.mock('fs/promises')
 vi.mock('path')
-vi.mock('diskusage')
+vi.mock('./diskUsage', () => ({
+    checkDiskUsage: vi.fn(),
+}))
 vi.mock('./serverState')
 vi.mock('./utils')
 
@@ -34,7 +36,7 @@ describe('canWriteToFolder', () => {
         vi.mocked(path.normalize).mockReturnValue(normalizedFolder)
         vi.mocked(path.extname).mockReturnValue('')
         vi.mocked(path.isAbsolute).mockReturnValue(true)
-        vi.mocked(disk.check).mockResolvedValue(diskUsageMock)
+        vi.mocked(checkDiskUsage).mockResolvedValue(diskUsageMock)
         vi.mocked(isNodeError).mockReturnValue(true)
     })
 
@@ -186,7 +188,7 @@ describe('loadHostFolder', () => {
 
     beforeAll(() => {
         vi.resetAllMocks()
-        vi.mocked(disk.check).mockResolvedValue(diskUsageMock)
+        vi.mocked(checkDiskUsage).mockResolvedValue(diskUsageMock)
     })
 
     it.each([
@@ -242,7 +244,7 @@ describe('loadHostFolder', () => {
         const requiredEnd = 'sltt-app\\lan'
         vi.mocked(normalize).mockImplementation(winNormalize)
         vi.mocked(platform).mockReturnValue(platformValue)
-        vi.mocked(disk.check).mockRejectedValue(new Error('Disk check error'))
+        vi.mocked(checkDiskUsage).mockRejectedValue(new Error('Disk check error'))
         serverState.myLanStoragePath = myLanStoragePath
         const result = await loadHostFolder()
         expect(result).toEqual({ hostFolder, defaultFolder, requiredEnd, diskUsage: undefined })

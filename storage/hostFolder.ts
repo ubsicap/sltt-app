@@ -4,7 +4,7 @@ import { CanWriteToFolderResponse, HOST_FOLDER_ERROR_CODE_ERROR_ACCESSING_FOLDER
 import { platform } from 'os'
 import { checkHostStoragePath, serverState, setLANStoragePath, SLTT_APP_LAN_FOLDER } from './serverState'
 import { normalize } from 'path'
-import disk from 'diskusage'
+import { checkDiskUsage, DiskUsage } from './diskUsage'
 import { isNodeError } from './utils'
 import { stringify as safeStableStringify} from 'safe-stable-stringify'
 
@@ -16,9 +16,9 @@ export const loadHostFolder = async (): Promise<LoadHostFolderResponse> => {
         throw new Error(`Default folder does not end with required end: ${defaultFolder} -> ${requiredEnd}`)
     }
     const hostFolder = serverState.myLanStoragePath ? normalize(serverState.myLanStoragePath) : ''
-    let diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined = undefined
+    let diskUsage: DiskUsage | undefined = undefined
     try {
-        diskUsage = await disk.check(hostFolder || defaultFolder)
+        diskUsage = await checkDiskUsage(hostFolder || defaultFolder)
     } catch (err) {
         console.error(`Error checking disk usage: ${hostFolder || defaultFolder}`)
     }
@@ -80,7 +80,7 @@ const createTempFile = async (folderPath: string): Promise<void> => {
 const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderResponse> => {
     let normalizedFolder: string = normalize(folderPath.trim())
     console.log(`canWriteToFolder: "${folderPath}" -> "${normalizedFolder}"`)
-    let diskUsage: Awaited<ReturnType<typeof disk.check>> | undefined = undefined
+    let diskUsage: DiskUsage | undefined = undefined
     try {
         // Check if the normalizedFolder has an extension
         const ext = path.extname(normalizedFolder)
@@ -107,7 +107,7 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
         if (stats.isDirectory()) {
             // Folder exists, check write permissions by creating a temporary file
             await createTempFile(normalizedFolder)
-            diskUsage = await disk.check(normalizedFolder)
+            diskUsage = await checkDiskUsage(normalizedFolder)
             return { errorCode: '', errorInfo: '', diskUsage }
         } else {
             console.error(`Path exists but is not a directory: ${normalizedFolder}`)
@@ -120,7 +120,7 @@ const canWriteToFolder = async (folderPath: string): Promise<CanWriteToFolderRes
                 await mkdir(normalizedFolder, { recursive: true })
                 // Folder created successfully, check write permissions by creating a temporary file
                 await createTempFile(normalizedFolder)
-                diskUsage = await disk.check(normalizedFolder)
+                diskUsage = await checkDiskUsage(normalizedFolder)
                 // Clean up by removing the created folder
                 await rmdir(normalizedFolder)
                 return { errorCode: '', errorInfo: '', diskUsage }

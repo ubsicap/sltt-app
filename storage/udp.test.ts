@@ -3,7 +3,7 @@ import dgram from 'dgram'
 import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT, pruneExpiredHosts, handleMessages, MSG_PUSH_HOST_INFO, MSG_DISCOVER_MY_UDP_IP_ADDRESS, ClientMessage } from './udp'
 import { serverState, HostInfo, PeerInfo, getAmHosting } from './serverState'
 import { getServerConfig } from './serverConfig'
-import disk from 'diskusage'
+import { checkDiskUsage } from './diskUsage'
 
 vi.mock('dgram')
 vi.mock('os', () => ({ hostname: (): string => 'test-hostname' }))
@@ -23,9 +23,8 @@ vi.mock('./serverState', () => ({
 vi.mock('./serverConfig', () => ({
     getServerConfig: (): ReturnType<typeof getServerConfig> => ({ port: UDP_CLIENT_PORT })
 }))
-vi.mock('diskusage', () => ({
-    default: { check: vi.fn() },
-    check: vi.fn()
+vi.mock('./diskUsage', () => ({
+    checkDiskUsage: vi.fn(),
 }))
 
 describe('UDP Client', () => {
@@ -104,7 +103,7 @@ describe('UDP Client', () => {
 
     it('should get disk usage correctly', async () => {
         const mockDiskUsage = { available: 100, free: 50, total: 150 };
-        (disk.check as Mock).mockResolvedValue(mockDiskUsage)
+        (checkDiskUsage as Mock).mockResolvedValue(mockDiskUsage)
         const result = await getDiskUsage()
         expect(result).toEqual(mockDiskUsage)
     })
@@ -114,7 +113,7 @@ describe('UDP Client', () => {
         const mockProjects = ['project1', 'project2']
         const fnGetProjects = vi.fn().mockResolvedValue(mockProjects)
         const expectedDiskUsage = { available: 100, free: 50, total: 150 }
-        vi.mocked(disk.check).mockResolvedValue(expectedDiskUsage)
+        vi.mocked(checkDiskUsage).mockResolvedValue(expectedDiskUsage)
         await broadcastPushHostDataMaybe(fnGetProjects)
         expect(fnGetProjects).toHaveBeenCalled()
         expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), UDP_CLIENT_PORT, BROADCAST_ADDRESS, expect.any(Function))
