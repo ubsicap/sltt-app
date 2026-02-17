@@ -107,7 +107,6 @@
     "@typescript-eslint/eslint-plugin": "^5.57.0",
     "@typescript-eslint/parser": "^5.57.0",
     "@vitejs/plugin-react": "^4.7.0",
-    "axios": ">=1.8.2",
     "cross-env": "^7.0.3",
     "electron": "^40.0.0",
     "electron-builder": "^26.7.0",
