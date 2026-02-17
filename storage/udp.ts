@@ -17,7 +17,7 @@ type UdpState = {
     myClient: ReturnType<typeof dgram.createSocket> | undefined
 }
 
-let udpState: UdpState
+let udpState: UdpState | undefined
 
 type PushHostInfoBroadcast = {
     port: number,
@@ -98,6 +98,9 @@ export const startUdpClient = (): UdpState => {
 }
 
 export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
+    if (!udpState) {
+        return
+    }
     const clientData: ClientMessage = JSON.parse(msg.toString())
     const { message, client } = clientData
     if (client.computerName === udpState.myComputerName &&
@@ -258,6 +261,12 @@ export const startPushHostDataUpdating = (fnGetProjects: () => Promise<string[]>
     }, hostUpdateIntervalMs)
 }
 
+export const stopPushHostDataUpdating = (): void => {
+    if (!hostUpdateTimerRef) return
+    clearInterval(hostUpdateTimerRef)
+    hostUpdateTimerRef = undefined
+}
+
 let hostExpirationTimerRef: ReturnType<typeof setInterval> | undefined = undefined
 
 export const startHostExpirationTimer = (intervalMs: number = 1000): void => {
@@ -265,6 +274,29 @@ export const startHostExpirationTimer = (intervalMs: number = 1000): void => {
     hostExpirationTimerRef = setInterval(() => {
         pruneExpiredHosts()
     }, intervalMs)
+}
+
+export const stopHostExpirationTimer = (): void => {
+    if (!hostExpirationTimerRef) return
+    clearInterval(hostExpirationTimerRef)
+    hostExpirationTimerRef = undefined
+}
+
+export const stopUdpClient = async (): Promise<void> => {
+    stopPushHostDataUpdating()
+    stopHostExpirationTimer()
+    if (!udpState || !udpState.myClient) {
+        udpState = undefined
+        return
+    }
+    const socket = udpState.myClient
+    udpState.myClient = undefined
+    await new Promise<void>((resolve) => {
+        socket.close(() => {
+            resolve()
+        })
+    })
+    udpState = undefined
 }
 
 export const pruneExpiredHosts = () => {

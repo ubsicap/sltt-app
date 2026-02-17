@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express'
+import { Server } from 'http'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import multer from 'multer'
@@ -13,7 +14,7 @@ import { cleanupUploadQueueFolder, handleRetrieveAllBlobIds, handleRetrieveBlob,
 import { handleRegisterClientUser } from './clients'
 import { DOCS_API_GET_LOCAL_SPOTS, DOCS_API_GET_REMOTE_SPOTS, DOCS_API_GET_STORED_LOCAL_CLIENT_IDS, DOCS_API_RETRIEVE_LOCAL_CLIENT_DOCS, DOCS_API_RETRIEVE_REMOTE_DOCS, DOCS_API_SAVE_LOCAL_SPOTS, DOCS_API_SAVE_REMOTE_SPOTS, DOCS_API_STORE_LOCAL_DOCS, DOCS_API_STORE_REMOTE_DOCS, GetLocalSpotsArgs, GetLocalSpotsResponse, GetRemoteSpotsArgs, GetRemoteSpotsResponse, GetStoredLocalClientIdsArgs, GetStoredLocalClientIdsResponse, RetrieveLocalClientDocsArgs, RetrieveLocalClientDocsResponse, RetrieveRemoteDocsArgs, RetrieveRemoteDocsResponse, SaveLocalSpotsArgs, SaveLocalSpotsResponse, SaveRemoteSpotsArgs, SaveRemoteSpotsResponse, StoreLocalDocsArgs, StoreLocalDocsResponse, StoreRemoteDocsArgs, StoreRemoteDocsResponse } from './docs.d'
 import { CLIENTS_API_REGISTER_CLIENT_USER, RegisterClientUserArgs, RegisterClientUserResponse } from './clients.d'
-import { startUdpClient, broadcastPushHostDataMaybe, startHostExpirationTimer, startPushHostDataUpdating } from './udp'
+import { startUdpClient, broadcastPushHostDataMaybe, startHostExpirationTimer, startPushHostDataUpdating, stopHostExpirationTimer, stopPushHostDataUpdating, stopUdpClient } from './udp'
 import { saveServerSettings, loadServerSettings, getServerConfig, MY_CLIENT_ID } from './serverConfig'
 import { canWriteToFolder, loadHostFolder, saveHostFolder } from './hostFolder'
 import { CanWriteToFolderArgs, HOST_FOLDER_API_SET_ALLOW_HOSTING, HOST_FOLDER_API_CAN_WRITE_TO_FOLDER, HOST_FOLDER_API_LOAD_HOST_FOLDER, HOST_FOLDER_API_SAVE_HOST_FOLDER, SaveHostFolderArgs, SaveHostFolderResponse, SetAllowHostingArgs, SetAllowHostingResponse, HOST_FOLDER_API_GET_ALLOW_HOSTING, GetAllowHostingResponse, CanWriteToFolderResponse, LoadHostFolderResponse } from './hostFolder.d'
@@ -33,6 +34,7 @@ let configSettingsPath: string
 const app = express()
 const serverConfig = getServerConfig()
 const PORT = Number(process.env.PORT) || serverConfig.port
+let storageServer: Server | undefined
 
 const multiUpload = multer({ dest: `${tmpdir}/sltt-app/server-${PORT}/multiUpload` })
 
@@ -61,6 +63,13 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }))
 const getBlobsPath = (): string => join(getLANStoragePath(), 'blobs')
 const getDocsPath = (): string => join(getLANStoragePath(), 'docs')
 const getClientsPath = (): string => join(getLANStoragePath(), 'clients')
+
+const stopAllUdpMessaging = async (): Promise<void> => {
+    stopPushHostDataUpdating()
+    stopHostExpirationTimer()
+    await stopUdpClient()
+    udpState = undefined
+}
 
 app.get('/status', (_, res) => {
     res.json({ status: 'ok' })
@@ -341,6 +350,10 @@ app.post(`/${DOCS_API_GET_LOCAL_SPOTS}`, verifyLocalhostUnlessHosting, asyncHand
 
 export const startStorageServer = async (configFilePath: string): Promise<void> => {
     try {
+        if (storageServer?.listening) {
+            console.log(`Storage server already running localhost port ${PORT}`)
+            return
+        }
         await loadServerSettings(configFilePath).then(async (settings) => {
             configSettingsPath = configFilePath
             let needsToSave = false
@@ -361,7 +374,7 @@ export const startStorageServer = async (configFilePath: string): Promise<void> 
                 startAllUdpMessaging()
                 broadcastPushHostDataMaybe(() => handleGetStorageProjects({ clientId: MY_CLIENT_ID }))
             }
-            app.listen(PORT, () => {
+            storageServer = app.listen(PORT, () => {
                 console.log(`Storage server is running localhost port ${PORT}`)
             })
         })
@@ -375,5 +388,35 @@ export const startStorageServer = async (configFilePath: string): Promise<void> 
                 configFilePath,
             }
         })
+    }
+}
+
+export const stopStorageServer = async (): Promise<void> => {
+    try {
+        await stopAllUdpMessaging()
+        if (!storageServer) {
+            return
+        }
+        await new Promise<void>((resolve, reject) => {
+            storageServer?.close((error?: Error) => {
+                if (error) {
+                    reject(error)
+                    return
+                }
+                resolve()
+            })
+        })
+        storageServer = undefined
+        console.log(`Storage server stopped localhost port ${PORT}`)
+    } catch (error) {
+        reportToRollbar({
+            error: error as Error, custom: {
+                context: 'storage/server: stopStorageServer',
+                serverState,
+                serverConfig,
+                udpState,
+            }
+        })
+        throw error
     }
 }

@@ -6,7 +6,7 @@ import { is } from '@electron-toolkit/utils'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import icon from '../../resources/icon.png?asset'
 import { getServerConfig } from '../../storage/serverConfig'
-import { startStorageServer } from '../../storage/server'
+import { startStorageServer, stopStorageServer } from '../../storage/server'
 import { setupRollbar, reportToRollbar } from '../../services/rollbar'
 
 const env = is.dev ? 'dev' : 'prd'
@@ -18,6 +18,7 @@ setupRollbar({
 )
 
 const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
+let storageShutdownStarted = false
 
 function createWindow(partition?: string): BrowserWindow {
   const win = new BrowserWindow({
@@ -163,8 +164,16 @@ app.whenReady().then(() => {
   // autoUpdater.checkForUpdatesAndNotify()
   // Menu.setApplicationMenu(null)
 
-  // Unregister the shortcut when the app is about to quit
-  app.on('will-quit', () => {
+  app.on('before-quit', (event) => {
+    if (storageShutdownStarted) {
+      return
+    }
+    storageShutdownStarted = true
+    event.preventDefault()
+    void shutdownStorageServerNonBlocking()
+      .finally(() => {
+        app.quit()
+      })
   })
 
   app.on('activate', function () {
@@ -356,6 +365,19 @@ function launchStorageServerNonBlocking(): void {
       })
       reportToRollbar(error)
     })
+}
+
+async function shutdownStorageServerNonBlocking(): Promise<void> {
+  console.log('[shutdown] stopping storage server')
+  try {
+    await stopStorageServer()
+  } catch (error) {
+    console.error('[shutdown] storage server shutdown failed', {
+      message: (error as Error)?.message,
+      stack: (error as Error)?.stack,
+    })
+    reportToRollbar(error)
+  }
 }
 
 // In this file you can include the rest of your app's specific main process
