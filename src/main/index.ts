@@ -155,6 +155,7 @@ app.whenReady().then(() => {
   globalShortcut.unregisterAll()
 
   createWindow()
+  launchStorageServerNonBlocking()
 
   // autoUpdater.forceDevUpdateConfig = true
 
@@ -341,7 +342,21 @@ function createMenu(win: BrowserWindow): void {
   Menu.setApplicationMenu(menu)
 }
 
+function launchStorageServerNonBlocking(): void {
+  const configFilePath = join(app.getPath('userData'), 'servers', `server-${getServerConfig().port}.sltt-config`)
+  console.log('[startup] launching storage server (non-blocking)', { configFilePath })
+  void startStorageServer(configFilePath)
+    .then(() => {
+      console.log('[startup] storage server startup promise resolved')
+    })
+    .catch((error) => {
+      console.error('[startup] storage server startup promise rejected', {
+        message: (error as Error)?.message,
+        stack: (error as Error)?.stack,
+      })
+      reportToRollbar(error)
+    })
+}
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
-const configFilePath = join(app.getPath('userData'), 'servers', `server-${getServerConfig().port}.sltt-config`)
-startStorageServer(configFilePath)
