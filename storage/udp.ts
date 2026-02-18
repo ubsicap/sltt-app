@@ -9,6 +9,7 @@ export const UDP_CLIENT_PORT = 41234
 
 export const MSG_DISCOVER_MY_UDP_IP_ADDRESS = 'GET /my-udp-ipaddress'
 export const MSG_PUSH_HOST_INFO = 'PUSH /storage-server/host'
+const diskUsageCacheDurationMs = 5 * 1000
 
 type UdpState = {
     startedAt: string
@@ -18,6 +19,9 @@ type UdpState = {
 }
 
 let udpState: UdpState | undefined
+let cachedDiskUsage: DiskUsage | undefined = undefined
+let cachedDiskUsageAtMs = 0
+let diskUsageRefreshPromise: Promise<DiskUsage | undefined> | undefined = undefined
 
 type PushHostInfoBroadcast = {
     port: number,
@@ -216,13 +220,42 @@ export const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
 }
 
 export const getDiskUsage = async (): Promise<DiskUsage | undefined> => {
+    const now = Date.now()
+    if (cachedDiskUsage !== undefined && now - cachedDiskUsageAtMs <= diskUsageCacheDurationMs) {
+        return cachedDiskUsage
+    }
+
+    const refreshDiskUsage = async (): Promise<DiskUsage | undefined> => {
+        if (diskUsageRefreshPromise) {
+            return diskUsageRefreshPromise
+        }
+        diskUsageRefreshPromise = (async () => {
+            try {
+                const startAt = new Date()
+                console.debug('Checking disk usage...')
+                const result = await checkDiskUsage(serverState.myLanStoragePath)
+                const endAt = new Date()
+                console.debug('Disk usage finished in', endAt.getTime() - startAt.getTime(), 'ms')
+                cachedDiskUsage = result
+                cachedDiskUsageAtMs = Date.now()
+                return result
+            } catch (error: unknown) {
+                console.error('Error getting disk usage:', error)
+                return cachedDiskUsage
+            } finally {
+                diskUsageRefreshPromise = undefined
+            }
+        })()
+        return diskUsageRefreshPromise
+    }
+
+    if (cachedDiskUsage !== undefined) {
+        void refreshDiskUsage()
+        return cachedDiskUsage
+    }
+
     try {
-        const startAt = new Date()
-        console.debug('Checking disk usage...')
-        const result = await checkDiskUsage(serverState.myLanStoragePath)
-        const endAt = new Date()
-        console.debug('Disk usage finished in', endAt.getTime() - startAt.getTime(), 'ms')
-        return result
+        return await refreshDiskUsage()
     } catch (error: unknown) {
         console.error('Error getting disk usage:', error)
     }
@@ -285,6 +318,9 @@ export const stopHostExpirationTimer = (): void => {
 export const stopUdpClient = async (): Promise<void> => {
     stopPushHostDataUpdating()
     stopHostExpirationTimer()
+    cachedDiskUsage = undefined
+    cachedDiskUsageAtMs = 0
+    diskUsageRefreshPromise = undefined
     if (!udpState || !udpState.myClient) {
         udpState = undefined
         return
