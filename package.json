@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "208600.7.5",
+  "version": "208600.7.4",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -87,8 +87,8 @@
     "axios": ">=1.8.2",
     "body-parser": "^1.20.3",
     "bottleneck": "^2.19.5",
+    "check-disk-space": "^2.1.0",
     "cors": "^2.8.5",
-    "diskusage": "^1.2.0",
     "electron-updater": "^6.7.3",
     "express": "^4.17.1",
     "ffmpeg-static": "^5.1.0",

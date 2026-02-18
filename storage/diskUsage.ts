@@ -1,14 +1,12 @@
-const diskusage = require('diskusage') as {
-    checkSync: (diskPath: string) => { free: number, total: number }
-}
+import checkDiskSpace from 'check-disk-space'
 
 export type DiskUsage = { available: number, free: number, total: number }
 
 export const checkDiskUsage = async (diskPath: string): Promise<DiskUsage> => {
-    const result = diskusage.checkSync(diskPath)
+    const result = await checkDiskSpace(diskPath)
     return {
         available: result.free,
         free: result.free,
-        total: result.total,
+        total: result.size,
     }
 }
