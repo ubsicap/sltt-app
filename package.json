@@ -23,7 +23,7 @@
     "build": "npm i && npm run typecheck && electron-vite build",
     "preflight:mac:toolchain": "node build/check-mac-toolchain.js",
     "toolchain:doctor": "node build/toolchain-doctor.js",
-    "postinstall": "npm run preflight:mac:toolchain && electron-builder install-app-deps",
+    "postinstall": "npm run preflight:mac:toolchain && node build/install-app-deps.js",
     "ls:version:source": "dir %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
     "find:version:source": "findstr /S /M \"version = \\\"2.86.0\\\"\" %SLTT_CLIENT_DIR%\\build\\assets\\index-*.js",
     "find:version:target": "findstr /S /M \"version = \\\"2.86.0\\\"\" out\\client\\assets\\index-*.js",

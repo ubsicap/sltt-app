@@ -20,6 +20,7 @@ if (process.platform !== 'darwin') {
 
 let developerDir = ''
 let clangVersionOutput = ''
+let sdkPath = ''
 
 try {
   developerDir = execSync('xcode-select -p', { encoding: 'utf8' }).trim()
@@ -33,14 +34,22 @@ try {
   fail('`clang` was not found. Install Command Line Tools: xcode-select --install')
 }
 
+try {
+  sdkPath = execSync('xcrun --show-sdk-path', { encoding: 'utf8' }).trim()
+} catch {
+  sdkPath = ''
+}
+
 const clangMajorMatch = clangVersionOutput.match(/Apple clang version (\d+)\./)
 const clangMajorVersion = clangMajorMatch ? Number(clangMajorMatch[1]) : 0
 
 const headerCandidates = [
   join(developerDir, 'usr', 'include', 'c++', 'v1', 'source_location'),
+  sdkPath ? join(sdkPath, 'usr', 'include', 'c++', 'v1', 'source_location') : '',
   '/Library/Developer/CommandLineTools/usr/include/c++/v1/source_location',
+  '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/source_location',
   '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1/source_location'
-]
+].filter(Boolean)
 
 const hasSourceLocationHeader = headerCandidates.some((candidate) => existsSync(candidate))
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const { existsSync } = require('fs')
+const { join } = require('path')
 const { execSync } = require('child_process')
 
 function run(command) {
@@ -42,10 +43,15 @@ printCheck('xcode-select -p', xcodePath)
 const clangVersion = run('clang --version | head -n 1')
 printCheck('clang --version', clangVersion)
 
+const sdkPath = run('xcrun --show-sdk-path')
+printCheck('xcrun --show-sdk-path', sdkPath)
+
 const sourceLocationChecks = [
+  sdkPath.ok && sdkPath.output ? join(sdkPath.output, 'usr', 'include', 'c++', 'v1', 'source_location') : '',
   '/Library/Developer/CommandLineTools/usr/include/c++/v1/source_location',
+  '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/source_location',
   '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1/source_location'
-]
+].filter(Boolean)
 for (const candidate of sourceLocationChecks) {
   const hasHeader = existsSync(candidate)
   console.log(`${candidate}: ${hasHeader ? 'FOUND' : 'MISSING'}`)
