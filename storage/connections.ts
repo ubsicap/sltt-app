@@ -121,6 +121,28 @@ let lastSambaIP = ''
 let newSambaIpAddressMaybe = ''
 
 let cachedWifiConnections: string[] = []
+let warnedAboutMissingAirportBinary = false
+
+const getMacWifiConnectionsFallback = async (): Promise<string[]> => {
+    try {
+        const { stdout: portsOutput } = await execPromise('networksetup -listallhardwareports')
+        const airportDevice = portsOutput
+            .split('\n\n')
+            .map(section => section.trim())
+            .find(section => section.includes('Hardware Port: Wi-Fi') || section.includes('Hardware Port: AirPort'))
+            ?.match(/Device:\s*(\S+)/)?.[1]
+
+        if (!airportDevice) {
+            return []
+        }
+
+        const { stdout: networkOutput } = await execPromise(`networksetup -getairportnetwork ${airportDevice}`)
+        const ssid = networkOutput.match(/Current (?:Wi-Fi|AirPort) Network:\s*(.+)/)?.[1]?.trim()
+        return ssid ? [ssid] : []
+    } catch {
+        return []
+    }
+}
 
 const updateWifiConnections = async (): Promise<void> => {
     console.log('Updating wifi connections...')
@@ -131,7 +153,24 @@ const updateWifiConnections = async (): Promise<void> => {
             console.log(`Wifi connections changed: ${JSON.stringify(connections, null, 2)}`)
             cachedWifiConnections = ssIdList
         }
-    } catch (error) {
+    } catch (error: unknown) {
+        if (
+            process.platform === 'darwin' &&
+            isNodeError(error) &&
+            error.code === 'ENOENT' &&
+            error.message.includes('Apple80211.framework/Versions/Current/Resources/airport')
+        ) {
+            const fallbackConnections = await getMacWifiConnectionsFallback()
+            if (JSON.stringify(fallbackConnections) !== JSON.stringify(cachedWifiConnections)) {
+                console.log(`Wifi connections changed (networksetup fallback): ${JSON.stringify(fallbackConnections)}`)
+                cachedWifiConnections = fallbackConnections
+            }
+            if (!warnedAboutMissingAirportBinary) {
+                console.warn('node-wifi airport binary missing on this macOS version; using networksetup fallback for SSID detection.')
+                warnedAboutMissingAirportBinary = true
+            }
+            return
+        }
         console.error('wifi.getCurrentConnections() error', error)
     }
 }
