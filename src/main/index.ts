@@ -14,8 +14,11 @@ setupRollbar({
   accessToken: '851e98d85b4d44f5a017e73de83695bf',
   environment: `${env}.main.sltt-app`,
   version: app.getVersion(),
+  electron: process.versions.electron,
   host: 'main.sltt-app' }
 )
+
+console.log('Main process started with electron version:', process.versions.electron)
 
 const CONFIG_FILE = join(app.getPath('userData'), 'window-configs.json')
 
