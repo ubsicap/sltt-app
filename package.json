@@ -47,7 +47,7 @@
     "list:release": "gh release list -R ubsicap/sltt-app | grep -v 'Draft'",
     "show:release": "export versionTag=$(jq -r .version package.json); gh release view v${versionTag} --web -R ubsicap/sltt-app",
     "copy:mac:client": "npm run find:auth0_client_id:source:mac && npm run find:version:source:mac && npm run find:auth0_client_id:source:mac && rm -rf out/client; mkdir -p out/client; cp -Rv $SLTT_CLIENT_DIR/build/* out/client",
-    "build:mac:norelease:core": "electron-vite build && electron-builder --mac zip --x64 --config --publish never",
+    "build:mac:norelease:core": "npm install && electron-vite build && electron-builder --mac zip --x64 --config --publish never",
     "build:mac:norelease": "npm run copy:mac:client && npm run find:version:target:mac && npm run find:auth0_client_id:target:mac && npm run build:mac:norelease:core",
     "build:mac:ifNoWinRelease": "npm run copy:mac:client; electron-vite build && electron-builder --mac --config --publish always",
     "delete:mac:release-assets": "export versionTag=$(jq -r .version package.json); for asset in latest-mac.yml sltt-app-${versionTag}-mac.zip sltt-app-${versionTag}-mac.zip.blockmap; do gh release delete-asset v${versionTag} \"$asset\" -R ubsicap/sltt-app || true; done",
