@@ -5,7 +5,7 @@ const formidable = require('formidable')
 const cors = require('cors')
 const path = require('path')
 const util = require('util')
-const checkDiskSpace = require('check-disk-space')
+const checkDiskSpace = require('diskusage').checkSync
 let { VideoCompressor, progressMap } = require('./src/VideoCompressor')
 const _config = require('./src/config')
 const { stringify: safeStableStringify } = require('safe-stable-stringify')
@@ -136,7 +136,7 @@ app.get('/metadata', async (req, res, next) => {
 })
 
 app.get('/freeSpace', async (_req, res, /* next */) => {
-    let space = await checkDiskSpace(_config.videosPath)
+    let space = checkDiskSpace(_config.videosPath)
     res.send({ free: space.free })
 })
 

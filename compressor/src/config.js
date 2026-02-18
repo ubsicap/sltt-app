@@ -35,7 +35,7 @@ console.log(`srcFfmpegPath: ${srcFfmpegPath}`)
 
 const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
 
-const version = '2.0.0'
+const version = '2.0.1'
 console.log(`sltt-app compressor server version: ${version}`)
 
 module.exports = { resourcesPath, videosPath, srcFfmpegPath, ffmpegPath, version, platform }
