@@ -1,5 +1,5 @@
 import dgram from 'dgram'
-import { hostname } from 'os'
+import { hostname, networkInterfaces } from 'os'
 import { createUrl, getAmHosting, HostInfo, PeerInfo, serverState } from './serverState'
 import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
@@ -18,6 +18,39 @@ type UdpState = {
 }
 
 let udpState: UdpState
+let warnedBroadcastUnreachable = false
+let dumpedOversizedUdpMessage = false
+
+const ipv4ToInt = (ip: string): number => {
+    return ip.split('.').reduce((acc, octet) => ((acc << 8) | Number(octet)) >>> 0, 0)
+}
+
+const intToIpv4 = (value: number): string => {
+    return [
+        (value >>> 24) & 255,
+        (value >>> 16) & 255,
+        (value >>> 8) & 255,
+        value & 255,
+    ].join('.')
+}
+
+const getDirectedBroadcastAddresses = (): string[] => {
+    const interfaces = networkInterfaces()
+    const addresses = new Set<string>()
+    for (const iface of Object.values(interfaces)) {
+        if (!iface) continue
+        for (const entry of iface) {
+            const isIPv4 = entry.family === 'IPv4'
+            if (!isIPv4 || entry.internal) continue
+            if (!entry.address || !entry.netmask) continue
+            const addressInt = ipv4ToInt(entry.address)
+            const netmaskInt = ipv4ToInt(entry.netmask)
+            const broadcastInt = (addressInt | (~netmaskInt >>> 0)) >>> 0
+            addresses.add(intToIpv4(broadcastInt))
+        }
+    }
+    return [...addresses]
+}
 
 type PushHostInfoBroadcast = {
     port: number,
@@ -48,7 +81,7 @@ export type ClientMessage = {
     }
 }
 
-const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>): Buffer => {
+const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>): string => {
     if (!udpState) throw new Error('UDP client not started')
     const payload: ClientMessage = {
         client: { serverId: serverState.myServerId, startedAt: udpState.startedAt, computerName: udpState.myComputerName, user: serverState.myUsername },
@@ -59,15 +92,54 @@ const formatClientMsg = ({ type, id, json }: Omit<ClientMessage['message'], 'cre
             json,
         },
     }
-    return Buffer.from(JSON.stringify(payload))
+    return JSON.stringify(payload)
 }
 
 export const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], 'createdAt'>, port = UDP_CLIENT_PORT, address = BROADCAST_ADDRESS): void => {
     if (!udpState || !udpState.myClient) throw new Error('UDP client not started')
     const msg = formatClientMsg({ type, id, json })
-    udpState.myClient.send(msg, 0, msg.length, port, address, (err) => {
-        if (err) console.error(err)
-        else console.log(`Message sent to '${address}:${port}': ${id}`)
+    const messageSizeBytes = Buffer.byteLength(msg, 'utf8')
+    const targetAddresses = address === BROADCAST_ADDRESS
+        ? [BROADCAST_ADDRESS, ...getDirectedBroadcastAddresses()]
+        : [address]
+    const uniqueTargets = [...new Set(targetAddresses)]
+
+    console.debug(`UDP message size: ${messageSizeBytes} bytes; id='${id}'; type='${type}'; targets=${JSON.stringify(uniqueTargets)}`)
+
+    uniqueTargets.forEach((targetAddress) => {
+        udpState.myClient?.send(msg, port, targetAddress, (err) => {
+            if (err) {
+                const isMessageTooLarge =
+                    'code' in err &&
+                    err.code === 'EMSGSIZE'
+
+                if (isMessageTooLarge) {
+                    if (!dumpedOversizedUdpMessage) {
+                        console.error(`UDP message too large (${messageSizeBytes} bytes) for '${targetAddress}:${port}'. Dumping payload once for debugging:`)
+                        console.error(msg)
+                        dumpedOversizedUdpMessage = true
+                    }
+                    return
+                }
+
+                const isBroadcastUnreachable =
+                    targetAddress === BROADCAST_ADDRESS &&
+                    'code' in err &&
+                    err.code === 'EHOSTUNREACH'
+
+                if (isBroadcastUnreachable) {
+                    if (!warnedBroadcastUnreachable) {
+                        console.warn(`UDP global broadcast unavailable (${targetAddress}:${port}): ${err.message}. Continuing with directed subnet broadcasts.`)
+                        warnedBroadcastUnreachable = true
+                    }
+                    return
+                }
+
+                console.error(err)
+                return
+            }
+            console.log(`Message sent to '${targetAddress}:${port}': ${id}`)
+        })
     })
 }
 
