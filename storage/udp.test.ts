@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest'
 import dgram from 'dgram'
-import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT, pruneExpiredHosts, handleMessages, MSG_PUSH_HOST_INFO, MSG_DISCOVER_MY_UDP_IP_ADDRESS, ClientMessage } from './udp'
+import { startUdpClient, broadcastPushHostDataMaybe, getMyActivePeers, getDiskUsage, hostUpdateIntervalMs, BROADCAST_ADDRESS, UDP_CLIENT_PORT, pruneExpiredHosts, pruneMyExpiredPeers, handleMessages, MSG_PUSH_HOST_INFO, MSG_DISCOVER_MY_UDP_IP_ADDRESS, ClientMessage } from './udp'
 import { serverState, HostInfo, PeerInfo, getAmHosting } from './serverState'
 import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
@@ -15,6 +15,7 @@ vi.mock('./serverState', () => ({
     getAmHosting: vi.fn(),
     serverState: {
         hosts: {},
+        myHostPeers: {},
         myServerId: 'my-server-id',
         myUsername: 'test-user',
         allowHosting: false,
@@ -57,6 +58,7 @@ describe('UDP Client', () => {
         } as unknown as dgram.Socket
         vi.spyOn(dgram, 'createSocket').mockReturnValue(myClient);
         serverState.hosts = {}
+        serverState.myHostPeers = {}
         serverState.myServerId = 'my-server-id'
         serverState.allowHosting = false
         serverState.myLanStoragePath = ''
@@ -103,8 +105,8 @@ describe('UDP Client', () => {
         serverState.hosts['my-server-id'] = {
             updatedAt: '2023-01-02T00:00:00Z',
             serverId: 'my-server-id',
-            peers,
         } as HostInfo
+        serverState.myHostPeers = peers
         const result = getMyActivePeers()
         expect(result).toEqual({
             'peer2': peers['peer2'],
@@ -141,30 +143,22 @@ describe('UDP Client', () => {
 
     it('should remove expired hosts', () => {
         const now = new Date().getTime()
-        const host1Peers: { [serverId: string]: PeerInfo } = {}
-        const host2Peers: { [serverId: string]: PeerInfo } = {}
-        const host3Peers: { [serverId: string]: PeerInfo } = {}
         serverState.hosts['host1'] = {
             serverId: 'host1',
-            peers: host1Peers,
             lastSeenAt: new Date(now - hostUpdateIntervalMs * 3).toISOString(),
         } as HostInfo
         serverState.hosts['host2'] = {
             serverId: 'host2',
-            peers: host2Peers,
             lastSeenAt: new Date(now - hostUpdateIntervalMs).toISOString(),
         } as HostInfo
         serverState.hosts['host3'] = {
             serverId: 'host3',
-            peers: host3Peers,
             lastSeenAt: undefined,
         } as HostInfo
         pruneExpiredHosts()
         expect(serverState.hosts).toEqual({
             'host2': {
                 serverId: 'host2',
-                peers: {
-                },
                 lastSeenAt: new Date(now - hostUpdateIntervalMs).toISOString(),
             }
         })
@@ -173,11 +167,70 @@ describe('UDP Client', () => {
     it('should remove my disabled host', () => {
         serverState.hosts['my-server-id'] = {
             serverId: 'my-server-id',
-            peers: {}
         } as HostInfo
         (getAmHosting as Mock).mockReturnValue(false)
         pruneExpiredHosts()
         expect(serverState.hosts).toEqual({})
+    })
+
+    it('should pruneMyExpiredPeers stale peers and refresh host peer counters', () => {
+        const now = new Date().getTime();
+        (getAmHosting as Mock).mockReturnValue(true)
+        serverState.myServerId = 'my-server-id'
+        serverState.hosts['my-server-id'] = {
+            serverId: 'my-server-id',
+            protocol: 'http',
+            ip: '127.0.0.1',
+            port: UDP_CLIENT_PORT,
+            user: 'user1',
+            startedAt: '2023-01-01T00:00:00Z',
+            updatedAt: new Date(now).toISOString(),
+            computerName: 'computer1',
+            projects: ['project1'],
+            diskUsage: { available: 100, free: 50, total: 150 },
+            peerCount: 2,
+            clientCount: 1,
+        }
+
+        serverState.myHostPeers = {
+            stalePeer: {
+                serverId: 'stalePeer',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'computer2',
+                user: 'user2',
+                protocol: 'http',
+                ip: '127.0.0.2',
+                port: UDP_CLIENT_PORT,
+                hostUpdatedAt: new Date(now).toISOString(),
+                hostPeersAt: new Date(now).toISOString(),
+                updatedAt: new Date(now).toISOString(),
+                lastSeenAt: new Date(now - hostUpdateIntervalMs * 3).toISOString(),
+                isClient: true,
+            },
+            activePeer: {
+                serverId: 'activePeer',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'computer3',
+                user: 'user3',
+                protocol: 'http',
+                ip: '127.0.0.3',
+                port: UDP_CLIENT_PORT,
+                hostUpdatedAt: new Date(now).toISOString(),
+                hostPeersAt: new Date(now).toISOString(),
+                updatedAt: new Date(now).toISOString(),
+                lastSeenAt: new Date(now - hostUpdateIntervalMs).toISOString(),
+                isClient: false,
+            }
+        }
+
+        const removed = pruneMyExpiredPeers(now)
+
+        expect(serverState.hosts['my-server-id']).toBeDefined()
+        expect(removed).toEqual(['stalePeer'])
+        expect(serverState.myHostPeers['stalePeer']).toBeUndefined()
+        expect(serverState.myHostPeers['activePeer']).toBeDefined()
+        expect(serverState.hosts['my-server-id'].peerCount).toBe(1)
+        expect(serverState.hosts['my-server-id'].clientCount).toBe(0)
     })
 
     it('should handle discovery message and respond with UDP IP address', async () => {
@@ -238,7 +291,22 @@ describe('UDP Client', () => {
         expect(jsonData.message.type).toBe('response')
     })
 
-    it('should keep local host peer map when receiving remote host push updates', async () => {
+    it('should discard remote host peer map and keep aggregate counts from push updates', async () => {
+        serverState.myHostPeers = {
+            myPeer: {
+                serverId: 'myPeer',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'my-computer',
+                user: 'user1',
+                protocol: 'http',
+                ip: '127.0.0.1',
+                port: UDP_CLIENT_PORT,
+                hostUpdatedAt: '2023-01-01T00:00:00Z',
+                hostPeersAt: '2023-01-01T00:00:00Z',
+                updatedAt: '2023-01-01T00:00:00Z',
+                isClient: false,
+            }
+        }
         serverState.hosts['peer1'] = {
             serverId: 'peer1',
             protocol: 'http',
@@ -248,21 +316,6 @@ describe('UDP Client', () => {
             startedAt: '2023-01-01T00:00:00Z',
             updatedAt: '2023-01-01T00:00:00Z',
             computerName: 'computer1',
-            peers: {
-                myPeer: {
-                    serverId: 'myPeer',
-                    startedAt: '2023-01-01T00:00:00Z',
-                    computerName: 'my-computer',
-                    user: 'user1',
-                    protocol: 'http',
-                    ip: '127.0.0.1',
-                    port: UDP_CLIENT_PORT,
-                    hostUpdatedAt: '2023-01-01T00:00:00Z',
-                    hostPeersAt: '2023-01-01T00:00:00Z',
-                    updatedAt: '2023-01-01T00:00:00Z',
-                    isClient: false,
-                }
-            },
             projects: ['project1', 'project2'],
             diskUsage: { available: 100, free: 50, total: 150 },
         } as HostInfo
@@ -289,7 +342,9 @@ describe('UDP Client', () => {
         const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
         await handleMessages(msg, rinfo)
         expect(serverState.hosts['peer1']).toBeDefined()
-        expect(serverState.hosts['peer1'].peers['myPeer']).toBeDefined()
+        expect(serverState.hosts['peer1'].peerCount).toBe(4)
+        expect(serverState.hosts['peer1'].clientCount).toBe(1)
+        expect(serverState.myHostPeers['myPeer']).toBeDefined()
         expect(hasSendCallFor(myClient, rinfo.port, rinfo.address)).toBe(true)
         const jsonData: ClientMessage = extractSpyClientMessage(myClient, rinfo)
         expect(jsonData.message.id).toBe(MSG_PUSH_HOST_INFO)
@@ -329,10 +384,40 @@ describe('UDP Client', () => {
     })
     
     it('should handle push host info response and update peer info', async () => {
+        serverState.hosts['my-server-id'] = {
+            serverId: 'my-server-id',
+        } as HostInfo
+        serverState.myHostPeers = {}
+        const msg = Buffer.from(JSON.stringify({
+            client: {
+                serverId: 'peer2',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'computer2',
+                user: 'user2',
+            },
+            message: {
+                createdAt: new Date().toISOString(),
+                type: 'response',
+                id: MSG_PUSH_HOST_INFO,
+                json: JSON.stringify({
+                    port: UDP_CLIENT_PORT,
+                    hostServerId: 'my-server-id',
+                    hostUpdatedAt: new Date().toISOString(),
+                    isClient: false,
+                }),
+            },
+        }))
+        const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
+        await handleMessages(msg, rinfo)
+        expect(serverState.myHostPeers['peer2']).toBeDefined()
+        expect(serverState.myHostPeers['peer2'].computerName).toBe('computer2')
+    })
+
+    it('should ignore push host info response updates for non-my hosts', async () => {
         serverState.hosts['peer1'] = {
             serverId: 'peer1',
-            peers: {},
         } as HostInfo
+        serverState.myHostPeers = {}
         const msg = Buffer.from(JSON.stringify({
             client: {
                 serverId: 'peer2',
@@ -354,8 +439,7 @@ describe('UDP Client', () => {
         }))
         const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
         await handleMessages(msg, rinfo)
-        expect(serverState.hosts['peer1'].peers['peer2']).toBeDefined()
-        expect(serverState.hosts['peer1'].peers['peer2'].computerName).toBe('computer2')
+        expect(serverState.myHostPeers['peer2']).toBeUndefined()
     })
 })
 

@@ -4,6 +4,7 @@ import { serverState, getHostsByRelevance, HostInfo } from './serverState'
 describe('getHostsByRelevance', () => {
     beforeEach(() => {
         serverState.hosts = {}
+        serverState.myHostPeers = {}
         serverState.myServerId = 'my-server-id'
         serverState.allowHosting = false
         serverState.myLanStoragePath = ''
@@ -21,56 +22,28 @@ describe('getHostsByRelevance', () => {
         const host1: HostInfo = {
             serverId: 'host1',
             startedAt: '',
-            updatedAt: '',
+            updatedAt: '2023-01-01T00:00:00Z',
             computerName: '',
             user: '',
             protocol: '',
             ip: '',
             port: 0,
             projects: [],
-            peers: {
-                'my-server-id': {
-                    serverId: 'my-server-id',
-                    startedAt: '',
-                    updatedAt: '',
-                    computerName: '',
-                    user: '',
-                    protocol: '',
-                    ip: '',
-                    port: 0,
-                    hostUpdatedAt: '',
-                    hostPeersAt: '2023-01-01T00:00:00Z',
-                    isClient: false
-                }
-            },
+            discoveredAt: '2023-01-01T00:00:00Z',
             diskUsage: undefined
         }
 
         const host2: HostInfo = {
             serverId: 'host2',
             startedAt: '',
-            updatedAt: '',
+            updatedAt: '2023-01-02T00:00:00Z',
             computerName: '',
             user: '',
             protocol: '',
             ip: '',
             port: 0,
             projects: [],
-            peers: {
-                'my-server-id': {
-                    serverId: 'my-server-id',
-                    startedAt: '',
-                    updatedAt: '',
-                    computerName: '',
-                    user: '',
-                    protocol: '',
-                    ip: '',
-                    port: 0,
-                    hostUpdatedAt: '',
-                    hostPeersAt: '2023-01-02T00:00:00Z',
-                    isClient: false
-                }
-            },
+            discoveredAt: '2023-01-02T00:00:00Z',
             diskUsage: undefined
         }
 
@@ -84,21 +57,7 @@ describe('getHostsByRelevance', () => {
             ip: '',
             port: 0,
             projects: [],
-            peers: {
-                'my-server-id': {
-                    serverId: 'my-server-id',
-                    startedAt: '',
-                    updatedAt: '',
-                    computerName: '',
-                    user: '',
-                    protocol: '',
-                    ip: '',
-                    port: 0,
-                    hostUpdatedAt: '',
-                    hostPeersAt: '2023-01-02T00:00:00Z',
-                    isClient: false
-                }
-            },
+            discoveredAt: '2023-01-03T00:00:00Z',
             diskUsage: undefined
         }
 
@@ -112,60 +71,32 @@ describe('getHostsByRelevance', () => {
         expect(result).toEqual([myHost, host1, host2])
     })
 
-    it('should return hosts sorted by `hostPeersAt` relevance when not hosting', () => {
+    it('should return hosts sorted by discovery/updated timestamp when not hosting', () => {
         const host1: HostInfo = {
             serverId: 'host1',
             startedAt: '',
-            updatedAt: '',
+            updatedAt: '2023-01-03T00:00:00Z',
             computerName: '',
             user: '',
             protocol: '',
             ip: '',
             port: 0,
             projects: [],
-            peers: {
-                'my-server-id': {
-                    serverId: 'my-server-id',
-                    startedAt: '',
-                    updatedAt: '',
-                    computerName: '',
-                    user: '',
-                    protocol: '',
-                    ip: '',
-                    port: 0,
-                    hostUpdatedAt: '',
-                    hostPeersAt: '2023-01-03T00:00:00Z',
-                    isClient: false
-                }
-            },
+            discoveredAt: '2023-01-03T00:00:00Z',
             diskUsage: undefined
         }
 
         const host2: HostInfo = {
             serverId: 'host2',
             startedAt: '',
-            updatedAt: '',
+            updatedAt: '2023-01-02T00:00:00Z',
             computerName: '',
             user: '',
             protocol: '',
             ip: '',
             port: 0,
             projects: [],
-            peers: {
-                'my-server-id': {
-                    serverId: 'my-server-id',
-                    startedAt: '',
-                    updatedAt: '',
-                    computerName: '',
-                    user: '',
-                    protocol: '',
-                    ip: '',
-                    port: 0,
-                    hostUpdatedAt: '',
-                    hostPeersAt: '2023-01-02T00:00:00Z',
-                    isClient: false
-                }
-            },
+            discoveredAt: '2023-01-02T00:00:00Z',
             diskUsage: undefined
         }
 

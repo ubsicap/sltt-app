@@ -196,9 +196,9 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
             const protocol = 'http'
             const existingHost = serverState.hosts[client.serverId]
             const nowIso = new Date().toISOString()
-            const peers = existingHost?.peers || {}
-            const effectivePeerCount = hostServerId === serverState.myServerId ? Object.keys(peers).length : peerCount
-            const effectiveClientCount = hostServerId === serverState.myServerId ? Object.values(peers).filter(peer => peer.isClient).length : clientCount
+            const myHostPeers = serverState.myHostPeers
+            const effectivePeerCount = hostServerId === serverState.myServerId ? Object.keys(myHostPeers).length : peerCount
+            const effectiveClientCount = hostServerId === serverState.myServerId ? Object.values(myHostPeers).filter(peer => peer.isClient).length : clientCount
             const updatedHost: HostInfo = {
                 serverId: hostServerId,
                 protocol,
@@ -208,7 +208,6 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
                 startedAt: client.startedAt,
                 updatedAt: hostUpdatedAt,
                 computerName: client.computerName,
-                peers,
                 projects,
                 diskUsage,
                 peerCount: effectivePeerCount,
@@ -237,6 +236,9 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
         }
         if (message.type === 'response') {
             const { port, hostServerId, hostUpdatedAt, isClient }: PushHostInfoResponse = JSON.parse(message.json)
+            if (hostServerId !== serverState.myServerId) {
+                return
+            }
             // the host should store each peer's data
             const { startedAt, computerName, user } = client
             const host = serverState.hosts[hostServerId]
@@ -244,8 +246,9 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
                 console.warn(`Skipping peer update for missing host '${hostServerId}'`)
                 return
             }
-            const existingPeer = host.peers[client.serverId]
+            const existingPeer = serverState.myHostPeers[client.serverId]
             const peerUpdatedAt = message.createdAt
+            const peerLastSeenAt = new Date().toISOString()
             const updatedPeer: PeerInfo = {
                 serverId: client.serverId,
                 computerName,
@@ -258,11 +261,12 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
                 hostUpdatedAt,
                 isClient,
                 updatedAt: peerUpdatedAt,
+                lastSeenAt: peerLastSeenAt,
             }
-            host.peers[client.serverId] = updatedPeer
-            host.peerCount = Object.keys(host.peers).length
-            host.clientCount = Object.values(host.peers).filter(peer => peer.isClient).length
-            console.log('Peers count: ', Object.keys(host.peers).length)
+            serverState.myHostPeers[client.serverId] = updatedPeer
+            host.peerCount = Object.keys(serverState.myHostPeers).length
+            host.clientCount = Object.values(serverState.myHostPeers).filter(peer => peer.isClient).length
+            console.log('Peers count: ', Object.keys(serverState.myHostPeers).length)
         }
     }
     // if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {
@@ -288,13 +292,37 @@ export const getMyActivePeers = (): { [serverId: string]: PeerInfo } => {
     if (!getAmHosting()) return {}
     const myHost = serverState.hosts[serverState.myServerId]
     if (!myHost) return {}
+    const myHostPeers = serverState.myHostPeers
     const activePeers: { [serverId: string]: PeerInfo } = {}
-    Object.values(myHost.peers).forEach((peer) => {
+    Object.values(myHostPeers).forEach((peer) => {
         if (peer.hostUpdatedAt === myHost.updatedAt) {
             activePeers[peer.serverId] = peer
         }
     })
     return activePeers
+}
+
+export const pruneMyExpiredPeers = (now: number = new Date().getTime()): string[] => {
+    const myHost = serverState.hosts[serverState.myServerId]
+    if (!myHost) return []
+    const stalePeerIds: string[] = []
+    for (const [peerServerId, peer] of Object.entries(serverState.myHostPeers)) {
+        const peerHeartbeatAt = peer.lastSeenAt || peer.updatedAt
+        const isPeerObsolete = peer.hostUpdatedAt !== myHost.updatedAt
+        const isPeerExpired = !peerHeartbeatAt || now - new Date(peerHeartbeatAt).getTime() > peerExpirationMs
+        if (isPeerObsolete || isPeerExpired) {
+            stalePeerIds.push(peerServerId)
+        }
+    }
+    if (stalePeerIds.length > 0) {
+        stalePeerIds.forEach((peerServerId) => {
+            delete serverState.myHostPeers[peerServerId]
+            console.log(`Removing expired peer '${peerServerId}' from host '${myHost.serverId}'`)
+        })
+        myHost.peerCount = Object.keys(serverState.myHostPeers).length
+        myHost.clientCount = Object.values(serverState.myHostPeers).filter(peer => peer.isClient).length
+    }
+    return stalePeerIds
 }
 
 export const getDiskUsage = async (): Promise<Awaited<ReturnType<typeof disk.check>> | undefined> => {
@@ -355,7 +383,8 @@ export const startHostExpirationTimer = (intervalMs: number = 1000): void => {
 
 export const pruneExpiredHosts = () => {
     const now = new Date().getTime()
-    // for each host, remove stale non-local hosts based on locally tracked heartbeat timestamps
+    // prune my host peers first, then remove stale non-local hosts
+    pruneMyExpiredPeers(now)
     for (const host of Object.values(serverState.hosts)) {
         const isMyHost = host.serverId === serverState.myServerId
         const shouldRemoveMyHost = isMyHost && !getAmHosting()

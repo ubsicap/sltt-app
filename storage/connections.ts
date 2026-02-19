@@ -181,11 +181,6 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
     const hostsByRelevance = getHostsByRelevance()
     const hostUrlToHostMap = hostsByRelevance.reduce((acc, host) => {
         acc[createUrl(host.protocol, host.ip, host.port)] = host
-        // get our host's own peer ip/port which is probably different than localhost
-        const hostOwnPeer = host.peers[host.serverId]
-        if (hostOwnPeer) {
-            acc[createUrl(hostOwnPeer.protocol, hostOwnPeer.ip, hostOwnPeer.port)] = host
-        }
         return acc
     }, {} as Record<string, HostInfo>)
     const networkName = cachedWifiConnections[0] || ''
@@ -197,9 +192,10 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
     const user = serverState.myUsername
     const { myServerId } = serverState
     const myHost = serverState.hosts[myServerId]
+    const myHostPeers = serverState.myHostPeers
     const computerName = hostname()
-    const peers = getAmHosting() && myHost ? (myHost.peerCount ?? Object.keys(myHost.peers).length) : 0
-    const clients = getAmHosting() && myHost ? (myHost.clientCount ?? Object.values(myHost.peers).filter(peer => peer.isClient).length) : 0
+    const peers = getAmHosting() && myHost ? (myHost.peerCount ?? Object.keys(myHostPeers).length) : 0
+    const clients = getAmHosting() && myHost ? (myHost.clientCount ?? Object.values(myHostPeers).filter(peer => peer.isClient).length) : 0
     const canProxy = getAmHosting() && myHost ? myHost.protocol === 'http' : false
     const projects = getAmHosting() && myHost ? myHost.projects : []
     const diskUsage = getAmHosting() && myHost ? myHost.diskUsage : undefined
@@ -280,8 +276,8 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                                 computerName: host.computerName,
                                 isMyServer: host.serverId === myServerId,
                                 user: host.user,
-                                clients: host.clientCount ?? (Object.values(host.peers).filter(peer => peer.isClient)).length,
-                                peers: host.peerCount ?? Object.keys(host.peers).length,
+                                clients: host.clientCount ?? 0,
+                                peers: host.peerCount ?? 0,
                                 projects: host.projects,
                                 diskUsage: host.diskUsage
                             }

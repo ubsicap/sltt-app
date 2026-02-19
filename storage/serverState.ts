@@ -13,13 +13,14 @@ type ServerInfo = {
 
 export type HostInfo = ServerInfo & {
     projects: string[],
-    peers: { [serverId: string]: PeerInfo },
     diskUsage: { available: number, free: number, total: number } | undefined,
     peerCount?: number,
     clientCount?: number,
     discoveredAt?: string,
     lastSeenAt?: string,
 }
+
+export type MyHostPeers = { [serverId: string]: PeerInfo }
 
 export type PeerInfo = ServerInfo & {
     /** (host-generated timestamp) when the peer's host was updated */
@@ -28,6 +29,8 @@ export type PeerInfo = ServerInfo & {
     hostPeersAt: string,
     /** (peer-generated timestamp) when peer sent response to host */
     updatedAt: string,
+    /** (host-local timestamp) when this peer was last seen */
+    lastSeenAt?: string,
     /** is a client using the host as a proxy */
     isClient: boolean,
 }
@@ -53,6 +56,7 @@ export const initialServerConfig: ServerSettings = {
 export const serverState = {
     hostProjects: new Set<string>(),
     hosts,
+    myHostPeers: {} as MyHostPeers,
     proxyUrl: '',
     proxyServerId: '',
     myUrl: '',
@@ -119,14 +123,6 @@ const sortHostsByRelevance = (a: HostInfo, b: HostInfo): number => {
         if (a.serverId === myServerId) return -1
         if (b.serverId === myServerId) return 1
     }
-    // look for myself in host peers and sort by earlier updatedAt
-    const aPeer = a.peers[myServerId]
-    const bPeer = b.peers[myServerId]
-    if (aPeer && bPeer) {
-        return aPeer.hostPeersAt < bPeer.hostPeersAt ? -1 : 1
-    }
-    if (aPeer) return -1
-    if (bPeer) return 1
 
     const aOrderAt = a.discoveredAt || a.updatedAt
     const bOrderAt = b.discoveredAt || b.updatedAt

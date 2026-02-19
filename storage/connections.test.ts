@@ -21,6 +21,7 @@ class MockedNodeError extends Error {
 beforeEach(() => {
     vi.resetAllMocks()
     serverState.hosts = {}
+    serverState.myHostPeers = {}
     serverState.hostProjects = new Set()
     serverState.allowHosting = false
     serverState.myServerId = ''
@@ -114,7 +115,7 @@ describe('handleProbeConnections', () => {
         const username = 'user1'
         const hostsByRelevance: HostInfo[] = [
             {
-                serverId: 'server1', protocol: 'http', ip: '123.4.5.6', port: 12345, peers: {}, projects: [],
+                serverId: 'server1', protocol: 'http', ip: '123.4.5.6', port: 12345, projects: [],
                 computerName: 'computer1', user: 'user1', startedAt: '2021-01-01', updatedAt: '2021-01-01',
                 diskUsage: { available: availableMb * 1024 * 1024, free: (availableMb + 50) * 1024 * 1024, total: 1000 * 1024 * 1024 },
             },
