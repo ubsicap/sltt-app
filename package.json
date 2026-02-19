@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "208600.8.3",
+  "version": "208600.8.4",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -116,7 +116,7 @@
     "@typescript-eslint/parser": "^5.57.0",
     "@vitejs/plugin-react": "^3.1.0",
     "cross-env": "^7.0.3",
-    "electron": "^36.0.0",
+    "electron": "^31.7.7",
     "electron-builder": "^26.8.1",
     "electron-vite": "^1.0.21",
     "eslint": "^8.36.0",
