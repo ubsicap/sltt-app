@@ -21,6 +21,7 @@ vi.mock('./serverState', () => ({
         allowHosting: false,
         myLanStoragePath: '',
         proxyServerId: '',
+        proxyServerIdAt: '',
         hostProjects: new Set(),
     },
 }))
@@ -62,6 +63,8 @@ describe('UDP Client', () => {
         serverState.myServerId = 'my-server-id'
         serverState.allowHosting = false
         serverState.myLanStoragePath = ''
+        serverState.proxyServerId = ''
+        serverState.proxyServerIdAt = ''
         udpState = startUdpClient()
         udpState.myClient = myClient
     })
@@ -442,6 +445,37 @@ describe('UDP Client', () => {
         expect(serverState.myHostPeers['peer2']).toBeDefined()
         expect(serverState.myHostPeers['peer2'].computerName).toBe('computer2')
         expect(serverState.myHostPeers['peer2'].isClient).toBe(false)
+    })
+
+    it('should treat stale proxyServerIdAt as not client when responding to host push', async () => {
+        serverState.proxyServerId = 'peer1'
+        serverState.proxyServerIdAt = new Date(Date.now() - hostUpdateIntervalMs * 3).toISOString()
+        const msg = Buffer.from(JSON.stringify({
+            client: {
+                serverId: 'peer1',
+                startedAt: '2023-01-01T00:00:00Z',
+                computerName: 'computer1',
+                user: 'user1',
+            },
+            message: {
+                createdAt: new Date().toISOString(),
+                type: 'push',
+                id: MSG_PUSH_HOST_INFO,
+                json: JSON.stringify({
+                    port: UDP_CLIENT_PORT,
+                    projects: ['project1'],
+                    peerCount: 1,
+                    clientCount: 1,
+                    diskUsage: { available: 100, free: 50, total: 150 },
+                }),
+            },
+        }))
+        const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
+        await handleMessages(msg, rinfo)
+        const jsonData: ClientMessage = extractSpyClientMessage(myClient, rinfo)
+        expect(jsonData.message.id).toBe(MSG_PUSH_HOST_INFO)
+        const payload = JSON.parse(jsonData.message.json) as { isClient: boolean }
+        expect(payload.isClient).toBe(false)
     })
 })
 

@@ -59,6 +59,7 @@ export const serverState = {
     myHostPeers: {} as MyHostPeers,
     proxyUrl: '',
     proxyServerId: '',
+    proxyServerIdAt: '',
     myUrl: '',
     myUsername: '',
     ...initialServerConfig
@@ -108,6 +109,7 @@ export const setProxy = ({ serverId, url }: { serverId: string, url: string }): 
         throw new Error(`Invalid proxy serverId: ${serverId}`)
     }
     serverState.proxyServerId = serverId
+    serverState.proxyServerIdAt = new Date().toISOString()
     serverState.proxyUrl = url
 }
 

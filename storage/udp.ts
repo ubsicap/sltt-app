@@ -67,6 +67,13 @@ type PushHostInfoResponse = {
     isClient: boolean,
 }
 
+const isProxyClientActiveForHost = (hostServerId: string, now = new Date().getTime()): boolean => {
+    if (serverState.proxyServerId !== hostServerId) return false
+    if (!serverState.proxyServerIdAt) return false
+    const proxyServerAgeMs = now - new Date(serverState.proxyServerIdAt).getTime()
+    return proxyServerAgeMs <= peerExpirationMs
+}
+
 export type ClientMessage = {
     client: {
         serverId: string,
@@ -226,7 +233,7 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
             // respond (as a peer) with our own local ip address and port information
             const payload: PushHostInfoResponse = {
                 port: getServerConfig().port, hostServerId, hostUpdatedAt,
-                isClient: serverState.proxyServerId === hostServerId,
+                isClient: isProxyClientActiveForHost(hostServerId),
             }
             sendMessage({
                 type: 'response', id: MSG_PUSH_HOST_INFO,
