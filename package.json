@@ -1,6 +1,6 @@
 {
   "name": "sltt-app",
-  "version": "208600.8.7",
+  "version": "208600.8.8",
   "description": "Installable SLTT app (Sign Language Translation Tool)",
   "main": "./out/main/index.js",
   "author": "sltt-bible.net",
@@ -47,11 +47,11 @@
     "list:release": "gh release list -R ubsicap/sltt-app | grep -v 'Draft'",
     "show:release": "export versionTag=$(jq -r .version package.json); gh release view v${versionTag} --web -R ubsicap/sltt-app",
     "copy:mac:client": "npm run find:auth0_client_id:source:mac && npm run find:version:source:mac && npm run find:auth0_client_id:source:mac && rm -rf out/client; mkdir -p out/client; cp -Rv $SLTT_CLIENT_DIR/build/* out/client",
-    "build:mac:norelease:core": "NODE_OPTIONS=--use-bundled-ca npm install && electron-vite build && node build/run-electron-builder.js --mac zip --x64 --config --publish never",
+    "build:mac:norelease:core": "NODE_OPTIONS=--use-bundled-ca npm install && electron-vite build && node build/run-electron-builder.js --mac dmg zip --x64 --config --publish never",
     "build:mac:norelease": "npm run copy:mac:client && npm run find:version:target:mac && npm run find:auth0_client_id:target:mac && npm run build:mac:norelease:core",
     "build:mac:ifNoWinRelease": "npm run copy:mac:client; electron-vite build && node build/run-electron-builder.js --mac --config --publish always",
-    "delete:mac:release-assets": "export versionTag=$(jq -r .version package.json); for asset in latest-mac.yml sltt-app-${versionTag}-mac.zip sltt-app-${versionTag}-mac.zip.blockmap; do gh release delete-asset v${versionTag} \"$asset\" -R ubsicap/sltt-app --yes || true; done",
-    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo uploading to release ${versionTag}; npm run delete:mac:release-assets; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap -R ubsicap/sltt-app --clobber",
+    "delete:mac:release-assets": "export versionTag=$(jq -r .version package.json); for asset in latest-mac.yml sltt-app-${versionTag}.dmg sltt-app-${versionTag}-mac.zip sltt-app-${versionTag}-mac.zip.blockmap; do gh release delete-asset v${versionTag} \"$asset\" -R ubsicap/sltt-app --yes || true; done",
+    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo uploading to release ${versionTag}; npm run delete:mac:release-assets; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap -R ubsicap/sltt-app --clobber",
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },
   "build": {
@@ -116,7 +116,7 @@
     "@typescript-eslint/parser": "^5.57.0",
     "@vitejs/plugin-react": "^3.1.0",
     "cross-env": "^7.0.3",
-    "electron": "^27.0.0",
+    "electron": "^24.8.8",
     "electron-builder": "^26.8.1",
     "electron-vite": "^1.0.21",
     "eslint": "^8.36.0",
