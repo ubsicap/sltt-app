@@ -235,17 +235,9 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
             return
         }
         if (message.type === 'response') {
-            const { port, hostServerId, hostUpdatedAt, isClient }: PushHostInfoResponse = JSON.parse(message.json)
-            if (hostServerId !== serverState.myServerId) {
-                return
-            }
-            // the host should store each peer's data
+            const { port, hostUpdatedAt, isClient }: PushHostInfoResponse = JSON.parse(message.json)
+            // my host should update each peer's data
             const { startedAt, computerName, user } = client
-            const host = serverState.hosts[hostServerId]
-            if (!host) {
-                console.warn(`Skipping peer update for missing host '${hostServerId}'`)
-                return
-            }
             const existingPeer = serverState.myHostPeers[client.serverId]
             const peerUpdatedAt = message.createdAt
             const peerLastSeenAt = new Date().toISOString()
@@ -264,9 +256,10 @@ export const handleMessages = async (msg: Buffer, rinfo: dgram.RemoteInfo) => {
                 lastSeenAt: peerLastSeenAt,
             }
             serverState.myHostPeers[client.serverId] = updatedPeer
-            host.peerCount = Object.keys(serverState.myHostPeers).length
-            host.clientCount = Object.values(serverState.myHostPeers).filter(peer => peer.isClient).length
-            console.log('Peers count: ', Object.keys(serverState.myHostPeers).length)
+            const peersCount = Object.keys(serverState.myHostPeers).length
+            console.log('My peers count: ', peersCount)
+            const clientCount = Object.values(serverState.myHostPeers).filter(peer => peer.isClient).length
+            console.log('My clients count:', clientCount)
         }
     }
     // if (message.type === 'response' && message.id === MSG_SLTT_STORAGE_SERVER_URL) {

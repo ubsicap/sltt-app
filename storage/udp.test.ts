@@ -413,7 +413,7 @@ describe('UDP Client', () => {
         expect(serverState.myHostPeers['peer2'].computerName).toBe('computer2')
     })
 
-    it('should ignore push host info response updates for non-my hosts', async () => {
+    it('should update myHostPeers from push host info response updates for non-my hosts', async () => {
         serverState.hosts['peer1'] = {
             serverId: 'peer1',
         } as HostInfo
@@ -439,7 +439,9 @@ describe('UDP Client', () => {
         }))
         const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
         await handleMessages(msg, rinfo)
-        expect(serverState.myHostPeers['peer2']).toBeUndefined()
+        expect(serverState.myHostPeers['peer2']).toBeDefined()
+        expect(serverState.myHostPeers['peer2'].computerName).toBe('computer2')
+        expect(serverState.myHostPeers['peer2'].isClient).toBe(false)
     })
 })
 
