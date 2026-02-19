@@ -15,6 +15,10 @@ export type HostInfo = ServerInfo & {
     projects: string[],
     peers: { [serverId: string]: PeerInfo },
     diskUsage: { available: number, free: number, total: number } | undefined,
+    peerCount?: number,
+    clientCount?: number,
+    discoveredAt?: string,
+    lastSeenAt?: string,
 }
 
 export type PeerInfo = ServerInfo & {
@@ -123,6 +127,13 @@ const sortHostsByRelevance = (a: HostInfo, b: HostInfo): number => {
     }
     if (aPeer) return -1
     if (bPeer) return 1
+
+    const aOrderAt = a.discoveredAt || a.updatedAt
+    const bOrderAt = b.discoveredAt || b.updatedAt
+    if (aOrderAt !== bOrderAt) {
+        return aOrderAt < bOrderAt ? -1 : 1
+    }
+
     return 0
 }
 

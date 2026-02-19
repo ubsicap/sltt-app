@@ -6,7 +6,10 @@ import { getServerConfig } from './serverConfig'
 import disk from 'diskusage'
 
 vi.mock('dgram')
-vi.mock('os', () => ({ hostname: (): string => 'test-hostname' }))
+vi.mock('os', () => ({
+    hostname: (): string => 'test-hostname',
+    networkInterfaces: (): ReturnType<typeof import('os').networkInterfaces> => ({})
+}))
 vi.mock('./serverState', () => ({
     createUrl: vi.fn(),
     getAmHosting: vi.fn(),
@@ -38,9 +41,15 @@ describe('UDP Client', () => {
         myClient = {
             createdAt,
             on: vi.fn(),
-            send: vi.fn((msg, start, msgLength, port, address, cb: (err) => {}) => {
-                cb(null)
-                console.log(`[${createdAt}] Sent message: ${msg.toString()} to ${address}:${port}`, start, msgLength)
+            send: vi.fn((...args: unknown[]) => {
+                const callback = args[args.length - 1]
+                if (typeof callback === 'function') {
+                    callback(null)
+                }
+                const port = typeof args[1] === 'number' && typeof args[2] === 'string' ? args[1] : args[3]
+                const address = typeof args[1] === 'number' && typeof args[2] === 'string' ? args[2] : args[4]
+                const msg = args[0] as Buffer
+                console.log(`[${createdAt}] Sent message: ${msg.toString()} to ${String(address)}:${String(port)}`)
             }),
             bind: vi.fn(),
             address: vi.fn(() => ({ address: '127.0.0.1', port: UDP_CLIENT_PORT })),
@@ -117,108 +126,54 @@ describe('UDP Client', () => {
         vi.mocked(disk.check).mockResolvedValue(expectedDiskUsage)
         await broadcastPushHostDataMaybe(fnGetProjects)
         expect(fnGetProjects).toHaveBeenCalled()
-        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), UDP_CLIENT_PORT, BROADCAST_ADDRESS, expect.any(Function))
+        expect(hasSendCallFor(myClient, UDP_CLIENT_PORT, BROADCAST_ADDRESS)).toBe(true)
         const jsonData: ClientMessage = extractSpyClientMessage(myClient, { address: BROADCAST_ADDRESS, port: UDP_CLIENT_PORT, family: 'IPv4', size: 0 })
         expect(jsonData.message.id).toBe(MSG_PUSH_HOST_INFO)
         expect(jsonData.message.type).toBe('push')
         expect(jsonData.message.json).toBe(JSON.stringify({
             port: UDP_CLIENT_PORT,
             projects: mockProjects,
-            peers: {},
+            peerCount: 0,
+            clientCount: 0,
             diskUsage: expectedDiskUsage,
         }))
     })
 
     it('should remove expired hosts', () => {
         const now = new Date().getTime()
-        const host1Peers: { [serverId: string]: PeerInfo } = {
-            'my-server-id': {
-                serverId: 'my-server-id',
-                updatedAt: new Date(now - hostUpdateIntervalMs * 3).toISOString() as string,
-                startedAt: '2023-01-01T00:00:00Z',
-                computerName: 'computer1',
-                user: 'user1',
-                protocol: 'http',
-                ip: '',
-                port: 0,
-                hostUpdatedAt: '2023-01-01T00:00:00Z',
-                hostPeersAt: '2023-01-01T00:00:00Z',
-                isClient: false,
-            }
-        }
-        const host2Peers: { [serverId: string]: PeerInfo } = {
-            'my-server-id': {
-                serverId: 'my-server-id',
-                updatedAt: new Date(now - hostUpdateIntervalMs).toISOString() as string,
-                startedAt: '2023-01-01T00:00:00Z',
-                computerName: 'computer1',
-                user: 'user1',
-                protocol: 'http',
-                ip: '',
-                port: 0,
-                hostUpdatedAt: '2023-01-01T00:00:00Z',
-                hostPeersAt: '2023-01-01T00:00:00Z',
-                isClient: false,
-            }
-        }
-        const host3Peers: { [serverId: string]: PeerInfo } = {
-            'foreigner': {
-                serverId: 'foreigner',
-                updatedAt: new Date(now - hostUpdateIntervalMs).toISOString() as string,
-                startedAt: '2023-01-01T00:00:00Z',
-                computerName: 'foreign computer',
-                user: 'user1',
-                protocol: 'http',
-                ip: '',
-                port: 0,
-                hostUpdatedAt: '2023-01-01T00:00:00Z',
-                hostPeersAt: '2023-01-01T00:00:00Z',
-                isClient: false,
-            }
-        }
+        const host1Peers: { [serverId: string]: PeerInfo } = {}
+        const host2Peers: { [serverId: string]: PeerInfo } = {}
+        const host3Peers: { [serverId: string]: PeerInfo } = {}
         serverState.hosts['host1'] = {
             serverId: 'host1',
-            peers: host1Peers
+            peers: host1Peers,
+            lastSeenAt: new Date(now - hostUpdateIntervalMs * 3).toISOString(),
         } as HostInfo
         serverState.hosts['host2'] = {
             serverId: 'host2',
-            peers: host2Peers
+            peers: host2Peers,
+            lastSeenAt: new Date(now - hostUpdateIntervalMs).toISOString(),
         } as HostInfo
         serverState.hosts['host3'] = {
             serverId: 'host3',
-            peers: host3Peers
+            peers: host3Peers,
+            lastSeenAt: undefined,
         } as HostInfo
         pruneExpiredHosts()
         expect(serverState.hosts).toEqual({
             'host2': {
                 serverId: 'host2',
                 peers: {
-                    'my-server-id': host2Peers['my-server-id']
-                }
+                },
+                lastSeenAt: new Date(now - hostUpdateIntervalMs).toISOString(),
             }
         })
     })
 
     it('should remove my disabled host', () => {
-        const now = new Date().getTime()
-        const host2Peers: { [serverId: string]: PeerInfo } = {
-            'my-server-id': {
-                serverId: 'my-server-id',
-                updatedAt: new Date(now - hostUpdateIntervalMs).toISOString() as string,
-                startedAt: '2023-01-01T00:00:00Z',
-                computerName: 'computer1',
-                user: 'user1',
-                protocol: 'http',
-                ip: '',
-                port: 0,
-                hostUpdatedAt: '2023-01-01T00:00:00Z',
-                hostPeersAt: '2023-01-01T00:00:00Z',
-                isClient: false,
-            }
-        }
         serverState.hosts['my-server-id'] = {
             serverId: 'my-server-id',
-            peers: host2Peers
+            peers: {}
         } as HostInfo
         (getAmHosting as Mock).mockReturnValue(false)
         pruneExpiredHosts()
@@ -243,7 +198,7 @@ describe('UDP Client', () => {
         const rinfo = { address: '123.4.5.6', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
         await handleMessages(msg, rinfo)
         expect(udpState.myUdpIpAddress).toBe(rinfo.address)
-        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), rinfo.port, rinfo.address, expect.any(Function))
+        expect(hasSendCallFor(myClient, rinfo.port, rinfo.address)).toBe(true)
         const jsonData: ClientMessage = extractSpyClientMessage(myClient, rinfo)
         expect(jsonData.message.id).toBe(MSG_DISCOVER_MY_UDP_IP_ADDRESS)
         expect(jsonData.message.type).toBe('response')
@@ -264,14 +219,8 @@ describe('UDP Client', () => {
                 json: JSON.stringify({
                     port: UDP_CLIENT_PORT,
                     projects: ['project1', 'project2'],
-                    peers: {
-                        [serverState.myServerId]: {
-                            serverId: serverState.myServerId,
-                            updatedAt: '2023-01-01T00:00:00Z',
-                            startedAt: '2023-01-01T00:00:00Z',
-                            computerName: 'computer1',
-                        }
-                    },
+                    peerCount: 5,
+                    clientCount: 2,
                     diskUsage: { available: 100, free: 50, total: 150 },
                 }),
             },
@@ -281,13 +230,42 @@ describe('UDP Client', () => {
         expect(serverState.hosts['peer1']).toBeDefined()
         expect(serverState.hosts['peer1'].projects).toEqual(['project1', 'project2'])
         expect(serverState.hosts['peer1'].diskUsage).toEqual({ available: 100, free: 50, total: 150 })
-        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), rinfo.port, rinfo.address, expect.any(Function))
+        expect(serverState.hosts['peer1'].peerCount).toBe(5)
+        expect(serverState.hosts['peer1'].clientCount).toBe(2)
+        expect(hasSendCallFor(myClient, rinfo.port, rinfo.address)).toBe(true)
         const jsonData: ClientMessage = extractSpyClientMessage(myClient, rinfo)
         expect(jsonData.message.id).toBe(MSG_PUSH_HOST_INFO)
         expect(jsonData.message.type).toBe('response')
     })
 
-    it('should skip remote host info message without my peer info, but still respond', async () => {
+    it('should keep local host peer map when receiving remote host push updates', async () => {
+        serverState.hosts['peer1'] = {
+            serverId: 'peer1',
+            protocol: 'http',
+            ip: '127.0.0.1',
+            port: UDP_CLIENT_PORT,
+            user: 'user1',
+            startedAt: '2023-01-01T00:00:00Z',
+            updatedAt: '2023-01-01T00:00:00Z',
+            computerName: 'computer1',
+            peers: {
+                myPeer: {
+                    serverId: 'myPeer',
+                    startedAt: '2023-01-01T00:00:00Z',
+                    computerName: 'my-computer',
+                    user: 'user1',
+                    protocol: 'http',
+                    ip: '127.0.0.1',
+                    port: UDP_CLIENT_PORT,
+                    hostUpdatedAt: '2023-01-01T00:00:00Z',
+                    hostPeersAt: '2023-01-01T00:00:00Z',
+                    updatedAt: '2023-01-01T00:00:00Z',
+                    isClient: false,
+                }
+            },
+            projects: ['project1', 'project2'],
+            diskUsage: { available: 100, free: 50, total: 150 },
+        } as HostInfo
         const msg = Buffer.from(JSON.stringify({
             client: {
                 serverId: 'peer1',
@@ -302,22 +280,17 @@ describe('UDP Client', () => {
                 json: JSON.stringify({
                     port: UDP_CLIENT_PORT,
                     projects: ['project1', 'project2'],
-                    peers: {
-                        'peer1': {
-                            serverId: serverState.myServerId,
-                            updatedAt: '2023-01-01T00:00:00Z',
-                            startedAt: '2023-01-01T00:00:00Z',
-                            computerName: 'computer1',
-                        }
-                    },
+                    peerCount: 4,
+                    clientCount: 1,
                     diskUsage: { available: 100, free: 50, total: 150 },
                 }),
             },
         }))
         const rinfo = { address: '127.0.0.1', port: UDP_CLIENT_PORT } as dgram.RemoteInfo
         await handleMessages(msg, rinfo)
-        expect(serverState.hosts['peer1']).toBeUndefined()
-        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), rinfo.port, rinfo.address, expect.any(Function))
+        expect(serverState.hosts['peer1']).toBeDefined()
+        expect(serverState.hosts['peer1'].peers['myPeer']).toBeDefined()
+        expect(hasSendCallFor(myClient, rinfo.port, rinfo.address)).toBe(true)
         const jsonData: ClientMessage = extractSpyClientMessage(myClient, rinfo)
         expect(jsonData.message.id).toBe(MSG_PUSH_HOST_INFO)
         expect(jsonData.message.type).toBe('response')
@@ -338,7 +311,8 @@ describe('UDP Client', () => {
                 json: JSON.stringify({
                     port: UDP_CLIENT_PORT,
                     projects: ['project1', 'project2'],
-                    peers: {},
+                    peerCount: 0,
+                    clientCount: 0,
                     diskUsage: { available: 100, free: 50, total: 150 },
                 }),
             },
@@ -348,7 +322,7 @@ describe('UDP Client', () => {
         expect(serverState.hosts[serverState.myServerId]).toBeDefined()
         expect(serverState.hosts[serverState.myServerId].projects).toEqual(['project1', 'project2'])
         expect(serverState.hosts[serverState.myServerId].diskUsage).toEqual({ available: 100, free: 50, total: 150 })
-        expect(myClient.send).toHaveBeenCalledWith(expect.any(Buffer), 0, expect.any(Number), rinfo.port, rinfo.address, expect.any(Function))
+        expect(hasSendCallFor(myClient, rinfo.port, rinfo.address)).toBe(true)
         const jsonData: ClientMessage = extractSpyClientMessage(myClient, rinfo)
         expect(jsonData.message.id).toBe(MSG_PUSH_HOST_INFO)
         expect(jsonData.message.type).toBe('response')
@@ -386,10 +360,27 @@ describe('UDP Client', () => {
 })
 
 function extractSpyClientMessage(myClient: dgram.Socket, rinfo: dgram.RemoteInfo): ClientMessage {
-    const sendCall = (myClient.send as Mock).mock.calls.find(call => call[4] === rinfo.address && call[3] === rinfo.port)
+    const sendCall = (myClient.send as Mock).mock.calls.find(call => getCallPortAddress(call).port === rinfo.port && getCallPortAddress(call).address === rinfo.address)
     const bufferData = sendCall ? sendCall[0] : null
     expect(bufferData).not.toBeNull()
     const jsonData: ClientMessage = JSON.parse(bufferData.toString())
     return jsonData
+}
+
+function hasSendCallFor(myClient: dgram.Socket, port: number, address: string): boolean {
+    return (myClient.send as Mock).mock.calls.some(call => {
+        const target = getCallPortAddress(call)
+        return target.port === port && target.address === address
+    })
+}
+
+function getCallPortAddress(call: unknown[]): { port: number | undefined, address: string | undefined } {
+    if (typeof call[1] === 'number' && typeof call[2] === 'string') {
+        return { port: call[1], address: call[2] }
+    }
+    if (typeof call[3] === 'number' && typeof call[4] === 'string') {
+        return { port: call[3], address: call[4] }
+    }
+    return { port: undefined, address: undefined }
 }
 

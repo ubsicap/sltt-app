@@ -198,8 +198,8 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
     const { myServerId } = serverState
     const myHost = serverState.hosts[myServerId]
     const computerName = hostname()
-    const peers = getAmHosting() && myHost ? Object.keys(myHost.peers).length : 0
-    const clients = getAmHosting() && myHost ? Object.values(myHost.peers).filter(peer => peer.isClient).length : 0
+    const peers = getAmHosting() && myHost ? (myHost.peerCount ?? Object.keys(myHost.peers).length) : 0
+    const clients = getAmHosting() && myHost ? (myHost.clientCount ?? Object.values(myHost.peers).filter(peer => peer.isClient).length) : 0
     const canProxy = getAmHosting() && myHost ? myHost.protocol === 'http' : false
     const projects = getAmHosting() && myHost ? myHost.projects : []
     const diskUsage = getAmHosting() && myHost ? myHost.diskUsage : undefined
@@ -280,8 +280,8 @@ export const handleProbeConnections = async ({ clientId }: ProbeConnectionsArgs)
                                 computerName: host.computerName,
                                 isMyServer: host.serverId === myServerId,
                                 user: host.user,
-                                clients: (Object.values(host.peers).filter(peer => peer.isClient)).length,
-                                peers: Object.keys(host.peers).length,
+                                clients: host.clientCount ?? (Object.values(host.peers).filter(peer => peer.isClient)).length,
+                                peers: host.peerCount ?? Object.keys(host.peers).length,
                                 projects: host.projects,
                                 diskUsage: host.diskUsage
                             }
