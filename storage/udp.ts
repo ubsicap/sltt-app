@@ -116,8 +116,8 @@ export const sendMessage = ({ type, id, json }: Omit<ClientMessage['message'], '
 
                 if (isMessageTooLarge) {
                     if (!dumpedOversizedUdpMessage) {
-                        console.error(`UDP message too large (${messageSizeBytes} bytes) for '${targetAddress}:${port}'. Dumping payload once for debugging:`)
-                        console.error(msg)
+                        console.error(`UDP message (${id}) too large (${messageSizeBytes} bytes) for '${targetAddress}:${port}'. Dumping payload once for debugging:`)
+                        console.error(JSON.stringify(JSON.parse(msg), null, 2))
                         dumpedOversizedUdpMessage = true
                     }
                     return
