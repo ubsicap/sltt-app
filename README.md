@@ -1,6 +1,11 @@
 # sltt-app
 
-An installable SLTT app (Sign Language Translation Tool) for Windows (todo: macOS)
+An installable SLTT app (Sign Language Translation Tool) for Windows
+
+## Latest Release(s)
+The latest published windows and macos installer(s) are always located at this link:
+
+https://github.com/ubsicap/sltt-app/releases/latest
 
 ## Recommended IDE Setup
 
