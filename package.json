@@ -51,7 +51,7 @@
     "build:mac:norelease": "npm run copy:mac:client && npm run find:version:target:mac && npm run find:auth0_client_id:target:mac && npm run build:mac:norelease:core",
     "build:mac:ifNoWinRelease": "npm run copy:mac:client; electron-vite build && node build/run-electron-builder.js --mac --config --publish always",
     "delete:mac:release-assets": "export versionTag=$(jq -r .version package.json); for asset in latest-mac.yml sltt-app-${versionTag}.dmg sltt-app-${versionTag}-mac.zip sltt-app-${versionTag}-mac.zip.blockmap; do gh release delete-asset v${versionTag} \"$asset\" -R ubsicap/sltt-app --yes || true; done",
-    "upload:mac:release": "export versionTag=$(jq -r .version package.json); echo uploading to release ${versionTag}; npm run delete:mac:release-assets; gh release upload v${versionTag} dist/latest-mac.yml dist/sltt-app-${versionTag}.dmg dist/sltt-app-${versionTag}-mac.zip dist/sltt-app-${versionTag}-mac.zip.blockmap -R ubsicap/sltt-app --clobber",
+    "upload:mac:release": "node build/uploadMacRelease.js",
     "build:linux": "electron-vite build && electron-builder --linux --config"
   },
   "build": {
