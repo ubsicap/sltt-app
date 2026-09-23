@@ -23,7 +23,7 @@ const getFileExtension = () => os.platform() === 'win32' ? '.exe' : ''
 
 let platform = os.platform() === 'win32' ? 'win32' : 'macos'
 
-// const srcFfmpegPath = path.join(__dirname, `/extraResources/${platform}/ffmpeg-x64${getFileExtension()}`)
+// const srcFfmpegPath = path.join(__dirname, `/extraResources/${platform}/ffmpeg${getFileExtension()}`)
 const srcFfmpegPath = require('ffmpeg-static').replace(
     'app.asar',
     'app.asar.unpacked'
@@ -33,7 +33,7 @@ const srcFfmpegPath = require('ffmpeg-static').replace(
 
 console.log(`srcFfmpegPath: ${srcFfmpegPath}`)
 
-const ffmpegPath = path.join(resourcesPath, `/ffmpeg-x64${getFileExtension()}`)
+const ffmpegPath = path.join(resourcesPath, `/ffmpeg${getFileExtension()}`)
 
 const version = '2.0.0'
 console.log(`sltt-app compressor server version: ${version}`)

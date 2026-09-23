@@ -5,7 +5,7 @@
   "bin": "index.js",
   "license": "MIT",
   "scripts": {
-    "pkg-mac": "pkg . --debug --targets node12-macos-x64 --out-path ./install_mac",
+    "pkg-mac": "pkg . --debug --targets node12-macos-arm64 --out-path ./install_mac",
     "deploy-mac-prd": "aws s3 cp install_mac/compress s3://sltt-hosting-prd/mac/compress; aws s3 cp install_mac/sltt_video_compressor s3://sltt-hosting-prd/mac/sltt_video_compressor",
     "deploy-mac-dev": "aws s3 cp install_mac/compress_dev s3://sltt-hosting-prd/dev/compress; aws s3 cp install_mac/sltt_video_compressor s3://sltt-hosting-dev/mac/sltt_video_compressor",
 
